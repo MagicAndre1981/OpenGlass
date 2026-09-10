@@ -379,10 +379,22 @@ void HookHelper::HookTransaction::Commit() noexcept
 HMODULE HookHelper::GetRemoteModuleBase(DWORD processId, LPCWSTR moduleName)
 {
 	HMODULE result{ nullptr };
-	wil::unique_handle snapshot{ CreateToolhelp32Snapshot(TH32CS_SNAPMODULE | TH32CS_SNAPMODULE32, processId) };
-	if (!snapshot.is_valid())
+	wil::unique_hfile snapshot{};
+	for (;;)
 	{
-		return result;
+		snapshot.reset(CreateToolhelp32Snapshot(TH32CS_SNAPMODULE | TH32CS_SNAPMODULE32, processId));
+		if (snapshot.is_valid())
+		{
+			break;
+		}
+
+		const auto error = GetLastError();
+		if (error != ERROR_BAD_LENGTH)
+		{
+			LOG_WIN32(error);
+			return result;
+		}
+		Sleep(5);
 	}
 
 	wil::unique_handle processHandle{ OpenProcess(PROCESS_VM_READ | PROCESS_QUERY_INFORMATION, FALSE, processId) };
@@ -394,6 +406,7 @@ HMODULE HookHelper::GetRemoteModuleBase(DWORD processId, LPCWSTR moduleName)
 	MODULEENTRY32W me{ sizeof(me) };
 	if (!Module32FirstW(snapshot.get(), &me))
 	{
+		LOG_WIN32(GetLastError());
 		return result;
 	}
 

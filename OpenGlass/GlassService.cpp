@@ -129,9 +129,8 @@ HRESULT GlassService::InjectOpenGlassDLL(DWORD processId, bool inject)
 		reinterpret_cast<ULONG_PTR>(wil::GetModuleInstanceHandle())
 	);
 
-	const auto CreateRemoteThreadWithNTAPI = [&](LPTHREAD_START_ROUTINE startRoutine, void* parameter) -> wil::unique_handle
+	const auto CreateRemoteThreadWithNTAPI = [&](wil::unique_handle& threadHandle, LPTHREAD_START_ROUTINE startRoutine, void* parameter) -> HRESULT
 	{
-		wil::unique_handle threadHandle{};
 		const auto status = NtCreateThreadEx(
 			threadHandle.put(),
 			THREAD_ALL_ACCESS,
@@ -145,9 +144,14 @@ HRESULT GlassService::InjectOpenGlassDLL(DWORD processId, bool inject)
 			0,
 			nullptr
 		);
-		LOG_IF_NTSTATUS_FAILED(status);
+		RETURN_IF_NTSTATUS_FAILED_MSG(
+			status,
+			"Unable to create remote thread in process %lu at %p",
+			processId,
+			startRoutine
+		);
 
-		return threadHandle;
+		return S_OK;
 	};
 	const auto WaitForRemoteThread = [](HANDLE threadHandle, DWORD* exitCode = nullptr) -> HRESULT
 	{
@@ -165,13 +169,65 @@ HRESULT GlassService::InjectOpenGlassDLL(DWORD processId, bool inject)
 
 	if (inject)
 	{
-		const auto remoteLoadLibraryW = GetProcAddress(GetModuleHandleW(L"kernel32.dll"), "LoadLibraryW");
+		const auto kernel32 = GetModuleHandleW(L"kernel32.dll");
+		const auto remoteLoadLibraryW = GetProcAddress(kernel32, "LoadLibraryW");
+		RETURN_LAST_ERROR_IF_NULL(remoteLoadLibraryW);
+		const auto remoteFreeLibrary = GetProcAddress(kernel32, "FreeLibrary");
+		RETURN_LAST_ERROR_IF_NULL(remoteFreeLibrary);
+
+		HMODULE remoteDllBase{};
+		bool loadCompleted{};
+		auto rollbackLoad = wil::scope_exit([&]
+		{
+			if (!loadCompleted)
+			{
+				return;
+			}
+
+			// A failed lookup after LoadLibraryW must also enter rollback. Never use
+			// its thread's DWORD exit code as a pointer-sized HMODULE on x64.
+			if (!remoteDllBase)
+			{
+				remoteDllBase = HookHelper::GetRemoteModuleBase(processId, Util::g_thisModulePath.c_str());
+			}
+			if (!remoteDllBase)
+			{
+				LOG_HR_MSG(HRESULT_FROM_WIN32(ERROR_MOD_NOT_FOUND),
+					"Unable to locate OpenGlass for load rollback in process %lu", processId);
+				return;
+			}
+
+			// Startup never ran: release this LoadLibraryW reference without calling
+			// Shutdown. The rollback thread executes in kernel32, not in the DLL
+			// it unloads. Never retry FreeLibrary after a thread has been created.
+			wil::unique_handle rollbackThread{};
+			const auto createResult = CreateRemoteThreadWithNTAPI(
+				rollbackThread,
+				reinterpret_cast<LPTHREAD_START_ROUTINE>(remoteFreeLibrary),
+				remoteDllBase
+			);
+			if (FAILED(createResult))
+			{
+				LOG_HR_MSG(createResult, "Unable to start OpenGlass load rollback in process %lu", processId);
+				return;
+			}
+			DWORD rollbackResult{};
+			const auto waitResult = WaitForRemoteThread(rollbackThread.get(), &rollbackResult);
+			if (FAILED(waitResult))
+			{
+				LOG_HR_MSG(waitResult, "Unable to confirm OpenGlass load rollback in process %lu", processId);
+			}
+			else if (!rollbackResult)
+			{
+				LOG_HR_MSG(E_FAIL, "Remote FreeLibrary failed during OpenGlass load rollback in process %lu", processId);
+			}
+		});
 
 		{
 			const auto pathSize = (Util::g_thisModulePath.size() + 1ull) * sizeof(WCHAR);
 			void* remotePath = VirtualAllocEx(processHandle.get(), nullptr, pathSize, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
 			RETURN_LAST_ERROR_IF_NULL(remotePath);
-			const auto remotePathCleanup = wil::scope_exit([&]
+			auto remotePathCleanup = wil::scope_exit([&]
 			{
 				LOG_IF_WIN32_BOOL_FALSE(VirtualFreeEx(processHandle.get(), remotePath, 0, MEM_RELEASE));
 			});
@@ -188,19 +244,36 @@ HRESULT GlassService::InjectOpenGlassDLL(DWORD processId, bool inject)
 			);
 			RETURN_HR_IF(E_FAIL, bytesWritten != pathSize);
 
-			const auto loadThread = CreateRemoteThreadWithNTAPI(reinterpret_cast<LPTHREAD_START_ROUTINE>(remoteLoadLibraryW), remotePath);
-			RETURN_LAST_ERROR_IF_NULL(loadThread);
+			wil::unique_handle loadThread{};
+			RETURN_IF_FAILED(
+				CreateRemoteThreadWithNTAPI(
+					loadThread,
+					reinterpret_cast<LPTHREAD_START_ROUTINE>(remoteLoadLibraryW),
+					remotePath
+				)
+			);
 			// Keep the parameter alive until LoadLibraryW returns. Terminating a loader
 			// thread can strand the target process under the loader lock.
-			RETURN_IF_FAILED(WaitForRemoteThread(loadThread.get()));
+			const auto loadWaitResult = WaitForRemoteThread(loadThread.get());
+			if (FAILED(loadWaitResult))
+			{
+				// Completion is unknown. Retain the argument rather than freeing
+				// memory that the loader may still be reading.
+				remotePathCleanup.release();
+				RETURN_IF_FAILED(loadWaitResult);
+			}
+			loadCompleted = true;
 		}
 
-		HMODULE remoteDllBase = HookHelper::GetRemoteModuleBase(processId, Util::g_thisModulePath.c_str());
+		remoteDllBase = HookHelper::GetRemoteModuleBase(processId, Util::g_thisModulePath.c_str());
 		RETURN_HR_IF_NULL(HRESULT_FROM_WIN32(ERROR_MOD_NOT_FOUND), remoteDllBase);
 
 		const auto remoteInit = reinterpret_cast<LPTHREAD_START_ROUTINE>(reinterpret_cast<uint8_t*>(remoteDllBase) + initOffset);
-		const auto initThread = CreateRemoteThreadWithNTAPI(remoteInit, nullptr);
-		RETURN_LAST_ERROR_IF_NULL(initThread);
+		wil::unique_handle initThread{};
+		RETURN_IF_FAILED(CreateRemoteThreadWithNTAPI(initThread, remoteInit, nullptr));
+		// The initialization thread may already be executing or publishing hooks.
+		// Only the normal rundown/shutdown path may unload the DLL from here on.
+		rollbackLoad.release();
 
 		// Injection is not complete until Startup has finished publishing its hooks.
 		DWORD exitCode{};
@@ -216,8 +289,8 @@ HRESULT GlassService::InjectOpenGlassDLL(DWORD processId, bool inject)
 		}
 
 		const auto remoteUninit = reinterpret_cast<LPTHREAD_START_ROUTINE>(reinterpret_cast<uint8_t*>(remoteDllBase) + uninitOffset);
-		const auto uninitThread = CreateRemoteThreadWithNTAPI(remoteUninit, nullptr);
-		RETURN_LAST_ERROR_IF_NULL(uninitThread);
+		wil::unique_handle uninitThread{};
+		RETURN_IF_FAILED(CreateRemoteThreadWithNTAPI(uninitThread, remoteUninit, nullptr));
 
 		// FreeLibraryAndExitThread marks the end of the DLL's owned lifetime.
 		DWORD exitCode{};
