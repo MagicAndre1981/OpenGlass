@@ -127,40 +127,39 @@ HRESULT AccentOverrider::MyCAccent__UpdateSolidFill(
 	// is there any better way to implement it?
 	data->GetClientBlurAttributeReference() |= 8;
 
-	auto effectBrush = GlassEffectBrush::GetOrCreate(window);
+	winrt::com_ptr<uDWM::CSolidColorLegacyMilBrushProxy> effectBrush{ nullptr };
 	const auto maximized = window->TreatAsMaximized(data);
 
 	if (!visual->GetInstructions().views().empty())
 	{
 		winrt::com_ptr<uDWM::CDrawGeometryInstruction> instruction{ nullptr };
 		{
-			const auto drawRect = RectF::ToRectL(reinterpret_cast<uDWM::CSolidRectangleInstruction*>(visual->GetInstructions().views().front())->GetRectangle());
+			const auto solidRectangleInstruction = reinterpret_cast<uDWM::CSolidRectangleInstruction*>(visual->GetInstructions().views().front());
+			const auto drawRect = RectF::ToRectL(solidRectangleInstruction->GetRectangle());
+
 			RETURN_IF_FAILED(
 				uDWM::ResourceHelper::CreateGeometryFromHRGN(
 					wil::unique_hrgn{ CreateRectRgnIndirect(&drawRect) }.get(),
 					accentInfo.drawRegion.put()
 				)
 			);
-			if (!effectBrush)
-			{
-				RETURN_IF_FAILED(
-					uDWM::CDesktopManager::GetInstance()->GetCompositor()->CreateSolidColorLegacyMilBrushProxy(
-						effectBrush.put()
-					)
-				);
-				auto glassColor = Color::sRGBToscRGB(
-					GlassKernel::RealizeWindowColorization(
-						GlassKernel::GetBaseColor(Shared::IsTransparencyDisabled(), maximized),
-						GlassKernel::GetSourceColor(true),
-						GlassKernel::GetColorizationOpacity(true, maximized),
-						Shared::IsTransparencyDisabled(),
-						false
-					).GetEffectivescRGBBlendColor(0.f),
-					0.f
-				);
-				glassColor.a = GlassKernel::AlphaChannelReinterpreter(true, maximized).ToFloat();
-				RETURN_IF_FAILED(effectBrush->Update(1.0, glassColor));
-			}
+			RETURN_IF_FAILED(
+				uDWM::CDesktopManager::GetInstance()->GetCompositor()->CreateSolidColorLegacyMilBrushProxy(
+					effectBrush.put()
+				)
+			);
+			auto glassColor = Color::sRGBToscRGB(
+				GlassKernel::RealizeWindowColorization(
+					GlassKernel::GetBaseColor(Shared::IsTransparencyDisabled(), maximized),
+					GlassKernel::GetSourceColor(true),
+					GlassKernel::GetColorizationOpacity(true, maximized),
+					Shared::IsTransparencyDisabled(),
+					false
+				).GetEffectivescRGBBlendColor(0.f),
+				0.f
+			);
+			glassColor.a = GlassKernel::AlphaChannelReinterpreter(true, maximized).ToFloat();
+			RETURN_IF_FAILED(effectBrush->Update(1.0, glassColor));
 
 			RETURN_IF_FAILED(
 				uDWM::CDrawGeometryInstruction::Create(
