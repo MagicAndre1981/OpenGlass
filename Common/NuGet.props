@@ -18,6 +18,6 @@
           Condition="Exists('..\packages\Microsoft.SourceLink.GitHub.10.0.301\build\Microsoft.SourceLink.GitHub.props')" />
   <Import Project="..\packages\Microsoft.SourceLink.Common.10.0.301\build\Microsoft.SourceLink.Common.props"
           Condition="Exists('..\packages\Microsoft.SourceLink.Common.10.0.301\build\Microsoft.SourceLink.Common.props')" />
-  <Import Project="..\packages\Microsoft.Build.Tasks.Git.10.0.301\build\Microsoft.Build.Tasks.Git.props"
-          Condition="Exists('..\packages\Microsoft.Build.Tasks.Git.10.0.301\build\Microsoft.Build.Tasks.Git.props')" />
+  <Import Project="..\packages\Microsoft.Build.Tasks.Git.10.0.303\build\Microsoft.Build.Tasks.Git.props"
+          Condition="Exists('..\packages\Microsoft.Build.Tasks.Git.10.0.303\build\Microsoft.Build.Tasks.Git.props')" />
 </Project>

@@ -8,8 +8,8 @@
     NOTE: Relative paths here are resolved from the location of this file (Common\).
   -->
 
-  <Import Project="..\packages\Microsoft.Build.Tasks.Git.10.0.301\build\Microsoft.Build.Tasks.Git.targets"
-          Condition="Exists('..\packages\Microsoft.Build.Tasks.Git.10.0.301\build\Microsoft.Build.Tasks.Git.targets')" />
+  <Import Project="..\packages\Microsoft.Build.Tasks.Git.10.0.303\build\Microsoft.Build.Tasks.Git.targets"
+          Condition="Exists('..\packages\Microsoft.Build.Tasks.Git.10.0.303\build\Microsoft.Build.Tasks.Git.targets')" />
   <Import Project="..\packages\Microsoft.SourceLink.Common.10.0.301\build\Microsoft.SourceLink.Common.targets"
           Condition="Exists('..\packages\Microsoft.SourceLink.Common.10.0.301\build\Microsoft.SourceLink.Common.targets')" />
   <Import Project="..\packages\Microsoft.SourceLink.GitHub.10.0.301\build\Microsoft.SourceLink.GitHub.targets"
@@ -25,8 +25,8 @@
 
   <!-- Default import list for this repo (absolute paths to avoid ambiguous relative resolution). -->
   <ItemGroup>
-    <_NuGetDefaultBuildImport Include="$(MSBuildThisFileDirectory)..\packages\Microsoft.Build.Tasks.Git.10.0.301\build\Microsoft.Build.Tasks.Git.props" />
-    <_NuGetDefaultBuildImport Include="$(MSBuildThisFileDirectory)..\packages\Microsoft.Build.Tasks.Git.10.0.301\build\Microsoft.Build.Tasks.Git.targets" />
+    <_NuGetDefaultBuildImport Include="$(MSBuildThisFileDirectory)..\packages\Microsoft.Build.Tasks.Git.10.0.303\build\Microsoft.Build.Tasks.Git.props" />
+    <_NuGetDefaultBuildImport Include="$(MSBuildThisFileDirectory)..\packages\Microsoft.Build.Tasks.Git.10.0.303\build\Microsoft.Build.Tasks.Git.targets" />
     <_NuGetDefaultBuildImport Include="$(MSBuildThisFileDirectory)..\packages\Microsoft.SourceLink.Common.10.0.301\build\Microsoft.SourceLink.Common.props" />
     <_NuGetDefaultBuildImport Include="$(MSBuildThisFileDirectory)..\packages\Microsoft.SourceLink.Common.10.0.301\build\Microsoft.SourceLink.Common.targets" />
     <_NuGetDefaultBuildImport Include="$(MSBuildThisFileDirectory)..\packages\Microsoft.SourceLink.GitHub.10.0.301\build\Microsoft.SourceLink.GitHub.props" />
