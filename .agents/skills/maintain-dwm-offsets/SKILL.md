@@ -22,7 +22,7 @@ Do not silently expand a focused request into a full audit. Do not modify an IDB
 
 ## Establish evidence
 
-Read [evidence.md](references/evidence.md) for sample identity, interval semantics, confidence levels, cross-validation, and the report contract. Read [ida-workflow.md](references/ida-workflow.md) before operating IDA through MCP.
+Read [evidence.md](references/evidence.md) for sample identity, interval semantics, confidence levels, cross-validation, and the report contract. Read [ida-workflow.md](references/ida-workflow.md) before operating IDA through MCP: discover or adopt the intended session, verify its identity, and pass its explicit `database` ID on every query. An unadopted GUI entry is discovery information, not a usable session ID.
 
 For each sample:
 

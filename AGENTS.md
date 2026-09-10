@@ -111,6 +111,6 @@ msbuild OpenGlass/OpenGlass.MILComp.vcxproj /m /p:Configuration=Release /p:Platf
 - Do not infer that a class is removed because one decorated name is absent; check semantic anchors and callers.
 - Symbol matching uses exact, unmodified DbgHelp `UNDNAME_COMPLETE` output. Do not restore name-only, substring, decorated-name, or first-match fallbacks.
 - Do not assume nearby flags remain adjacent across builds.
-- Do not analyze multiple IDA MCP instances concurrently; instance selection is shared routing state. Reselect and verify the intended module before each query batch.
+- IDA MCP routes queries through an explicit `database` session ID returned by `idb_open`; discover sessions with `idb_list` and verify the intended module/path with `server_health` and `survey_binary`. Pass the verified session ID on every query, never an empty ID or the GUI's active-instance flag. Keep multi-sample audits serialized and follow the skill's session lifecycle rules; do not save or close a pre-existing user session as cleanup.
 - Do not publish or claim support for a build until both module projections and the relevant runtime path have been verified.
 - Preserve the emergency recovery behavior (`Ctrl`+`Win`+`Shift`+`Q`) when touching runtime code.

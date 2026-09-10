@@ -1,33 +1,48 @@
 # IDA MCP workflow
 
-Use MCP operations by capability rather than assuming a particular client-side tool spelling. Keep analysis read-only unless the user asks to annotate or change the IDB.
+Use the connected ida-pro-mcp tool schemas as the API authority; client-side prefixes may differ. The current API uses `idb_list` / `idb_open` and an explicit `database` argument for analysis tools. Keep analysis read-only unless the user asks to annotate or change the IDB.
 
 ## Start and route
 
-1. List the reachable IDA instances.
-2. Match instances by module and recorded path; do not rely on whichever instance is active.
-3. Select one instance and survey it before deeper queries.
-4. Record module, architecture, image base/size, function count, and hashes.
-5. Immediately before every query or small batch, reselect the intended instance and confirm its module/path identity.
-6. Query small groups of functions. Reconfirm the selected instance when switching samples.
+1. Call `idb_list({})`. Its `sessions` includes both adopted sessions and discovered GUI/worker instances. A discovered entry may have `session_id: ""` and `adopted: false`; `is_active: true` does not make it a routable session.
+2. Match the requested sample by full path and module. Reuse an existing non-empty session ID only after identity verification. To adopt a discovered GUI, call `idb_open` with its exact reported `input_path`, `mode: "prefer_gui"`, `run_auto_analysis: false`, `build_caches: false`, and `init_hexrays: false`. The reported path can be an `.i64` database; do not substitute a similarly named DLL from another directory. Check `success`, `error`, and the returned `session.session_id` before continuing.
+3. Set `database` to that returned session ID for every subsequent analysis call. It is an opaque routing token, not a file path, port, module name, or label. Do not invent IDs or call removed global-selection tools.
+4. Call `server_health({database: session_id})` to verify input/IDB path, module, image base, and readiness. Use `survey_binary({database: session_id, detail_level: "minimal"})` as the first binary-analysis query, especially for large DWM databases. Record architecture, image base/size, function count, and hashes; verify PE version and paired PDB separately using the repository audit tools.
+5. Before each small query batch, confirm that its `database` still maps to the intended sample. Recheck health when switching samples, reconnecting, reopening, or observing a stale-session error. Treat an unexpected path, module, image base, or hash as a routing failure rather than binary evidence. An IDB path and its original PE path can differ; reconcile them with survey metadata and exact PE identity.
+6. Keep multi-sample audits serialized under the repository policy. Explicit session routing replaces the old global-selection protocol; it does not authorize concurrent work on user databases. On a stale session, rediscover and verify the replacement before retrying; never fall back to an empty `database` or the active GUI.
 
-The current MCP instance selection is shared global routing state. Do not analyze different IDA instances in parallel: another agent or request can switch the target between calls. Serialize instance work and treat an unexpected module, path, image base, or hash as a routing failure rather than binary evidence.
+### Opening and cleanup
+
+`idb_open` defaults to `prefer_headless`, which ignores a running GUI when choosing a new session. Use `prefer_gui` explicitly when the requested sample is already open in IDA. It can spawn a worker if no matching GUI remains, so inspect the resulting session/backend instead of assuming adoption succeeded. `force_gui` can launch a GUI, while `force_headless` only uses workers. Do not launch another IDA process just to probe connectivity.
+
+Opening a new sample can create working database files and automatic analysis changes the database. For an audit of an existing IDB, disable the three open/warmup flags above and use available analysis; if the database is not ready, report that limitation instead of silently reanalyzing it. When the task needs initial analysis of a raw PE, use a disposable working copy outside the source tree and preserve the original sample and its identity. Worker idle TTL is a resource setting, not an identity guarantee.
+
+Record which sessions predated the task and which workers it created. Leave pre-existing sessions open. To release a task-created session, use `idb_close({database: session_id, save: false})` explicitly: owned workers terminate, whereas adopted instances detach without being killed. Never call `idb_save` or close with `save: true` during an audit-only task. Unsaved operation is not permission to annotate or patch. Never delete loose IDA working files while the database is open.
 
 Do not hard-code ports in repository files or reports. Ports are session routing details, not sample identity.
 
 ## Read-only capability map
 
-Use the available equivalent of:
+All analysis calls below require the verified `database` argument. Read their current schemas before constructing filters; similarly named tools do not necessarily accept the same query shape.
 
-- instance listing and selection;
-- binary survey and metadata inspection;
-- function/name queries with narrow filters;
-- decompilation and disassembly;
-- xrefs, callers, callees, and call graphs;
-- byte, integer, string, and vtable reads;
-- type inspection when trustworthy.
+| Need | Tools and limits |
+| --- | --- |
+| Function/name discovery | `lookup_funcs` with `queries` (string or array); `func_query` / `entity_query` for narrow filtered searches |
+| Decisive function | `decompile` takes one `addr` string; use `analyze_batch` with a `queries` array and selected sections for multiple functions |
+| Machine instructions | `disasm` with `addr`, `offset`, `max_instructions`; follow `cursor.next` until complete when all paths matter |
+| Callers and references | `xref_query` with `direction: "to"`, `xref_type: "code"`, and pagination inside `queries`; `xrefs_to`, `callees`, `callgraph`, `basic_blocks` for supporting paths |
+| Data and anchors | `get_bytes`, `get_int`, `get_string`, `find_bytes`, `find`, `find_regex`; signatures and `trace_data_flow` are candidate discovery, not semantic proof |
+| Existing types | `type_query`, `type_inspect`, `read_struct`, `stack_frame`; inferred/decompiler types still require ABI evidence |
 
-Avoid rename, comment, type application, patch, undefine, or IDB save operations during an audit-only request.
+Inspect per-item errors and truncation flags, not just transport success. `analyze_batch` summaries cap callers, xrefs, blocks, and instructions; use paginated targeted queries to establish exhaustive coverage for a hook audit. A capped call graph cannot prove that every caller was inspected.
+
+Avoid all IDB mutations during an audit-only request, including rename/comment/bookmark operations, `diff_before_after`, type application or inference, `make_data`, code/function definition, patches, undefinition, and save. Tool convenience or a before/after preview does not make an operation read-only.
+
+### Python fallback
+
+Prefer typed read tools. When a missing capability requires IDAPython, pass the same verified `database` to `py_eval` and inspect both `stderr` and the returned result. Locals persist across calls by default; use `new_locals: true` for self-contained audit snippets, explicitly import dependencies, and avoid carrying addresses or sample identity from earlier queries. Resetting locals does not undo IDB changes. Globals are rebuilt on each call, so do not rely on persistent locals being visible inside nested function scopes.
+
+For a larger reviewed read-only script, `py_exec_file` accepts an absolute `file_path` visible to the IDA host and executes with one shared globals namespace. Review the script for database/file mutations before execution. Neither Python tool is a sandbox or an exception to the audit-only boundary.
 
 ## Query sequence
 
