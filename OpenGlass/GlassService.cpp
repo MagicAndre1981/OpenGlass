@@ -651,7 +651,7 @@ HRESULT GlassService::RunServerThread(const ThreadControl& control)
 {
 	RETURN_HR_IF(E_INVALIDARG, !control.readyEvent || !control.stopEvent);
 	RETURN_IF_FAILED(SetThreadDescription(GetCurrentThread(), L"OpenGlass Server Thread"));
-	RETURN_IF_WIN32_BOOL_FALSE(SetPriorityClass(GetCurrentProcess(), IDLE_PRIORITY_CLASS));
+	RETURN_IF_WIN32_BOOL_FALSE(SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_IDLE));
 
 	RETURN_IF_FAILED(RoInitialize(RO_INIT_MULTITHREADED));
 	const wil::unique_rouninitialize_call wrtScope{};
