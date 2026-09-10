@@ -626,7 +626,7 @@ bool OpenGlass::InitializeProjectionBySymbols()
 DWORD WINAPI OpenGlass::InitializationThreadEntryPoint(PVOID)
 {
 	SetThreadDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
-	THROW_IF_FAILED(SetThreadDescription(GetCurrentThread(), L"OpenGlass Initialization Thread"));
+	FAIL_FAST_IF_FAILED(SetThreadDescription(GetCurrentThread(), L"OpenGlass Initialization Thread"));
 
 	Startup();
 
@@ -636,7 +636,7 @@ DWORD WINAPI OpenGlass::InitializationThreadEntryPoint(PVOID)
 DWORD WINAPI OpenGlass::UnInitializationThreadEntryPoint(PVOID)
 {
 	SetThreadDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
-	THROW_IF_FAILED(SetThreadDescription(GetCurrentThread(), L"OpenGlass UnInitialization Thread"));
+	FAIL_FAST_IF_FAILED(SetThreadDescription(GetCurrentThread(), L"OpenGlass UnInitialization Thread"));
 
 	Shutdown();
 
