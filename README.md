@@ -74,6 +74,7 @@ GitHub Actions also builds and tests `main`. Its downloadable `v<version>-unsign
 
 ## Credits
 
+- OpenGlass GUI icon: adapted from **Window Apps (48 Filled)** in Microsoft's [Fluent UI System Icons](https://github.com/microsoft/fluentui-system-icons), Copyright (c) 2020 Microsoft Corporation, under the [MIT License](OpenGlassGUI/Assets/FluentIcons.LICENSE.txt). OpenGlass adds blue/cyan gradients and fits the artwork to a 256×256 canvas without outer padding. See [icon sources and attribution](OpenGlassGUI/Assets/README.md).
 - [Banner for OpenGlass](https://github.com/ALTaleX531/OpenGlass/discussions/11) by [@aubymori](https://github.com/aubymori), using [metalheart jawn #2](https://www.deviantart.com/kfh83/art/metalheart-jawn-2-1068250045) by [@kfh83](https://github.com/kfh83)
 - [[MS-RDPCR2]: Remote Desktop Protocol: Composited Remoting V2](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-rdpcr2)
 - [KNSoft.SlimDetours](https://github.com/KNSoft/KNSoft.SlimDetours)

@@ -101,6 +101,12 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
+    <None Include="Assets\OpenGlass.svg" />
+    <None Include="Assets\window-apps-filled.original.svg" />
+    <None Include="Assets\FluentIcons.LICENSE.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="Assets\OpenGlass.ico" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\OpenGlassHost\OpenGlassHost.vcxproj">

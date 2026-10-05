@@ -19,6 +19,9 @@
 LANGUAGE LANG_NEUTRAL, SUBLANG_DEFAULT
 #pragma code_page(65001)
 
+IDI_OPENGLASS ICON "Assets\\OpenGlass.ico"
+IDR_FLUENT_ICONS_LICENSE RCDATA "Assets\\FluentIcons.LICENSE.txt"
+
 #ifdef APSTUDIO_INVOKED
 /////////////////////////////////////////////////////////////////////////////
 //

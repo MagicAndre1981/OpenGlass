@@ -7,6 +7,8 @@
 #include "ConfigurationMigration.hpp"
 #include "EffectiveConfiguration.hpp"
 #include "Elevation.hpp"
+#include "resource.h"
+#include <wx/iconbndl.h>
 
 namespace OpenGlass
 {
@@ -51,6 +53,7 @@ namespace OpenGlass
 	MainFrame::MainFrame(std::wstring userSid, Settings::Scope scope)
 		: wxFrame(nullptr, wxID_ANY, L"Aero Glass for Win10+", wxDefaultPosition, wxSize(900, 750))
 	{
+		SetIcons(wxIconBundle(wxString::Format(L"#%d", IDI_OPENGLASS), reinterpret_cast<WXHINSTANCE>(GetModuleHandleW(nullptr))));
 		m_isAdmin = Elevation::IsProcessElevated();
 		m_editScope = scope;
 		if (scope == Settings::Scope::User)

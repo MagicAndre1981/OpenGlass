@@ -118,5 +118,19 @@
 		<None Include="packages.config">
 			<Filter>Misc Files</Filter>
 		</None>
+		<None Include="Assets\OpenGlass.svg">
+			<Filter>Resource Files</Filter>
+		</None>
+		<None Include="Assets\window-apps-filled.original.svg">
+			<Filter>Resource Files</Filter>
+		</None>
+		<None Include="Assets\FluentIcons.LICENSE.txt">
+			<Filter>Resource Files</Filter>
+		</None>
+	</ItemGroup>
+	<ItemGroup>
+		<Image Include="Assets\OpenGlass.ico">
+			<Filter>Resource Files</Filter>
+		</Image>
 	</ItemGroup>
 </Project>
