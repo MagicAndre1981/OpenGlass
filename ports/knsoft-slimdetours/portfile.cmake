@@ -1,15 +1,14 @@
 vcpkg_from_github(
     OUT_SOURCE_PATH SOURCE_PATH
     REPO KNSoft/KNSoft.SlimDetours
-    REF 5c80016d6759f51091f17c125e3a76148e8af7ad
-    SHA512 d257489375268aaca2091da35f404947a6e27cef07943af15cd9047aa88ded3a2433409b472efaacb2b27ec90d2a5f0d75e4c1316d2fca8733ff61d07637a3f1
+    REF 0255fac24b12781e0f0c35e0ae71bd7fc45411ee
+    SHA512 c79893823b40d3973d0ccbbe47dc15335f56291556b6e806280d1258bf0a8f4e18b7f6814130301b33c937024072a810d27e67dc50f6452c7709ff5ea561c16a
+    PATCHES patches/disable-ndk-nuget.patch
 )
 
 set(SLIMDETOURS_VCXPROJ "${SOURCE_PATH}/Source/KNSoft.SlimDetours/KNSoft.SlimDetours.vcxproj")
 file(READ "${SLIMDETOURS_VCXPROJ}" SLIMDETOURS_VCXPROJ_CONTENTS)
 string(REPLACE "\r\n" "\n" SLIMDETOURS_VCXPROJ_CONTENTS "${SLIMDETOURS_VCXPROJ_CONTENTS}")
-string(REPLACE "  <ImportGroup Label=\"ExtensionTargets\">\n    <Import Project=\"..\\packages\\KNSoft.NDK.1.2.65-beta\\build\\KNSoft.NDK.targets\" Condition=\"Exists('..\\packages\\KNSoft.NDK.1.2.65-beta\\build\\KNSoft.NDK.targets')\" />\n  </ImportGroup>\n" "" SLIMDETOURS_VCXPROJ_CONTENTS "${SLIMDETOURS_VCXPROJ_CONTENTS}")
-string(REPLACE "  <Target Name=\"EnsureNuGetPackageBuildImports\" BeforeTargets=\"PrepareForBuild\">\n    <PropertyGroup>\n      <ErrorText>This project references NuGet package(s) that are missing on this computer. Use NuGet Package Restore to download them.  For more information, see http://go.microsoft.com/fwlink/?LinkID=322105. The missing file is {0}.</ErrorText>\n    </PropertyGroup>\n    <Error Condition=\"!Exists('..\\packages\\KNSoft.NDK.1.2.65-beta\\build\\KNSoft.NDK.targets')\" Text=\"$([System.String]::Format('$(ErrorText)', '..\\packages\\KNSoft.NDK.1.2.65-beta\\build\\KNSoft.NDK.targets'))\" />\n  </Target>\n" "" SLIMDETOURS_VCXPROJ_CONTENTS "${SLIMDETOURS_VCXPROJ_CONTENTS}")
 string(REPLACE "</Project>" "  <ItemDefinitionGroup Condition=\"'$(Configuration)'=='Release'\">\n    <ClCompile>\n      <DebugInformationFormat>OldStyle</DebugInformationFormat>\n    </ClCompile>\n  </ItemDefinitionGroup>\n</Project>" SLIMDETOURS_VCXPROJ_CONTENTS "${SLIMDETOURS_VCXPROJ_CONTENTS}")
 string(REPLACE "</Project>" "  <ItemDefinitionGroup>\n    <ClCompile>\n      <AdditionalIncludeDirectories>$(VcpkgIncludePath);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>\n    </ClCompile>\n  </ItemDefinitionGroup>\n</Project>" SLIMDETOURS_VCXPROJ_CONTENTS "${SLIMDETOURS_VCXPROJ_CONTENTS}")
 file(WRITE "${SLIMDETOURS_VCXPROJ}" "${SLIMDETOURS_VCXPROJ_CONTENTS}")

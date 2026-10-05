@@ -22,6 +22,8 @@ namespace OpenGlass
 
 		DWORD m_argb{};
 		bool m_automatic{};
+		wxColour m_surfaceBorder;
+		wxColour m_selectionBorder;
 		wxBitmap m_normalBitmap;
 		wxBitmap m_selectedBitmap;
 	};

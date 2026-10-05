@@ -75,7 +75,10 @@ namespace OpenGlass
 	{
 		SetName(label);
 		SetToolTip(label);
-		SetBitmapMargins(0, 0);
+		// Keep our draw cache separate from SetBitmap()'s erasing refresh.
+		MakeOwnerDrawn();
+		// MSWOnDraw paints the complete background with the swatch.
+		SetBackgroundStyle(wxBG_STYLE_PAINT);
 		const wxSize buttonSize = FromDIP(wxSize(SwatchSizeDip, SwatchSizeDip));
 		SetMinSize(buttonSize);
 		SetMaxSize(buttonSize);
@@ -91,12 +94,13 @@ namespace OpenGlass
 
 	void ColorSwatchButton::SetColor(DWORD argb)
 	{
-		if (m_argb == argb)
+		const bool rgbChanged = (m_argb & 0xFFFFFF) != (argb & 0xFFFFFF);
+		m_argb = argb;
+		if (!rgbChanged)
 		{
 			return;
 		}
 
-		m_argb = argb;
 		RebuildBitmap();
 		Refresh(false);
 	}
@@ -109,7 +113,6 @@ namespace OpenGlass
 		}
 
 		wxToggleButton::SetValue(value);
-		Refresh(false);
 	}
 
 	bool ColorSwatchButton::MSWOnDraw(WXDRAWITEMSTRUCT* item)
@@ -120,6 +123,19 @@ namespace OpenGlass
 			return false;
 		}
 
+		const int width = drawItem->rcItem.right - drawItem->rcItem.left;
+		const int height = drawItem->rcItem.bottom - drawItem->rcItem.top;
+		if (width <= 0 || height <= 0)
+		{
+			return true;
+		}
+
+		wxBitmap buffer(width, height, 24);
+		if (!buffer.IsOk())
+		{
+			return false;
+		}
+		wxMemoryDC dc(buffer);
 		const bool pressed = (drawItem->itemState & ODS_SELECTED) != 0;
 		const bool selected = GetValue() || pressed;
 		wxColour background = GetParent()->GetBackgroundColour();
@@ -127,30 +143,15 @@ namespace OpenGlass
 		{
 			background = wxSystemSettings::GetColour(wxSYS_COLOUR_WINDOW);
 		}
-		wil::unique_hbrush backgroundBrush{ ::CreateSolidBrush(RGB(
-			background.Red(),
-			background.Green(),
-			background.Blue()
-		)) };
-		::FillRect(drawItem->hDC, &drawItem->rcItem, backgroundBrush.get());
+		dc.SetBackground(wxBrush(background));
+		dc.Clear();
 
 		const wxBitmap& bitmap = selected ? m_selectedBitmap : m_normalBitmap;
 		if (bitmap.IsOk())
 		{
-			const int width = drawItem->rcItem.right - drawItem->rcItem.left;
-			const int height = drawItem->rcItem.bottom - drawItem->rcItem.top;
-			const int x = drawItem->rcItem.left + (width - bitmap.GetWidth()) / 2;
-			const int y = drawItem->rcItem.top + (height - bitmap.GetHeight()) / 2;
-			{
-				wxDCTemp dc(
-					reinterpret_cast<WXHDC>(drawItem->hDC),
-					wxSize(
-						drawItem->rcItem.right - drawItem->rcItem.left,
-						drawItem->rcItem.bottom - drawItem->rcItem.top
-					)
-				);
-				dc.DrawBitmap(bitmap, x, y, true);
-			}
+			const int x = (width - bitmap.GetWidth()) / 2;
+			const int y = (height - bitmap.GetHeight()) / 2;
+			dc.DrawBitmap(bitmap, x, y, true);
 		}
 
 		if (
@@ -158,11 +159,14 @@ namespace OpenGlass
 			&& (drawItem->itemState & ODS_NOFOCUSRECT) == 0
 		)
 		{
-			RECT focusRect = drawItem->rcItem;
+			RECT focusRect{ 0, 0, width, height };
 			::InflateRect(&focusRect, -FromDIP(selected ? 4 : 2), -FromDIP(selected ? 4 : 2));
-			::DrawFocusRect(drawItem->hDC, &focusRect);
+			::DrawFocusRect(reinterpret_cast<HDC>(dc.GetHDC()), &focusRect);
 		}
 
+		wxDCTemp target(reinterpret_cast<WXHDC>(drawItem->hDC),
+			wxSize(drawItem->rcItem.right, drawItem->rcItem.bottom));
+		target.Blit(drawItem->rcItem.left, drawItem->rcItem.top, width, height, &dc, 0, 0);
 		return true;
 	}
 
@@ -213,18 +217,19 @@ namespace OpenGlass
 			return bitmap;
 		};
 
-		m_normalBitmap = createBitmap(GetSurfaceBorder(), std::max(1, FromDIP(1)));
-		m_selectedBitmap = createBitmap(GetSelectionBorder(), std::max(2, FromDIP(2)));
-		SetBitmap(m_normalBitmap);
+		m_surfaceBorder = GetSurfaceBorder();
+		m_selectionBorder = GetSelectionBorder();
+		m_normalBitmap = createBitmap(m_surfaceBorder, std::max(1, FromDIP(1)));
+		m_selectedBitmap = createBitmap(m_selectionBorder, std::max(2, FromDIP(2)));
 	}
 
 	void ColorSwatchButton::OnDpiChanged(wxDPIChangedEvent& event)
 	{
-		SetBitmapMargins(0, 0);
 		const wxSize buttonSize = FromDIP(wxSize(SwatchSizeDip, SwatchSizeDip));
 		SetMinSize(buttonSize);
 		SetMaxSize(buttonSize);
 		RebuildBitmap();
+		Refresh(false);
 		InvalidateBestSize();
 		GetParent()->Layout();
 		event.Skip();
@@ -232,8 +237,11 @@ namespace OpenGlass
 
 	void ColorSwatchButton::OnSystemColorChanged(wxSysColourChangedEvent& event)
 	{
-		RebuildBitmap();
-		Refresh(false);
+		if (m_surfaceBorder != GetSurfaceBorder() || m_selectionBorder != GetSelectionBorder())
+		{
+			RebuildBitmap();
+			Refresh(false);
+		}
 		event.Skip();
 	}
 }

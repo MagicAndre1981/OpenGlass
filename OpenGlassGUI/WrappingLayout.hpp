@@ -45,6 +45,8 @@ namespace OpenGlass
 		parent->Layout();
 		const int width = label->GetClientSize().x;
 		if (width <= 0) return;
+		// Reset the cached wrap width before replacing the source text.
+		label->Wrap(-1);
 		label->SetLabel(sourceText);
 		label->Wrap(width);
 		// NO_AUTORESIZE keeps SetLabel from widening the control, but also leaves
