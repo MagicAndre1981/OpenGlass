@@ -19,10 +19,6 @@ OpenGlass restores the full glass effect to window frames, with control over blu
 
 Only the General Availability releases listed above are supported. Insider builds and other unlisted versions are unsupported. Windows 11 26H1 remains experimental. See [Compatibility and DWM architectures](https://github.com/ALTaleX531/OpenGlass/wiki/Compatibility-and-DWM-architectures) for details.
 
-## 3.1.0.3831 (unreleased)
-
-Adds a preset library, separate user and machine configuration views, and simpler color controls.
-
 ## Quick start
 
 1. Download `OpenGlassSetup.exe` from [Releases](https://github.com/ALTaleX531/OpenGlass/releases).
