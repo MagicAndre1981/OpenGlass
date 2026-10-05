@@ -48,6 +48,7 @@
   <ItemGroup>
 	<ClInclude Include="ColorizationPresets.hpp" />
 	<ClInclude Include="ColorPreference.hpp" />
+	<ClInclude Include="ColorPolicy.hpp" />
 	<ClInclude Include="ShellColorRefresh.hpp" />
 	<ClInclude Include="ColorSwatchButton.hpp" />
     <ClInclude Include="ConfigurationMigration.hpp" />

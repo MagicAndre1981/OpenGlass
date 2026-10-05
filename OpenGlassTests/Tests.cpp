@@ -10,6 +10,7 @@
 #include "ThemeAtlasLayout.hpp"
 #include "../OpenGlassGUI/ColorizationPresets.hpp"
 #include "../OpenGlassGUI/ColorPreference.hpp"
+#include "../OpenGlassGUI/ColorPolicy.hpp"
 #include "../OpenGlassGUI/ShellColorRefresh.hpp"
 #include <future>
 #include "../Common/SettingsCatalog.hpp"
@@ -1220,6 +1221,38 @@ namespace
 		Check(BlurSettings::Direct3DStandardDeviation == 3.f);
 	}
 
+	void TestColorPolicy()
+	{
+		const LSTATUS statuses[]{ ERROR_SUCCESS, ERROR_FILE_NOT_FOUND, ERROR_PATH_NOT_FOUND,
+			ERROR_UNSUPPORTED_TYPE, ERROR_MORE_DATA, ERROR_ACCESS_DENIED };
+		for (const auto backgroundStatus : statuses) for (const auto changeStatus : statuses)
+		for (const DWORD disabled : { 0u, 1u, 42u })
+		{
+			unsigned calls{};
+			const auto read = [&](HKEY root, const wchar_t* path, const wchar_t* name,
+				DWORD flags, DWORD* type, void* data, DWORD* size) -> LSTATUS
+			{
+				Check(root == HKEY_LOCAL_MACHINE && std::wstring_view(path) == LR"(Software\Policies\Microsoft\Windows\Personalization)");
+				Check(type == nullptr);
+				if (++calls == 1)
+				{
+					Check(std::wstring_view(name) == L"PersonalColors_Background" && flags == RRF_RT_REG_SZ && *size == 16);
+					return backgroundStatus;
+				}
+				Check(std::wstring_view(name) == L"NoChangingStartMenuBackground" && flags == RRF_RT_REG_DWORD && *size == sizeof(DWORD));
+				if (changeStatus == ERROR_SUCCESS) *static_cast<DWORD*>(data) = disabled;
+				return changeStatus;
+			};
+			HRESULT result = S_OK;
+			bool blocked{};
+			try { blocked = ColorPolicy::IsSelectionDisabled(read); }
+			catch (...) { result = wil::ResultFromCaughtException(); }
+			const bool inaccessible = backgroundStatus == ERROR_ACCESS_DENIED || changeStatus == ERROR_ACCESS_DENIED;
+			Check(calls == 2 && result == (inaccessible ? E_ACCESSDENIED : S_OK));
+			if (!inaccessible) Check(blocked == (backgroundStatus == ERROR_SUCCESS || (changeStatus == ERROR_SUCCESS && disabled != 0)));
+		}
+	}
+
 	void TestSettingsCatalog()
 	{
 		std::vector<std::wstring_view> names;
@@ -1301,6 +1334,27 @@ namespace
 	{
 		using namespace EffectiveConfiguration;
 		using enum Settings::Id;
+		// The catalog is the sole classification used by cleanup; unrelated values survive.
+		Layer populated;
+		unsigned colorOverrides{};
+		for (const auto& spec : Settings::Catalog)
+		{
+			populated.values[spec.id] = { true, REG_BINARY, { 1 } };
+			if (Settings::IsColorOverride(spec.id))
+			{
+				Check(spec.id == ColorizationColorOverride || spec.id == ColorizationAfterglowOverride);
+				Check(!Settings::IsPresetPackSetting(spec));
+				++colorOverrides;
+			}
+		}
+		const auto colorCleanup = PlanColorCleanup(populated, populated);
+		Check(colorOverrides == 2 && colorCleanup.size() == 2 * colorOverrides);
+		std::set<std::pair<Settings::Scope, Settings::Id>> removed;
+		for (const auto& change : colorCleanup)
+		{
+			Check(Settings::IsColorOverride(change.id) && change.before == populated.values.at(change.id) && !change.after.present);
+			Check(removed.emplace(change.scope, change.id).second);
+		}
 		for (unsigned u = 0; u < 3; ++u) for (unsigned m = 0; m < 3; ++m)
 		{
 			Layer user, machine;
@@ -1379,7 +1433,6 @@ namespace
 		Check(partial.size() == 4); // Only the independent color cleanup, never base/internal settings.
 		user.values[CustomThemeReflection] = { true, REG_BINARY, { 1 } };
 		machine.values[CustomThemeReflection] = Encode(Value{ std::wstring(L"machine.png") });
-		Check(std::get<std::wstring>(Resolve(user, machine, CustomThemeReflection)) == L"machine.png");
 		Check(std::get<std::wstring>(Resolve(user, machine, CustomThemeReflection)) == L"machine.png");
 		user.values[GlassOpacity] = Encode(Value{ DWORD{12} });
 		machine.values[GlassOpacity] = Encode(Value{ DWORD{34} });
@@ -2198,6 +2251,25 @@ namespace
 		Check(registryCalls == 1 && colorCalls == 1 && !recovered.HasRecovery());
 		Check(ManagedFiles::Read(reflection) == snapshot.assets.at("assets/reflection.png"));
 		resources.Accept();
+		// Round-trip the independent Accent identity, including absence and raw types.
+		for (const auto& accent : { RegistryConfig::RawValue{}, RegistryConfig::RawValue{ true, REG_DWORD, { 1, 2, 3, 255 } },
+			RegistryConfig::RawValue{ true, REG_BINARY, { 4, 5, 6 } } })
+		{
+			ColorPreference::Snapshot accentOnly;
+			accentOnly.applyChoice = false;
+			accentOnly.accent = accent;
+			resources.Begin(accentOnly);
+			const auto bytes = ManagedFiles::Read(recoveryPath);
+			const auto record = nlohmann::json::parse(reinterpret_cast<const char*>(bytes.data()), reinterpret_cast<const char*>(bytes.data()) + bytes.size());
+			Check(!record["color"]["apply_choice"].get<bool>() && record["color"]["rgb"].is_null());
+			Check(record["color"]["accent"]["present"] == accent.present && record["color"]["accent"]["type"] == accent.type
+				&& record["color"]["accent"]["bytes"].get<std::vector<BYTE>>() == accent.bytes);
+			registryCalls = colorCalls = 0;
+			Check(recovered.Recover([&](auto, auto, const auto&) { ++registryCalls; return false; },
+				[&](const auto& choice) { ++colorCalls; return choice == accentOnly; }));
+			Check(registryCalls == 0 && colorCalls == 1 && !recovered.HasRecovery());
+			resources.Accept();
+		}
 		// Automatic recovery must not overwrite freshly recomputed RGB with its old derived values.
 		resources.Begin();
 		resources.TrackColor(ColorPreference::Snapshot{ 1u, std::nullopt });
@@ -2529,11 +2601,17 @@ int main()
 	const std::wstring_view badArgs[]{ L"--scope=invalid" };
 	const std::wstring_view missingArgs[]{ L"--scope" };
 	const std::wstring_view repeatArgs[]{ L"--scope", L"HKLM", L"--scope=hklm" };
+	const std::wstring_view emptyArgs[]{ L"--scope=" };
+	const std::wstring_view splitEmptyArgs[]{ L"--scope", L"" };
+	const std::wstring_view mixedArgs[]{ L"--scope", L"hKcU", L"--scope=HkCu" };
+	const std::wstring_view flagAsValueArgs[]{ L"--scope", L"--scope=hkcu" };
 	Check(ParseEditorScope(userArgs) == Scope::User);
 	Check(!ParseEditorScope(conflictArgs));
 	Check(!ParseEditorScope(badArgs));
 	Check(!ParseEditorScope(missingArgs));
 	Check(ParseEditorScope(repeatArgs) == Scope::Machine);
+	Check(!ParseEditorScope(emptyArgs) && !ParseEditorScope(splitEmptyArgs));
+	Check(ParseEditorScope(mixedArgs) == Scope::User && !ParseEditorScope(flagAsValueArgs));
 	TestPixelAlign();
 	TestTransform2DBounds();
 	TestHookRundown();
@@ -2550,6 +2628,7 @@ int main()
 	TestColorizationPresets();
 	TestBlurSettings();
 	TestSettingsCatalog();
+	TestColorPolicy();
 	TestConfigurationMergePolicy();
 	TestPreviewJournal();
 	TestNetPreviewJournal();

@@ -84,10 +84,11 @@ namespace OpenGlass::EffectiveConfiguration
 	{
 		std::vector<Change> changes;
 		for (const auto scope : { Settings::Scope::User, Settings::Scope::Machine })
-			for (const auto id : { Settings::Id::ColorizationColorOverride, Settings::Id::ColorizationAfterglowOverride })
+			for (const auto& spec : Settings::Catalog)
 			{
-				const auto before = Raw(scope == Settings::Scope::User ? user : machine, id);
-				if (before.present) changes.push_back({ scope, id, before, {} });
+				if (!Settings::IsColorOverride(spec.id)) continue;
+				const auto before = Raw(scope == Settings::Scope::User ? user : machine, spec.id);
+				if (before.present) changes.push_back({ scope, spec.id, before, {} });
 			}
 		return changes;
 	}

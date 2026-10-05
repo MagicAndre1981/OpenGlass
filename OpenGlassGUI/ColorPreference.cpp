@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "ColorPreference.hpp"
+#include "ColorPolicy.hpp"
 #include "PreviewJournal.hpp"
 #include "ShellColorRefresh.hpp"
 
@@ -10,21 +11,6 @@ namespace OpenGlass
 		constexpr auto AccentKey = LR"(Software\Microsoft\Windows\CurrentVersion\Explorer\Accent)";
 		constexpr auto DesktopKey = LR"(Control Panel\Desktop)";
 		constexpr auto DwmKey = LR"(Software\Microsoft\Windows\DWM)";
-		bool IsColorSelectionDisabled()
-		{
-			constexpr auto path = LR"(Software\Policies\Microsoft\Windows\Personalization)";
-			wchar_t background[8]{}; // Match uxtheme's 16-byte policy buffer.
-			DWORD size = sizeof(background);
-			const auto backgroundStatus = RegGetValueW(HKEY_LOCAL_MACHINE, path, L"PersonalColors_Background",
-				RRF_RT_REG_SZ, nullptr, background, &size);
-			DWORD disabled{};
-			size = sizeof(disabled);
-			const auto changeStatus = RegGetValueW(HKEY_LOCAL_MACHINE, path, L"NoChangingStartMenuBackground",
-				RRF_RT_REG_DWORD, nullptr, &disabled, &size);
-			// An inaccessible policy is not evidence that accent selection is allowed.
-			THROW_HR_IF(E_ACCESSDENIED, backgroundStatus == ERROR_ACCESS_DENIED || changeStatus == ERROR_ACCESS_DENIED);
-			return backgroundStatus == ERROR_SUCCESS || (changeStatus == ERROR_SUCCESS && disabled != 0);
-		}
 		RegistryConfig::RawValue ReadAccent(HKEY user)
 		{
 			wil::unique_hkey key;
@@ -147,7 +133,7 @@ namespace OpenGlass
 				RETURN_HR_IF(E_ACCESSDENIED, userSid != sid);
 				if (!userKey) RETURN_IF_WIN32_ERROR(RegOpenKeyExW(HKEY_USERS, sid.c_str(), 0, KEY_READ, userKey.put()));
 				ColorPreference::Snapshot captured;
-				if (!IsColorSelectionDisabled()) captured.accent = ReadAccent(userKey.get());
+				if (!ColorPolicy::IsSelectionDisabled(RegGetValueW)) captured.accent = ReadAccent(userKey.get());
 				captured.automatic = ReadDword(userKey.get(), DesktopKey, L"AutoColorization").value_or(0);
 				if (!captured.IsAutomatic()) captured.rgb = ReadColor(userKey.get());
 				snapshot = captured;

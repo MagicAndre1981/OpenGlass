@@ -37,6 +37,10 @@ Runtime reads remain independent of the editor:
 - Overridable values: HKCU Override → HKLM Override → HKCU base → HKLM base → built-in default.
 - Invalid types are unavailable; continue to the next candidate. Both DWM architectures share this ordering. Machine Override precedence over user base is an intentional compatibility change.
 
+For valid values, this restores the ordering used before commit `d6b4414` (2026-08-02, "Fix override resolution and expand diagnostics"). From that commit through 3.0.2, HKCU base preceded HKLM Override. The affected bases are `ColorizationColor`, `ColorizationAfterglow`, `ColorizationColorBalance`, `ColorizationAfterglowBalance` and `ColorizationBlurBalance`, each with its corresponding `Override` variant. Ordinary settings are unchanged.
+
+Before upgrading, back up the known configuration values in both DWM keys. To retain a user base value's former effect, remove the conflicting machine Override or explicitly set the intended value in the user's Override. The latter is a manual registry option: GUI color choices deliberately remove both color Overrides from both layers. Revert undoes pending GUI changes; after Save, restoring old configuration requires the backup. Reinstalling an older binary changes lookup rules but does not undo saved registry edits.
+
 Base/Override storage is an internal compatibility detail. Ordinary controls and their tooltips do not expose alternate keys, raw source values or dedicated Override-reset controls. Technical registry documentation and explicit transaction reviews can identify exact affected keys without introducing separate editing modes.
 
 ## 3. Operation boundaries
@@ -46,7 +50,7 @@ All configuration operations target only HKLM and the original interactive user.
 | Operation | Reads | Configuration writes | Checkpoint / saved content |
 | --- | --- | --- | --- |
 | Ordinary edit | Selected layer | Selected layer only | Immediate preview. |
-| Choose color / Automatic | Selected-layer strength plus original-user color mode/preference | Selected-layer strength parameters; removal of both color Overrides from HKCU and HKLM; original-user AutoColorization and the corresponding Windows API | Preview of mode and manual RGB, not a raw snapshot of Windows-generated colors. |
+| Choose color / Automatic | Selected-layer strength plus original-user color mode/preference | Selected-layer strength parameters; removal of both color Overrides from HKCU and HKLM; original-user mode, optional Accent synchronization and direct DWM RGB for Manual, or shell refresh for Automatic (section 6) | Preview of mode/manual RGB and independent raw backups of changed Accent and directly written DWM values. |
 | Adjust intensity | Selected-layer strength and glass mode | Selected-layer GlassOpacity; Win7 also writes selected-layer balance Overrides | Immediate preview; no Windows preference synchronization. |
 | Apply preset to HKCU | Saved preset and current values for planning | Covered user values only; preserve HKLM | May replace an existing preview; retain its first checkpoint. |
 | Apply preset to HKLM | Saved preset and both layers for planning | Covered machine values; remove only conflicting valid user values blocking explicit preset values | Same preview behavior; preserve harmless same-value user entries. |
@@ -62,7 +66,7 @@ A preset default deletes only its target-layer value in **both** apply direction
 
 Preset application covers only recognized public settings within that package's catalog version. Merge and Restore defaults cover known OpenGlass settings, including manual-only ones, subject to the two-color-Override exception in section 6: Merge must not copy these retired GUI inputs; reset may remove them. None of them cleans unknown/future values. The five Windows DWM bases—ColorizationColor, ColorizationAfterglow, ColorizationColorBalance, ColorizationAfterglowBalance and ColorizationBlurBalance—are excluded from configuration cleanup. Color operations separately update the two base RGB values and restore their raw backups as described in section 6; the three base balances are never directly written by the GUI. HKLM merge retains malformed user-source values rather than deleting them; either target may replace an invalid destination after recording its raw before-value.
 
-The bottom-left **More** menu contains **Merge into HKLM/HKCU...** and **Restore defaults...**; Save and Revert remain visible on the right.
+The bottom-left **More** menu normally contains **Merge into HKLM/HKCU...** and **Restore defaults...**. Holding Shift also reveals **Switch to HKCU/HKLM view**, as described in section 2. Save and Revert remain visible on the right.
 
 A clean preview means no pending GUI net changes, not that Save must have been clicked once. Startup and a successful Revert are clean. Extraction/update/merge must not offer an implicit Save or silently accept edits. Merging differs from applying a preset: merge consolidates the existing effective configuration and may remove same-value user copies when targeting HKLM; preset application preserves harmless copies.
 

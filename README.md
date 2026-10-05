@@ -17,41 +17,19 @@ OpenGlass restores the full glass effect to window frames, with control over blu
 | Windows 11 26H1 (28000) | Experimental |
 | Windows Server 2022 (20348) | Supported |
 
-OpenGlass 3.0.2.3749 adds support for Windows 11 26H2 and fixes the inactive window border regression that followed KB5124010 ([#367](https://github.com/ALTaleX531/OpenGlass/issues/367)).
+Only the General Availability releases listed above are supported. Insider builds and other unlisted versions are unsupported. Windows 11 26H1 remains experimental. See [Compatibility and DWM architectures](https://github.com/ALTaleX531/OpenGlass/wiki/Compatibility-and-DWM-architectures) for details.
 
-Windows 11 26H1 uses the MILComp implementation, which is still experimental because some features are not yet implemented.
+## 3.1.0.3831 (unreleased)
 
-Only the General Availability releases listed above are supported. Insider builds, other prerelease versions, and Windows Server versions other than 2022 are unsupported and may crash DWM. Compatibility depends on the exact build, revision, and compositor capabilities.
-
-See [Compatibility and DWM architectures](https://github.com/ALTaleX531/OpenGlass/wiki/Compatibility-and-DWM-architectures) for the support policy and how OpenGlass selects its DWM implementation.
+Adds a preset library, separate user and machine configuration views, and simpler color controls.
 
 ## Quick start
 
 1. Download `OpenGlassSetup.exe` from [Releases](https://github.com/ALTaleX531/OpenGlass/releases).
-2. Run the installer and open the OpenGlass GUI. It requests administrator rights and defaults to editing HKLM. Developers can select `--scope=hkcu` or `--scope=hklm`; the window title identifies the fixed editing layer. The [configuration reference](https://github.com/ALTaleX531/OpenGlass/wiki/Configuration-and-registry-reference) lists the registry values involved.
-3. Adjust the appearance. Edits are written immediately, although user-layer precedence or restart requirements may delay a visible effect. **Save** accepts the current preview; **Revert** undoes this GUI's changes since startup or the last Save.
+2. Run the installer, which selects the matching DWM implementation, then open the GUI. It requests administrator rights.
+3. Adjust the appearance. Settings are written immediately; **Save** accepts the changes, while **Revert** or closing the GUI undoes pending changes.
 
-The installer detects your Windows build and installs the matching DWM implementation automatically.
-
-The **Glass colors** page includes Windows Vista and Windows 7 presets plus a multicolor **Automatic** swatch. Fixed/custom colors select manual mode. **Preset library** uses a details list with Name, Accent color, Author, License and Status columns. Right-click blank space to **New preset...** or **Import...**; right-click a row to apply, update, export, inspect properties or delete it. Double-click or Enter previews the selected preset. New preset and Update require a clean checkpoint: Save or Revert pending changes first. Import validates and previews ZIP contents, then **Trust and import** saves them without changing configuration. Accepted content applies without repeated confirmation; a changed digest requires renewed trust. Updates replace the selected entry, including imported entries. Export uses saved content. Esc clears selection, F5 refreshes, and Delete confirms removal.
-
-Presets do not select HKCU or HKLM: the editor window determines the application target. Capturing extracts the effective HKCU + HKLM configuration, preserving uncustomized states and automatic values. Explicit values applied to HKLM clear only covered HKCU values that block them; applying to HKCU preserves HKLM. Default removes only target-scope customization and allows inheritance, intentionally. The optional **Include accent color** checkbox captures the original interactive user's RGB separately. It defaults to checked when AutoColorization is disabled and unchecked when enabled. Included RGB selects manual coloring when applied; no RGB selects automatic coloring and requests a wallpaper-color refresh. Schema 3 stores uncustomized states as `{"state":"default"}`, RGB in `accent_color`, balance values as Overrides, and intensity in `GlassOpacity`. Schema 1–2 remain readable through an in-memory conversion after original digest validation; their source contents and licensing are preserved. See [the design contract](OpenGlassGUI/Configuration.design.md) for operation boundaries and [the preset format](OpenGlassGUI/Presets.md) for storage details.
-
-Color selection has special handling: fixed/custom colors set AutoColorization=0, update AccentColorMenu only when policy permits and its value differs, then directly update both DWM RGB values while preserving each current alpha; Automatic sets it to 1 and requests UpdateWallpaperTransition. Policy checks restrict Windows accent-preference synchronization, not OpenGlass's direct DWM RGB writes. Both remove the two color Overrides from original-user HKCU and HKLM, regardless of editing scope, so neither layer masks the Windows color. All four deletions participate in Save/Revert. ColorizationColor and ColorizationAfterglow always target the original user's HKCU, even while editing HKLM. Changed Accent and directly written DWM values have independent rollback backups. Later Windows writes may still alter RGB or alpha; see the [color design](OpenGlassGUI/Configuration.design.md#6-openglassgui-treats-color-configuration-specially). New GUI presets omit their two Override variants, and legacy package entries for them are ignored rather than applied. **Save** accepts the preview; **Revert** restores net changes made by this GUI across both configuration layers and the separate color mode/manual RGB choice. Automatic rollback requests the current wallpaper color rather than restoring an old RGB; Windows-generated palette/history and other accepted API side effects are not individually undone. No-op writes stay clean, changing a value back removes its net change, and untouched external values are preserved. Neither changes saved presets. Library selection only identifies the operation target; no current-preset identity is tracked because configurations may combine across layers. Failed multi-step previews restore the state immediately before that attempt, and incomplete recovery stays pending for retry. Windows 7 style also derives three balance Overrides from `GlassOpacity`; advanced manual registry values remain supported.
-
-Both configuration layers are valid. Ordinary runtime values resolve `HKCU → HKLM → default`; colorization values resolve `HKCU Override → HKLM Override → HKCU base → HKLM base → default`. **Compatibility change:** an HKLM Override can now take precedence over an HKCU base value. Controls show only the editing layer's values or local defaults. A yellow warning marks HKLM settings masked by HKCU; an information icon marks unconfigured HKCU settings inheriting HKLM. Controls remain editable, and ordinary non-color editing never deletes a conflicting value in the other layer; color selection has the explicit two-Override exception described above. **Default means no customization in the editing scope**, not a forced program default. Removing a local value restores the normal lookup order, so configuration in another scope can still take effect. No additional registry value controls inheritance.
-
-Each preset has one current directory under `%ProgramData%\OpenGlass\Presets\Library`. Applied images and their source notices use fixed paths under `Configuration\Machine` or `Configuration\Users\<original SID>`; resource contents and absence join Save/Revert. Eligible protected files use hard links, with copy fallback; replacements never rewrite shared file content. Delete actually removes library files without breaking the active configuration. Pending cleanup is reported and retried. Old deployed paths remain for compatibility after one-time library migration.
-
-Consecutive preset previews retain the original Save/Revert checkpoint. Use **Revert** to return to that configuration, or **Save** to accept the current preview. To retain the current effective configuration for later use, accept pending changes with **Save**, then choose **New preset...**; switching presets and closing do not automatically save library snapshots.
-
-New presets use **OpenGlass Attribution v1** for configuration, RGB and layout: copying, modification and sharing are allowed with author and known-source attribution. `LICENSE` applies to image assets only. With LICENSE, Author identifies the declared rights holder; without it, Author identifies a reference source. Neither claim is verified. Legacy packages and their derivatives retain their original license scope and text; converting the schema does not grant new rights.
-
-**Restore defaults...** is in the **More** menu at the bottom left. It removes all known OpenGlass custom settings from the editing scope, including settings outside the preset format. Windows base colors, diagnostics, unknown values and the other layer are preserved. Normal inheritance still applies; **Revert** can undo the reset preview. Some settings require a DWM restart or sign-out, which the GUI does not perform automatically.
-
-Hold **Shift** while clicking **More** to reveal **Switch to HKCU/HKLM view**. Save or Revert pending edits and finish any symbol download first. Switching retains the original interactive user, window placement and selected tab, and does not modify configuration or accent color.
-
-**Merge into HKLM... / Merge into HKCU...** in the bottom-left **More** menu follows the editing scope. It previews the effective configuration to write, conflicts and any deletions. HKLM merge removes corresponding valid OpenGlass user values only after copying them; HKCU merge retains all HKLM values for other users. Both preserve the five Windows base color values in both layers and never examine other users. Merge is disabled while preview changes are pending; **Save** or **Revert** them first. Like preset extraction, a clean startup also permits merging. Confirming the merge starts a preview; **Save** accepts it and **Revert** undoes it. Backups retain the exact type, bytes, and absence of affected values. Only the HKLM direction requires an elevated token; the GUI startup elevation policy and other administrative operations are unchanged.
+See the [configuration guide](https://github.com/ALTaleX531/OpenGlass/wiki/Configuration-and-registry-reference) and [preset library guide](https://github.com/ALTaleX531/OpenGlass/wiki/Preset-packages) for editing scopes, color options, presets and recovery behavior.
 
 > [!TIP]
 > **Emergency Exit:** Hold <kbd>Ctrl</kbd>+<kbd>Win</kbd>+<kbd>Shift</kbd>+<kbd>Q</kbd> to terminate DWM if the system becomes unresponsive.
@@ -60,9 +38,7 @@ OpenGlass is aimed at advanced users who are comfortable troubleshooting DWM. Fo
 
 ## Reporting issues
 
-Report DWM crashes and other bugs in [GitHub Issues](https://github.com/ALTaleX531/OpenGlass/issues/new); reports posted in third-party communities are not tracked. Include the exact Windows build and revision, the OpenGlass version, relevant settings, reproduction steps, and screenshots or recordings.
-
-If glass is unexpectedly opaque, check the GUI's **Diagnostics** tab. For a crash, enable full DWM dumps there and reproduce the problem once. A hang requires a dump captured manually. See [Troubleshooting and crash dumps](https://github.com/ALTaleX531/OpenGlass/wiki/Troubleshooting-and-crash-dumps) for how to collect dumps and what to include in a report.
+Report bugs in [GitHub Issues](https://github.com/ALTaleX531/OpenGlass/issues/new), with your exact Windows build, OpenGlass version and reproduction steps. For crashes or opaque glass, start with **Diagnostics** and the [troubleshooting guide](https://github.com/ALTaleX531/OpenGlass/wiki/Troubleshooting-and-crash-dumps).
 
 ## Building
 
@@ -70,11 +46,11 @@ If glass is unexpectedly opaque, check the GUI's **Diagnostics** tab. For a cras
 msbuild OpenGlass.slnx /m /restore /p:Configuration=Release /p:Platform=x64
 ```
 
-GitHub Actions also builds and tests `main`. Its downloadable `v<version>-unsigned` artifact is an unsigned validation build, not a release or Git tag. See [Building OpenGlass](https://github.com/ALTaleX531/OpenGlass/wiki/Building-OpenGlass) for prerequisites, output paths, packaging, tests, CI behavior, and signing requirements.
+See [Building OpenGlass](https://github.com/ALTaleX531/OpenGlass/wiki/Building-OpenGlass) for prerequisites, tests and packaging, and the [Changelog](https://github.com/ALTaleX531/OpenGlass/wiki/Changelog) for technical version changes. CI artifacts are unsigned validation builds, not releases.
 
 ## Credits
 
-- OpenGlass GUI icon: adapted from **Window Apps (48 Filled)** in Microsoft's [Fluent UI System Icons](https://github.com/microsoft/fluentui-system-icons), Copyright (c) 2020 Microsoft Corporation, under the [MIT License](OpenGlassGUI/Assets/FluentIcons.LICENSE.txt). OpenGlass adds blue/cyan gradients and fits the artwork to a 256×256 canvas without outer padding. See [icon sources and attribution](OpenGlassGUI/Assets/README.md).
+- GUI icon: adapted from Microsoft's [Fluent UI System Icons](https://github.com/microsoft/fluentui-system-icons), Copyright (c) 2020 Microsoft Corporation, under the [MIT License](OpenGlassGUI/Assets/FluentIcons.LICENSE.txt). [Sources and modifications](OpenGlassGUI/Assets/README.md).
 - [Banner for OpenGlass](https://github.com/ALTaleX531/OpenGlass/discussions/11) by [@aubymori](https://github.com/aubymori), using [metalheart jawn #2](https://www.deviantart.com/kfh83/art/metalheart-jawn-2-1068250045) by [@kfh83](https://github.com/kfh83)
 - [[MS-RDPCR2]: Remote Desktop Protocol: Composited Remoting V2](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-rdpcr2)
 - [KNSoft.SlimDetours](https://github.com/KNSoft/KNSoft.SlimDetours)

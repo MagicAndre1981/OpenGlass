@@ -621,14 +621,15 @@ namespace OpenGlass
 	void MainFrame::CreatePresetsTab()
 	{
 		auto* panel = new wxPanel(m_notebook);
+		panel->SetBackgroundColour(wxSystemSettings::GetColour(wxSYS_COLOUR_WINDOW));
 		auto* root = new wxBoxSizer(wxVERTICAL);
-		root->Add(new wxStaticText(panel, wxID_ANY, wxString::Format(L"Apply to %s. Double-click to preview; Save accepts and Revert restores your checkpoint.", m_editScope == Settings::Scope::User ? L"HKCU" : L"HKLM")), 0, wxEXPAND | wxALL, 8);
 		m_lstPresetPackages = new wxListView(panel, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLC_REPORT | wxLC_SINGLE_SEL);
 		const wchar_t* headings[]{ L"Name", L"Accent color", L"Author", L"License", L"Status" };
 		const int widths[]{ 180, 90, 100, 100, 80 };
 		for (int column = 0; column < 5; ++column) m_lstPresetPackages->InsertColumn(column, headings[column], wxLIST_FORMAT_LEFT, FromDIP(widths[column]));
 		ListView_SetExtendedListViewStyleEx(reinterpret_cast<HWND>(m_lstPresetPackages->GetHandle()), LVS_EX_FULLROWSELECT | LVS_EX_DOUBLEBUFFER, LVS_EX_FULLROWSELECT | LVS_EX_DOUBLEBUFFER);
-		root->Add(m_lstPresetPackages, 1, wxEXPAND | wxLEFT | wxRIGHT, 8);
+		root->Add(m_lstPresetPackages, 1, wxEXPAND | wxTOP | wxLEFT | wxRIGHT, 8);
+		root->Add(new wxStaticText(panel, wxID_ANY, wxString::Format(L"Apply to %s. Double-click to preview; Save accepts and Revert restores your checkpoint.", m_editScope == Settings::Scope::User ? L"HKCU" : L"HKLM")), 0, wxEXPAND | wxALL, 8);
 		m_lblPresetEmpty = new wxStaticText(panel, wxID_ANY, L"Right-click to import or create a preset. You can also drop ZIP files here.");
 		root->Add(m_lblPresetEmpty, 0, wxEXPAND | wxALL, 8);
 		panel->SetSizer(root); m_notebook->AddPage(panel, L"Preset library");
@@ -735,7 +736,7 @@ namespace OpenGlass
 	{
 		if (!m_lstPresetPackages) return;
 		const std::string selectionId(selectedId);
-		auto field = [this](const auto& package, int column) -> std::wstring
+		auto field = [](const auto& package, int column) -> std::wstring
 		{
 			switch (column)
 			{
