@@ -918,7 +918,7 @@ namespace OpenGlass
 				}
 				THROW_IF_FAILED(m_userConfig->CheckDeleteAccess());
 				THROW_IF_FAILED(m_systemConfig->CheckDeleteAccess());
-				THROW_IF_FAILED(m_colorPreference.Apply(m_targetUserSid.ToStdWstring(), package.accentColor));
+				ApplyAccentColor(package.accentColor);
 				m_resources.Install(*prepared);
 				for (const auto& change : plan)
 				{
@@ -926,7 +926,7 @@ namespace OpenGlass
 					TrackSettingChange(change.scope, change.id);
 					THROW_IF_FAILED(GetConfigForScope(change.scope)->WriteRaw(change.Name(), change.after));
 				}
-			}, true);
+			});
 			if (applied)
 			{
 				LoadSettings();

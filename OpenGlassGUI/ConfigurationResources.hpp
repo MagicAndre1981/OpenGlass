@@ -47,6 +47,7 @@ namespace OpenGlass
 		std::shared_ptr<Preparation> PrepareFile(Settings::Scope scope, Settings::Id id, const std::filesystem::path& source);
 		void PreserveSource(PresetPackages::CreateRequest& request, const std::filesystem::path& source, const PresetPackages::Package* updateTarget = nullptr) const;
 		void Begin(std::optional<ColorPreference::Snapshot> color = {});
+		void TrackColor(const ColorPreference::Snapshot& color);
 		void PrepareRevert(std::vector<RegistryBefore> registry, std::optional<ColorPreference::Snapshot> color);
 		void TrackRegistry(Settings::Scope scope, Settings::Id id, const RegistryConfig::RawValue& value);
 		void Install(const Preparation& preparation);

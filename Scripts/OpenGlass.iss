@@ -194,8 +194,8 @@ Filename: "{sys}\sc.exe"; Parameters: "create OpenGlassHost binPath= ""{app}\Ope
 Filename: "{sys}\sc.exe"; Parameters: "description OpenGlassHost ""{cm:ServiceDescription}"""; Flags: runhidden
 ; Start the service (Automatic start, no checkbox)
 Filename: "{sys}\sc.exe"; Parameters: "start OpenGlassHost"; Flags: runhidden nowait
-; Launch GUI (Optional post-install)
-Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchOpenGlassGUI}"; Flags: postinstall nowait runascurrentuser; Check: not WizardSilent
+; Start as the original user; the GUI performs its own authenticated elevation.
+Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchOpenGlassGUI}"; Flags: postinstall nowait runasoriginaluser; Check: not WizardSilent
 
 [UninstallRun]
 Filename: "{sys}\sc.exe"; Parameters: "stop OpenGlassHost"; Flags: runhidden waituntilterminated; RunOnceId: "StopService"

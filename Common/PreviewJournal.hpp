@@ -46,6 +46,9 @@ namespace OpenGlass
 			}
 			m_pending.clear();
 		}
+		// Drop a session baseline when a semantic restore now owns this derived value.
+		// Keep the attempt snapshot so a later failure can still undo this operation.
+		void DiscardBaseline(const Key& key) { m_baseline.erase(key); }
 		template<class Visitor> void VisitRestore(bool attempt, Visitor&& visit) const
 		{
 			for (const auto& [key, value] : attempt ? m_attempt : m_baseline) visit(key, value);

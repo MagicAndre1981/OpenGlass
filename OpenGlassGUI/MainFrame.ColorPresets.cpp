@@ -24,6 +24,23 @@ namespace OpenGlass
 		}
 	}
 
+	void MainFrame::ApplyAccentColor(std::optional<DWORD> argb)
+	{
+		THROW_IF_FAILED(m_colorPreference.Apply(m_targetUserSid.ToStdWstring(), argb, [this](const auto& before)
+		{
+			m_resources.TrackColor(before);
+			TrackSettingChange(Settings::Scope::User, Settings::Id::ColorizationColor);
+			TrackSettingChange(Settings::Scope::User, Settings::Id::ColorizationAfterglow);
+		}));
+		const auto baseline = m_colorPreference.Baseline();
+		if (!argb && (!baseline || !baseline->applyChoice || baseline->RestoresAutomatic()))
+		{
+			// Returning to Automatic leaves no fixed RGB customization to undo.
+			m_preview.DiscardBaseline({ Settings::Scope::User, Settings::Id::ColorizationColor });
+			m_preview.DiscardBaseline({ Settings::Scope::User, Settings::Id::ColorizationAfterglow });
+		}
+	}
+
 	void MainFrame::ApplyColorizationColor(std::optional<DWORD> argb, ColorizationPresets::Family family)
 	{
 		if (!m_config)
@@ -42,7 +59,7 @@ namespace OpenGlass
 			const auto cleanup = EffectiveConfiguration::PlanColorCleanup(EffectiveConfiguration::Read(*m_userConfig), EffectiveConfiguration::Read(*m_systemConfig));
 			THROW_IF_FAILED(m_userConfig->CheckDeleteAccess());
 			THROW_IF_FAILED(m_systemConfig->CheckDeleteAccess());
-			THROW_IF_FAILED(m_colorPreference.Apply(m_targetUserSid.ToStdWstring(), argb));
+			ApplyAccentColor(argb);
 			for (const auto& change : cleanup)
 			{
 				THROW_HR_IF(HRESULT_FROM_WIN32(ERROR_RETRY), GetConfigForScope(change.scope)->ReadRaw(change.Name()) != change.before);
@@ -53,7 +70,7 @@ namespace OpenGlass
 			const auto intensity = ColorizationPresets::CalculateVistaOpacity(*argb);
 			setDword(Settings::Id::GlassOpacity, intensity);
 			if (family == ColorizationPresets::Family::Windows7) ApplyColorizationBalances(intensity);
-		}, true, Settings::UpdateImpact::Colorization)) LoadSettings();
+		}, Settings::UpdateImpact::Colorization)) LoadSettings();
 	}
 
 	void MainFrame::ApplyColorizationPreset(const ColorizationPresets::Preset& preset)

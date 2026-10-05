@@ -1273,6 +1273,16 @@ namespace
 		apply(70);
 		Check(journal.Revert(write, true, false) && journal.IsDirty()); // Retain until refresh succeeds.
 		journal.Accept();
+		apply(80);
+		journal.Begin(); journal.Touch(1, read); registry[1] = 90;
+		journal.DiscardBaseline(1); // Automatic takes over, but this attempt can still fail.
+		Check(!journal.IsDirty());
+		Check(journal.RollbackAttempt(write) && registry[1] == 80 && journal.IsDirty());
+		Check(journal.Revert(write) && registry[1] == 50);
+		journal.Begin(); journal.Touch(1, read); registry[1] = 100;
+		journal.DiscardBaseline(1); journal.Reconcile(read); journal.CommitAttempt();
+		Check(!journal.IsDirty());
+		Check(journal.Revert(write) && registry[1] == 100);
 		using ScopedKey = std::pair<Settings::Scope, int>;
 		PreviewJournal<ScopedKey, int> scoped;
 		std::map<ScopedKey, int> layers{ { { Settings::Scope::User, 1 }, 10 }, { { Settings::Scope::Machine, 1 }, 20 } };
@@ -1543,11 +1553,15 @@ namespace
 			HRESULT Apply(const Snapshot& value) noexcept override
 			{
 				++writes;
-				live.automatic = value.automatic; // Failure may follow a partial mutation.
+				if (value.applyChoice) live.automatic = value.automatic; // Failure may follow a partial mutation.
 				if (fail) return E_FAIL;
-				live = value;
-				if (value.IsAutomatic()) { ++refreshes; derived = wallpaper; }
-				else derived = *value.rgb;
+				if (value.accent) live.accent = value.accent;
+				if (value.applyChoice)
+				{
+					live.rgb = value.rgb;
+					if (value.IsAutomatic()) { ++refreshes; derived = wallpaper; }
+					else derived = *value.rgb;
+				}
 				return S_OK;
 			}
 		};
@@ -1559,11 +1573,65 @@ namespace
 			live->reject = true;
 			Check(FAILED(fresh.RecoverSnapshot(persisted)) && live->writes == 1);
 		}
-		for (const auto mode : { std::optional<DWORD>{}, std::optional<DWORD>{0}, std::optional<DWORD>{1}, std::optional<DWORD>{2} })
+		{
+			auto backend = std::make_unique<Backend>(); auto* live = backend.get();
+			Snapshot original{ 0u, 0x112233u };
+			// Restore raw Accent independently of the original DWM RGB, including its type.
+			original.accent = RegistryConfig::RawValue{ true, REG_BINARY, { 1, 2, 3 } };
+			live->live = original;
+			ColorPreference preview(std::move(backend));
+			Check(SUCCEEDED(preview.Apply(L"user", 0x445566)) && live->live.accent->type == REG_DWORD);
+			preview.CommitAttempt();
+			live->live.accent.reset(); // Policy now prevents forward accent synchronization.
+			Check(SUCCEEDED(preview.Apply(L"user", 0x778899)) && !live->live.accent);
+			preview.CommitAttempt();
+			const auto baseline = preview.Baseline();
+			Check(baseline && baseline->accent == original.accent);
+			Check(SUCCEEDED(preview.Revert()) && live->live == original);
+			live->live.accent.reset();
+			Check(SUCCEEDED(preview.RecoverSnapshot(*baseline)) && live->live == original);
+		}
+		{
+			auto backend = std::make_unique<Backend>(); auto* live = backend.get();
+			live->live = Snapshot{ 0u, 0x112233u };
+			ColorPreference preview(std::move(backend));
+			Check(SUCCEEDED(preview.Apply(L"user", 0x445566))); preview.CommitAttempt();
+			// Accent first becomes writable after an earlier DWM-only preview.
+			live->live.accent = RegistryConfig::RawValue{};
+			Check(SUCCEEDED(preview.Apply(L"user", 0x778899))); preview.CommitAttempt();
+			Check(preview.Baseline()->accent && !preview.Baseline()->accent->present);
+			Check(SUCCEEDED(preview.Revert()) && live->live.rgb == DWORD{0x112233}
+				&& live->live.accent && !live->live.accent->present);
+		}
+
+		{
+			auto backend = std::make_unique<Backend>(); auto* live = backend.get();
+			live->live = Snapshot{ 0u, 0x445566u };
+			live->live.accent = RegistryConfig::RawValue{ true, REG_DWORD, { 0x11, 0x22, 0x33, 0xFF } };
+			ColorPreference preview(std::move(backend));
+			bool recordedAccent{};
+			Check(SUCCEEDED(preview.Apply(L"user", 0x112233, [&](const Snapshot& before) { recordedAccent = before.accent.has_value(); })));
+			Check(!recordedAccent && !preview.Baseline()->accent); // Equal Accent produces no write or backup.
+			preview.CommitAttempt();
+			const RegistryConfig::RawValue external{ true, REG_DWORD, { 7, 8, 9, 0xFF } };
+			live->live.accent = external;
+			Check(SUCCEEDED(preview.Revert()) && live->live.rgb == DWORD{0x445566} && live->live.accent == external);
+		}
+		{
+			auto backend = std::make_unique<Backend>(); auto* live = backend.get();
+			live->live = Snapshot{ 0u, 0x112233u };
+			live->live.accent = RegistryConfig::RawValue{};
+			ColorPreference preview(std::move(backend));
+			Check(SUCCEEDED(preview.Apply(L"user", 0x112233))); preview.CommitAttempt();
+			Check(preview.IsDirty() && !preview.Baseline()->applyChoice && preview.Baseline()->accent);
+			live->live.automatic = 1; // Untouched mode changed externally during an Accent-only preview.
+			Check(SUCCEEDED(preview.Revert()) && live->live.automatic == 1 && !live->live.accent->present);
+		}
+		for (const DWORD mode : { 0u, 1u, 2u })
 		{
 			auto backend = std::make_unique<Backend>();
 			auto& live = *backend;
-			const Snapshot original{ mode, mode.value_or(0) ? std::nullopt : std::optional<DWORD>{0x112233} };
+			const Snapshot original{ mode, mode ? std::nullopt : std::optional<DWORD>{0x112233} };
 			live.live = original;
 			ColorPreference preview(std::move(backend));
 			Check(SUCCEEDED(preview.Apply(L"user", std::nullopt)));
@@ -1638,7 +1706,7 @@ namespace
 		edit(1, 40); journal.Accept(); edit(1, 41); Check(journal.Revert(write)); Check(state[1] == 40);
 	}
 
-	void TestConfigurationMigrationPolicy()
+	void TestConfigurationMergePolicy()
 	{
 		using enum Settings::Id;
 		using Raw = RegistryConfig::RawValue;
@@ -2104,7 +2172,9 @@ namespace
 		}
 		Check(resources.Revert()); resources.Accept();
 		// Interrupted attempt is recoverable by a new instance with callbacks, without real registry writes.
-		resources.Begin(ColorPreference::Snapshot{ DWORD{0}, DWORD{0x123456} });
+		ColorPreference::Snapshot recoveryColor{ DWORD{0}, DWORD{0x123456} };
+		recoveryColor.accent = RegistryConfig::RawValue{ true, REG_BINARY, { 1, 2, 3 } };
+		resources.Begin(recoveryColor);
 		resources.TrackRegistry(Settings::Scope::Machine, Settings::Id::GlassOpacity, { true, REG_DWORD, { 42, 0, 0, 0 } });
 		resources.Install(replacement);
 		ConfigurationResources recovered; recovered.Initialize(resourceRoot, L"S-1-5-21-1-2-3-1001");
@@ -2124,9 +2194,20 @@ namespace
 		Check(rejectedRecovery && registryCalls == 0 && colorCalls == 0 && ManagedFiles::Read(reflection) == ManagedFiles::Read(alternate));
 		std::filesystem::remove(recoveryPath); ManagedFiles::Write(recoveryPath, recoveryBytes);
 		Check(recovered.Recover([&](auto scope, auto id, const auto& value) { ++registryCalls; return scope == Settings::Scope::Machine && id == Settings::Id::GlassOpacity && value.bytes[0] == 42; },
-			[&](const auto& choice) { ++colorCalls; return choice.rgb == DWORD{0x123456}; }));
+			[&](const auto& choice) { ++colorCalls; return choice == recoveryColor; }));
 		Check(registryCalls == 1 && colorCalls == 1 && !recovered.HasRecovery());
 		Check(ManagedFiles::Read(reflection) == snapshot.assets.at("assets/reflection.png"));
+		resources.Accept();
+		// Automatic recovery must not overwrite freshly recomputed RGB with its old derived values.
+		resources.Begin();
+		resources.TrackColor(ColorPreference::Snapshot{ 1u, std::nullopt });
+		resources.TrackRegistry(Settings::Scope::User, Settings::Id::ColorizationColor, { true, REG_DWORD, { 1, 2, 3, 4 } });
+		resources.TrackRegistry(Settings::Scope::User, Settings::Id::ColorizationAfterglow, { true, REG_DWORD, { 5, 6, 7, 8 } });
+		resources.TrackRegistry(Settings::Scope::User, Settings::Id::GlassOpacity, { true, REG_DWORD, { 42, 0, 0, 0 } });
+		registryCalls = colorCalls = 0;
+		Check(recovered.Recover([&](auto, auto id, const auto&) { ++registryCalls; return id == Settings::Id::GlassOpacity; },
+			[&](const auto& choice) { ++colorCalls; return choice.RestoresAutomatic(); }));
+		Check(registryCalls == 1 && colorCalls == 1);
 		resources.Accept();
 		// Revert itself publishes a durable restore target before modifying files.
 		resources.Begin(); resources.Install(replacement); resources.CommitAttempt();
@@ -2469,7 +2550,7 @@ int main()
 	TestColorizationPresets();
 	TestBlurSettings();
 	TestSettingsCatalog();
-	TestConfigurationMigrationPolicy();
+	TestConfigurationMergePolicy();
 	TestPreviewJournal();
 	TestNetPreviewJournal();
 	TestShellColorRefresh();

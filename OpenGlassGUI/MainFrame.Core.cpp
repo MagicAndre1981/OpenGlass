@@ -787,20 +787,13 @@ namespace OpenGlass
 		}
 	}
 
-	bool MainFrame::RunPreview(const std::function<void()>& operation, bool accentColor, Settings::UpdateImpact impact)
+	bool MainFrame::RunPreview(const std::function<void()>& operation, Settings::UpdateImpact impact)
 	{
-		ColorPreference::Snapshot colorBefore;
 		const bool colorWasDirty = m_colorPreference.IsDirty();
-		bool captured{};
 		try
 		{
 			EnsurePreviewWriter();
-			if (accentColor)
-			{
-				THROW_IF_FAILED(m_colorPreference.Capture(m_targetUserSid.ToStdWstring(), colorBefore));
-				captured = true;
-			}
-			m_resources.Begin(captured ? std::optional{colorBefore} : std::nullopt);
+			m_resources.Begin();
 			m_preview.Begin();
 			operation();
 			m_preview.VisitRestore(true, [this](const TrackedSetting& key, const auto&)
@@ -829,11 +822,14 @@ namespace OpenGlass
 			const bool attempted = m_preview.IsAttemptActive();
 			try { m_preview.Reconcile([this](const auto& key) { return GetConfigForScope(key.scope)->ReadRaw(key.Name()); }); }
 			catch (...) { LOG_CAUGHT_EXCEPTION(); }
-			bool restored = !captured || SUCCEEDED(m_colorPreference.RollbackAttempt());
+			const auto colorBefore = m_colorPreference.Baseline(true);
+			bool restored = SUCCEEDED(m_colorPreference.RollbackAttempt());
 			restored = m_resources.RevertAttemptFiles() && restored;
 			if (m_preview.IsAttemptActive()) restored = m_preview.RollbackAttempt(
-				[this](const TrackedSetting& key, const RegistryConfig::RawValue& value)
+				[this, &colorBefore](const TrackedSetting& key, const RegistryConfig::RawValue& value)
 				{
+					if (colorBefore && colorBefore->RestoresAutomatic() && key.scope == Settings::Scope::User
+						&& (key.id == Settings::Id::ColorizationColor || key.id == Settings::Id::ColorizationAfterglow)) return true;
 					return SUCCEEDED(GetConfigForScope(key.scope)->WriteRaw(key.Name(), value));
 				}, restored);
 			try { restored = m_resources.RollbackAttempt(restored) && restored; }
@@ -884,10 +880,14 @@ namespace OpenGlass
 			m_resources.PrepareRevert(std::move(registry), m_colorPreference.Baseline());
 		}
 		catch (...) { wxMessageBox(L"The recovery record could not be prepared. No Revert changes were made; retry Revert.", L"Configuration recovery", wxOK | wxICON_ERROR, this); return false; }
+		const auto colorBefore = m_colorPreference.Baseline();
 		const auto colorResult = m_colorPreference.Revert();
 		const bool filesRestored = m_resources.Revert();
-		const bool restored = m_preview.Revert([this](const TrackedSetting& key, const RegistryConfig::RawValue& value)
+		const bool restored = m_preview.Revert([this, &colorBefore](const TrackedSetting& key, const RegistryConfig::RawValue& value)
 		{
+			// Automatic recovery recomputes wallpaper RGB; do not replace it with an old derived color.
+			if (colorBefore && colorBefore->RestoresAutomatic() && key.scope == Settings::Scope::User
+				&& (key.id == Settings::Id::ColorizationColor || key.id == Settings::Id::ColorizationAfterglow)) return true;
 			return SUCCEEDED(GetConfigForScope(key.scope)->WriteRaw(key.Name(), value));
 		}, SUCCEEDED(colorResult) && filesRestored, false);
 		if (!restored)
@@ -1132,7 +1132,7 @@ namespace OpenGlass
 			{
 				TrackSettingChange(id);
 				THROW_IF_FAILED(config->SetDword(name, val));
-			}, false, spec.impact);
+			}, spec.impact);
 		};
 		auto colorToDwordBgr = [](const wxColour& c) -> DWORD {
 			return (c.Red()) | (c.Green() << 8) | (c.Blue() << 16);
@@ -1244,7 +1244,7 @@ namespace OpenGlass
 					if (prepared) m_resources.Install(*prepared);
 					TrackSettingChange(id);
 					THROW_IF_FAILED(config->SetString(name, prepared ? m_resources.Path(m_editScope, id).wstring() : val));
-				}, false, spec.impact)) LoadSettings();
+				}, spec.impact)) LoadSettings();
 			}
 			catch (...) { ReportRegistryError(wil::ResultFromCaughtException(), name); }
 		};
@@ -1260,7 +1260,7 @@ namespace OpenGlass
 			{
 				TrackSettingChange(id);
 				THROW_IF_FAILED(config->DeleteValue(name));
-			}, false, Settings::Get(id).impact);
+			}, Settings::Get(id).impact);
 		};
 
 
@@ -1692,7 +1692,7 @@ namespace OpenGlass
 				if (e.IsChecked()) THROW_IF_FAILED(m_config->DeleteValue(L"ColorizationOpaqueBlend"));
 				else THROW_IF_FAILED(m_config->SetDword(L"ColorizationOpaqueBlend", 1));
 				if (m_rbGlassType->GetSelection() == 1) ApplyColorizationBalances(m_slColorIntensity->GetValue());
-			}, false, Settings::UpdateImpact::Colorization);
+			}, Settings::UpdateImpact::Colorization);
 		});
 
 		m_slColorIntensity->Bind(wxEVT_SLIDER, [this](wxCommandEvent& e) {
@@ -1702,7 +1702,7 @@ namespace OpenGlass
 				TrackSettingChange(Settings::Id::GlassOpacity);
 				THROW_IF_FAILED(m_config->SetDword(L"GlassOpacity", intensity));
 				if (m_rbGlassType->GetSelection() == 1) ApplyColorizationBalances(intensity);
-			}, false, Settings::UpdateImpact::Colorization);
+			}, Settings::UpdateImpact::Colorization);
 			m_slColorIntensity->SetToolTip(wxString::Format(L"%d", m_slColorIntensity->GetValue()));
 		});
 

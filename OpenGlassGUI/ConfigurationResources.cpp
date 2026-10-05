@@ -10,12 +10,21 @@ namespace OpenGlass
 		std::string Utf8(const std::wstring& value) { return wxString(value).ToStdString(wxConvUTF8); }
 		Json Choice(const ColorPreference::Snapshot& value)
 		{
-			return { { "automatic", value.automatic ? Json(*value.automatic) : Json(nullptr) }, { "rgb", value.rgb ? Json(*value.rgb) : Json(nullptr) } };
+			return { { "automatic", value.automatic }, { "rgb", value.rgb ? Json(*value.rgb) : Json(nullptr) },
+				{ "apply_choice", value.applyChoice }, { "accent", value.accent
+					? Json{ { "present", value.accent->present }, { "type", value.accent->type }, { "bytes", value.accent->bytes } }
+					: Json(nullptr) } };
 		}
 		ColorPreference::Snapshot ReadChoice(const Json& value)
 		{
 			ColorPreference::Snapshot result;
-			if (!value.at("automatic").is_null()) result.automatic = value.at("automatic").get<DWORD>();
+			result.automatic = value.at("automatic").get<DWORD>();
+			result.applyChoice = value.at("apply_choice").get<bool>();
+			if (!value.at("accent").is_null())
+			{
+				const auto& accent = value.at("accent");
+				result.accent = RegistryConfig::RawValue{ accent.at("present"), accent.at("type"), accent.at("bytes").get<std::vector<BYTE>>() };
+			}
 			if (!value.at("rgb").is_null()) result.rgb = value.at("rgb").get<DWORD>();
 			return result;
 		}
@@ -170,6 +179,11 @@ namespace OpenGlass
 	{
 		THROW_HR_IF(HRESULT_FROM_WIN32(ERROR_RECOVERY_FAILURE), HasRecovery());
 		ClearOperation(); m_backupPrefix = std::filesystem::path(PresetPackages::GeneratePackageUuid()).wstring(); m_journal.Begin(); m_attemptFiles.clear(); m_attemptRegistry.clear(); m_color = color;
+		Persist();
+	}
+	void ConfigurationResources::TrackColor(const ColorPreference::Snapshot& color)
+	{
+		m_color = color;
 		Persist();
 	}
 	void ConfigurationResources::PrepareRevert(std::vector<RegistryBefore> registry, std::optional<ColorPreference::Snapshot> color)
@@ -332,9 +346,15 @@ namespace OpenGlass
 			THROW_HR_IF(E_INVALIDARG, item.at("name") != Utf8(std::wstring(Settings::Get(static_cast<Settings::Id>(id)).name)));
 			entries.push_back({ item.at("user").get<bool>() ? Settings::Scope::User : Settings::Scope::Machine, static_cast<Settings::Id>(id), { item.at("present"), item.at("type"), item.at("bytes").get<std::vector<BYTE>>() } });
 		}
-		bool success = state.at("color").is_null() || color(ReadChoice(state.at("color")));
+		const auto colorBefore = state.at("color").is_null() ? std::nullopt : std::optional{ ReadChoice(state.at("color")) };
+		bool success = !colorBefore || color(*colorBefore);
 		for (const auto& [path, content] : files) if (!Restore(path, content)) success = false;
-		for (const auto& item : entries) if (!registry(item.scope, item.id, item.value)) success = false;
+		for (const auto& item : entries)
+		{
+			if (colorBefore && colorBefore->RestoresAutomatic() && item.scope == Settings::Scope::User
+				&& (item.id == Settings::Id::ColorizationColor || item.id == Settings::Id::ColorizationAfterglow)) continue;
+			if (!registry(item.scope, item.id, item.value)) success = false;
+		}
 		if (success) FinishOperation();
 		return success;
 	}

@@ -110,9 +110,10 @@ namespace OpenGlass
 			auto operator<=>(const TrackedSetting&) const = default;
 		};
 		PreviewJournal<TrackedSetting, RegistryConfig::RawValue> m_preview;
-		bool RunPreview(const std::function<void()>& operation, bool accentColor = false,
+		bool RunPreview(const std::function<void()>& operation,
 			Settings::UpdateImpact impact = Settings::UpdateImpact::Colorization | Settings::UpdateImpact::Theme);
 		ColorPreference m_colorPreference;
+		void ApplyAccentColor(std::optional<DWORD> argb);
 		ConfigurationResources m_resources;
 		wil::unique_hfile m_previewWriter;
 		void EnsurePreviewWriter();
