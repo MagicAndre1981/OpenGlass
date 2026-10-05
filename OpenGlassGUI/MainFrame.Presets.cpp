@@ -325,7 +325,18 @@ namespace OpenGlass
 			auto viewSelected = [&]()
 			{
 				const auto row = list->GetFirstSelected();
-				if (row != wxNOT_FOUND) ShowPresetPreview(&dialog, packages[row], config, false, user, machine);
+				if (row == wxNOT_FOUND) return;
+				try
+				{
+					const auto package = PresetPackages::LoadArchive(packages[row].source);
+					THROW_HR_IF(HRESULT_FROM_WIN32(ERROR_FILE_INVALID), package.digest != packages[row].digest);
+					ShowPresetPreview(&dialog, package, config, false, user, machine);
+				}
+				catch (...)
+				{
+					wxMessageBox(wxString::Format(L"The preset could not be reviewed (0x%08lX). Cancel and import it again.", wil::ResultFromCaughtException()),
+						L"Preset properties", wxOK | wxICON_ERROR, &dialog);
+				}
 			};
 			list->Bind(wxEVT_LIST_ITEM_ACTIVATED, [&](wxListEvent&) { viewSelected(); });
 			auto* details = new wxButton(&dialog, wxID_ANY, L"Properties...");
@@ -848,7 +859,12 @@ namespace OpenGlass
 		try
 		{
 			std::vector<PresetPackages::Package> packages;
-			for (const auto& path : paths) packages.push_back(PresetPackages::LoadArchive(path));
+			for (const auto& path : paths)
+			{
+				auto package = PresetPackages::LoadArchive(path);
+				package.assets.clear(); // Load one package's images on demand during review.
+				packages.push_back(std::move(package));
+			}
 			if (!ShowBatchImportPreview(this, packages, *m_config, *m_userConfig, *m_systemConfig)) return;
 			for (const auto& package : packages)
 			{

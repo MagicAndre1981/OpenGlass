@@ -28,7 +28,9 @@ namespace OpenGlass
 		THROW_IF_WIN32_ERROR(error);
 		do
 		{
-			value.bytes.resize(size);
+			// A null buffer would turn a zero-length value's concurrent growth into
+			// another successful size query, leaving synthetic bytes in the backup.
+			value.bytes.resize(std::max<DWORD>(size, 1));
 			error = RegQueryValueExW(key.get(), name.c_str(), nullptr, &value.type, value.bytes.data(), &size);
 		} while (error == ERROR_MORE_DATA);
 		if (error == ERROR_FILE_NOT_FOUND) return {};

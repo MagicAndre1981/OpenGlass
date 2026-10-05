@@ -8,7 +8,7 @@ This is the product contract for the configuration editor, color synchronization
 | --- | --- |
 | Editing layer | The HKCU or HKLM configuration this window displays and ordinarily edits. |
 | Effective configuration | The values selected by runtime precedence across both layers, with automatic/theme/default behavior intact. |
-| Windows accent state | The original interactive user's automatic/manual mode and chosen manual RGB, independent of editing layer. Windows-generated colors and companion values are outputs, not checkpoint inputs. |
+| Windows accent state | The original interactive user's automatic/manual mode and chosen manual RGB, independent of editing layer. Changed write targets have raw before-values; Automatic recovery recomputes derived colors. |
 | Saved preset | An explicit, reusable snapshot of effective configuration, optional accent RGB and copied resources. It has no target scope. |
 | Preview checkpoint | The before-values for this GUI's net modifications since startup or the last Save. It is not a preset. |
 
@@ -36,6 +36,8 @@ Runtime reads remain independent of the editor:
 - Ordinary values: HKCU → HKLM → built-in default.
 - Overridable values: HKCU Override → HKLM Override → HKCU base → HKLM base → built-in default.
 - Invalid types are unavailable; continue to the next candidate. Both DWM architectures share this ordering. Machine Override precedence over user base is an intentional compatibility change.
+
+Resource strings accept `REG_SZ` and unexpanded `REG_EXPAND_SZ`, matching runtime reads. Presets capture their text, while checkpoint recovery preserves the original registry type and bytes.
 
 For valid values, this restores the ordering used before commit `d6b4414` (2026-08-02, "Fix override resolution and expand diagnostics"). From that commit through 3.0.2, HKCU base preceded HKLM Override. The affected bases are `ColorizationColor`, `ColorizationAfterglow`, `ColorizationColorBalance`, `ColorizationAfterglowBalance` and `ColorizationBlurBalance`, each with its corresponding `Override` variant. Ordinary settings are unchanged.
 

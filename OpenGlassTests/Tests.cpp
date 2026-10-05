@@ -1466,6 +1466,37 @@ namespace
 
 	}
 
+	void TestConfigurationStrings()
+	{
+		using namespace EffectiveConfiguration;
+		constexpr auto id = Settings::Id::CustomThemeReflection;
+		const std::wstring samples[]{ L"", L"user.png", std::wstring(L"user.png\0ignored", 16), L"%TEMP%\\texture.png" };
+		for (const DWORD type : { REG_SZ, REG_EXPAND_SZ })
+			for (const auto& text : samples)
+				for (const bool terminated : { false, true })
+				{
+					RegistryConfig::RawValue raw{ true, type, std::vector<BYTE>((text.size() + terminated) * sizeof(wchar_t)) };
+					if (!raw.bytes.empty()) std::memcpy(raw.bytes.data(), text.c_str(), raw.bytes.size());
+					const Value expected{ text.substr(0, text.find(L'\0')) };
+					Check(Decode(raw, Settings::Get(id)) == expected);
+					Layer user, machine;
+					user.values[id] = raw;
+					machine.values[id] = Encode(Value{ std::wstring(L"machine.png") });
+					Check(Capture(user, machine).at(id) == expected); // An explicit empty path also masks HKLM.
+					for (const auto& change : Plan(user, machine, { { id, expected } }, Settings::Scope::Machine))
+						Check(change.scope != Settings::Scope::User); // Same-value user strings are harmless.
+					Check(ConfigurationMigration::Prepare(user.values, machine.values, Settings::Scope::User).empty());
+					const auto merge = ConfigurationMigration::Prepare(user.values, machine.values, Settings::Scope::Machine);
+					Check(merge.size() == 2);
+					if (merge.size() == 2)
+					{
+						Check(merge[0].scope == Settings::Scope::Machine && merge[0].after == raw);
+						Check(Decode(merge[0].after, Settings::Get(id)) == expected);
+						Check(merge[1].scope == Settings::Scope::User && merge[1].before == raw && !merge[1].after.present);
+					}
+				}
+	}
+
 	void TestConfigurationReset()
 	{
 		using namespace EffectiveConfiguration;
@@ -2054,8 +2085,8 @@ namespace
 				Check(replacement != malformed.end() && replacement->before == users.at(GlassOpacity) && replacement->after == raw(60));
 			}
 		}
-		// Merge and preset capture must agree on malformed string inputs.
-		for (const auto badPath : { Raw{ true, REG_SZ, { 'x', 0 } }, Raw{ true, REG_SZ, { 0, 0, 'x', 0, 0, 0 } } })
+		// Odd byte counts cannot represent a complete UTF-16 sequence.
+		for (const auto badPath : { Raw{ true, REG_SZ, { 'x' } }, Raw{ true, REG_EXPAND_SZ, { 'x', 0, 'y' } } })
 		{
 			const Values malformedUser{ { CustomThemeReflection, badPath } };
 			Check(std::holds_alternative<std::monostate>(EffectiveConfiguration::Decode(badPath, Settings::Get(CustomThemeReflection))));
@@ -2332,6 +2363,28 @@ namespace
 		Check(PresetPackages::EnumerateInstalled(library).front().digest == local.digest);
 		Check(!std::filesystem::exists(previousEntry) && !std::filesystem::exists(abandoned));
 		Check(PresetPackages::EnumerateInstalled(library).size() == 1);
+		// A pending replacement backup must never resurrect a deliberately deleted entry.
+		const auto deleteLibrary = directory / L"delete-library";
+		const auto deleting = PresetPackages::Publish(snapshot, "local", {}, deleteLibrary);
+		const std::filesystem::path deletePrevious = deleting.source.wstring() + L".previous";
+		std::filesystem::copy(deleting.source, deletePrevious, std::filesystem::copy_options::recursive);
+		{
+			wil::unique_hfile held(CreateFileW((deletePrevious / L"manifest.json").c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, 0, nullptr));
+			Check(static_cast<bool>(held));
+			bool blocked{};
+			try { PresetPackages::RemoveLibraryEntry(deleting.libraryId, deleteLibrary); } catch (...) { blocked = true; }
+			Check(blocked && std::filesystem::exists(deleting.source));
+			Check(PresetPackages::LoadTrusted(deleting, deleteLibrary).digest == deleting.digest);
+		}
+		PresetPackages::RemoveLibraryEntry(deleting.libraryId, deleteLibrary);
+		Check(!std::filesystem::exists(deletePrevious) && PresetPackages::EnumerateInstalled(deleteLibrary).empty());
+		// Cleanup does not require the damaged current entry to validate first.
+		const auto damaged = PresetPackages::Publish(snapshot, "local", {}, deleteLibrary);
+		const std::filesystem::path damagedPrevious = damaged.source.wstring() + L".previous";
+		std::filesystem::copy(damaged.source, damagedPrevious, std::filesystem::copy_options::recursive);
+		std::filesystem::remove(damaged.source / L"manifest.json");
+		PresetPackages::RemoveLibraryEntry(damaged.libraryId, deleteLibrary);
+		Check(!std::filesystem::exists(damagedPrevious) && PresetPackages::EnumerateInstalled(deleteLibrary).empty());
 		Check(PresetPackages::Publish(snapshot, "imported", {}, library).libraryId == local.libraryId);
 		auto revisedRequest = assetRequest;
 		revisedRequest.metadata.uuid = PresetPackages::GeneratePackageUuid();
@@ -2869,6 +2922,7 @@ int main()
 	TestShellColorRefresh();
 	TestAutomaticColorPreview();
 	TestEffectiveConfiguration();
+	TestConfigurationStrings();
 	TestConfigurationReset();
 	g_failures += TestWrappingTextLayout();
 	TestPresetProvenance();

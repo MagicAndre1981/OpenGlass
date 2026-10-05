@@ -26,12 +26,15 @@ namespace OpenGlass::EffectiveConfiguration
 		{
 			DWORD value; std::memcpy(&value, raw.bytes.data(), sizeof(value)); return value;
 		}
-		if (spec.type == Settings::ValueType::String && raw.type == REG_SZ && raw.bytes.size() >= sizeof(wchar_t) && raw.bytes.size() % sizeof(wchar_t) == 0)
+		if (spec.type == Settings::ValueType::String && (raw.type == REG_SZ || raw.type == REG_EXPAND_SZ)
+			&& raw.bytes.size() % sizeof(wchar_t) == 0)
 		{
 			std::wstring value(raw.bytes.size() / sizeof(wchar_t), L'\0');
-			std::memcpy(value.data(), raw.bytes.data(), raw.bytes.size());
-			if (value.back() || value.find(L'\0') != value.size() - 1) return {};
-			value.pop_back(); return value;
+			if (!raw.bytes.empty()) std::memcpy(value.data(), raw.bytes.data(), raw.bytes.size());
+			// WIL reads either string type without expansion. RegGetValue supplies
+			// a missing terminator; runtime consumers stop at the first NUL.
+			if (const auto end = value.find(L'\0'); end != std::wstring::npos) value.resize(end);
+			return value;
 		}
 		return {};
 	}

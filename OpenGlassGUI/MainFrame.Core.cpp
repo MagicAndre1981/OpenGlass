@@ -766,13 +766,11 @@ namespace OpenGlass
 			std::map<std::pair<Settings::Scope, Settings::Id>, std::shared_ptr<ConfigurationResources::Preparation>> prepared;
 			for (const auto& change : changes)
 				if (Settings::Get(change.id).assetRole != Settings::AssetRole::None)
-					if (change.after.present && change.after.type == REG_SZ && change.after.bytes.size() >= sizeof(wchar_t))
-					{
-						std::wstring source(change.after.bytes.size() / sizeof(wchar_t), L'\0');
-						memcpy(source.data(), change.after.bytes.data(), change.after.bytes.size());
-						if (!source.empty() && !source.back()) source.pop_back();
-						if (!source.empty()) prepared[{ change.scope, change.id }] = m_resources.PrepareFile(change.scope, change.id, source);
-					}
+				{
+					const auto value = EffectiveConfiguration::Decode(change.after, Settings::Get(change.id));
+					if (const auto source = std::get_if<std::wstring>(&value); source && !source->empty())
+						prepared[{ change.scope, change.id }] = m_resources.PrepareFile(change.scope, change.id, *source);
+				}
 			if (RunPreview([&]
 			{
 				for (const auto& change : changes)

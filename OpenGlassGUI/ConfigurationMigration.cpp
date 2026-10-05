@@ -47,17 +47,12 @@ namespace OpenGlass::ConfigurationMigration
 			if (value.type == REG_DWORD && value.bytes.size() == sizeof(result)) std::memcpy(&result, value.bytes.data(), sizeof(result));
 			return result;
 		};
-		auto describe = [&](const RawValue& value)
+		auto describe = [&](Settings::Id id, const RawValue& value)
 		{
 			if (!value.present) return std::wstring(L"<absent>");
 			if (value.type == REG_DWORD && value.bytes.size() == sizeof(DWORD)) return std::format(L"0x{:08X}", decode(value));
-			if (value.type == REG_SZ && value.bytes.size() >= sizeof(wchar_t))
-			{
-				std::wstring text(value.bytes.size() / sizeof(wchar_t), L'\0');
-				std::memcpy(text.data(), value.bytes.data(), text.size() * sizeof(wchar_t));
-				if (!text.empty() && text.back() == L'\0') text.pop_back();
-				return text;
-			}
+			const auto decoded = EffectiveConfiguration::Decode(value, Settings::Get(id));
+			if (const auto text = std::get_if<std::wstring>(&decoded)) return *text;
 			return std::format(L"<type {}, {} bytes>", value.type, value.bytes.size());
 		};
 		std::vector<Change> changes;
@@ -68,7 +63,7 @@ namespace OpenGlass::ConfigurationMigration
 			if (destination[id] == value) continue;
 			const auto name = std::wstring(Settings::Get(id).name);
 			changes.push_back({ target, id, destination[id], value,
-				origins[id] + L" -> " + targetName + L" " + name + L": " + describe(destination[id]) + L" -> " + describe(value)
+				origins[id] + L" -> " + targetName + L" " + name + L": " + describe(id, destination[id]) + L" -> " + describe(id, value)
 					+ (destination[id].present ? L" (replace conflict)" : L" (create)") });
 		}
 		// A user merge leaves machine configuration intact for other users.

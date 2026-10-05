@@ -1007,6 +1007,9 @@ namespace OpenGlass::PresetPackages
 		const auto target = library / PathFromUtf8(id);
 		const auto deleted = library / PathFromUtf8(std::string(id) + ".deleted");
 		ManagedFiles::CheckPath(target);
+		// A leftover replacement backup would otherwise restore the deleted entry.
+		// Keep the current entry if its old content still cannot be removed.
+		ManagedFiles::RemoveTree(library / PathFromUtf8(std::string(id) + ".previous"), library);
 		std::filesystem::rename(target, deleted);
 		ManagedFiles::RemoveTree(deleted, library);
 	}
