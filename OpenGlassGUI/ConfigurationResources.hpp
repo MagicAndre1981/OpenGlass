@@ -40,7 +40,6 @@ namespace OpenGlass
 		};
 		void Initialize(std::filesystem::path root, std::wstring sid);
 		[[nodiscard]] wil::unique_hfile AcquireWriter() const;
-		const std::filesystem::path& Root() const { return m_root; }
 		std::filesystem::path Path(Settings::Scope scope, Settings::Id id) const;
 		bool IsManaged(const std::filesystem::path& path) const;
 		bool NeedsImport(Settings::Scope scope, Settings::Id id, const std::filesystem::path& source) const;

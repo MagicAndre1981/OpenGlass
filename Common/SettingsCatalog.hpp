@@ -106,7 +106,6 @@ namespace OpenGlass::Settings
 		ValueType type;
 		AssetRole assetRole;
 		UpdateImpact impact;
-		bool sensitive;
 		unsigned introducedIn{ 1 };
 		bool includeInPresetPacks{ true };
 		unsigned retiredFromPresetsIn{};
@@ -114,59 +113,59 @@ namespace OpenGlass::Settings
 
 	inline constexpr std::array<Spec, static_cast<std::size_t>(Id::Count)> Catalog
 	{{
-		{ Id::ColorizationColor, L"ColorizationColor", ValueType::Dword, AssetRole::None, UpdateImpact::Colorization, false, 1, true, 2 },
-		{ Id::ColorizationColorOverride, L"ColorizationColorOverride", ValueType::Dword, AssetRole::None, UpdateImpact::Colorization, false, 1, false },
-		{ Id::ColorizationAfterglow, L"ColorizationAfterglow", ValueType::Dword, AssetRole::None, UpdateImpact::Colorization, false, 1, true, 2 },
-		{ Id::ColorizationAfterglowOverride, L"ColorizationAfterglowOverride", ValueType::Dword, AssetRole::None, UpdateImpact::Colorization, false, 1, false },
-		{ Id::ColorizationColorBalance, L"ColorizationColorBalance", ValueType::Dword, AssetRole::None, UpdateImpact::Colorization, false, 1, true, 2 },
-		{ Id::ColorizationColorBalanceOverride, L"ColorizationColorBalanceOverride", ValueType::Dword, AssetRole::None, UpdateImpact::Colorization, false },
-		{ Id::ColorizationAfterglowBalance, L"ColorizationAfterglowBalance", ValueType::Dword, AssetRole::None, UpdateImpact::Colorization, false, 1, true, 2 },
-		{ Id::ColorizationAfterglowBalanceOverride, L"ColorizationAfterglowBalanceOverride", ValueType::Dword, AssetRole::None, UpdateImpact::Colorization, false },
-		{ Id::ColorizationBlurBalance, L"ColorizationBlurBalance", ValueType::Dword, AssetRole::None, UpdateImpact::Colorization, false, 1, true, 2 },
-		{ Id::ColorizationBlurBalanceOverride, L"ColorizationBlurBalanceOverride", ValueType::Dword, AssetRole::None, UpdateImpact::Colorization, false },
-		{ Id::ColorizationColorInactive, L"ColorizationColorInactive", ValueType::Dword, AssetRole::None, UpdateImpact::Colorization, false },
-		{ Id::GlassOpacity, L"GlassOpacity", ValueType::Dword, AssetRole::None, UpdateImpact::Colorization, false },
-		{ Id::GlassOpacityInactive, L"GlassOpacityInactive", ValueType::Dword, AssetRole::None, UpdateImpact::Colorization, false },
-		{ Id::ColorizationColorCaption, L"ColorizationColorCaption", ValueType::Dword, AssetRole::None, UpdateImpact::Theme, false },
-		{ Id::ColorizationColorCaptionInactive, L"ColorizationColorCaptionInactive", ValueType::Dword, AssetRole::None, UpdateImpact::Theme, false },
-		{ Id::ColorizationColorCaptionMaximized, L"ColorizationColorCaptionMaximized", ValueType::Dword, AssetRole::None, UpdateImpact::Theme, false },
-		{ Id::ColorizationColorCaptionInactiveMaximized, L"ColorizationColorCaptionInactiveMaximized", ValueType::Dword, AssetRole::None, UpdateImpact::Theme, false },
-		{ Id::ColorizationOpaqueBlend, L"ColorizationOpaqueBlend", ValueType::Dword, AssetRole::None, UpdateImpact::Colorization, false },
-		{ Id::ColorizationBaseTransparent, L"ColorizationBaseTransparent", ValueType::Dword, AssetRole::None, UpdateImpact::Colorization, false },
-		{ Id::ColorizationBaseMaximized, L"ColorizationBaseMaximized", ValueType::Dword, AssetRole::None, UpdateImpact::Colorization, false },
-		{ Id::ColorizationBaseOpaque, L"ColorizationBaseOpaque", ValueType::Dword, AssetRole::None, UpdateImpact::Colorization, false },
-		{ Id::ColorizationOpaqueBlendPriority, L"ColorizationOpaqueBlendPriority", ValueType::Dword, AssetRole::None, UpdateImpact::Colorization, false },
-		{ Id::ColorizationOpacity, L"ColorizationOpacity", ValueType::Dword, AssetRole::None, UpdateImpact::Colorization, false },
-		{ Id::ColorizationOpacityInactive, L"ColorizationOpacityInactive", ValueType::Dword, AssetRole::None, UpdateImpact::Colorization, false },
-		{ Id::ColorizationOpacityMaximized, L"ColorizationOpacityMaximized", ValueType::Dword, AssetRole::None, UpdateImpact::Colorization, false },
-		{ Id::ColorizationOpacityInactiveMaximized, L"ColorizationOpacityInactiveMaximized", ValueType::Dword, AssetRole::None, UpdateImpact::Colorization, false },
-		{ Id::GlassType, L"GlassType", ValueType::Dword, AssetRole::None, UpdateImpact::Colorization, false },
-		{ Id::GlassOverrideAccent, L"GlassOverrideAccent", ValueType::Dword, AssetRole::None, UpdateImpact::Colorization, false },
-		{ Id::CustomThemeReflection, L"CustomThemeReflection", ValueType::String, AssetRole::Reflection, UpdateImpact::Theme, true },
-		{ Id::ColorizationGlassReflectionIntensity, L"ColorizationGlassReflectionIntensity", ValueType::Dword, AssetRole::None, UpdateImpact::Colorization, false },
-		{ Id::ColorizationGlassReflectionOpacity, L"ColorizationGlassReflectionOpacity", ValueType::Dword, AssetRole::None, UpdateImpact::Colorization, false },
-		{ Id::ColorizationGlassReflectionOpacityInactive, L"ColorizationGlassReflectionOpacityInactive", ValueType::Dword, AssetRole::None, UpdateImpact::Colorization, false },
-		{ Id::ColorizationGlassReflectionOpacityMaximized, L"ColorizationGlassReflectionOpacityMaximized", ValueType::Dword, AssetRole::None, UpdateImpact::Colorization, false },
-		{ Id::ColorizationGlassReflectionOpacityInactiveMaximized, L"ColorizationGlassReflectionOpacityInactiveMaximized", ValueType::Dword, AssetRole::None, UpdateImpact::Colorization, false },
-		{ Id::ColorizationGlassReflectionParallaxIntensity, L"ColorizationGlassReflectionParallaxIntensity", ValueType::Dword, AssetRole::None, UpdateImpact::Colorization, false },
-		{ Id::ColorizationGlassReflectionPolicy, L"ColorizationGlassReflectionPolicy", ValueType::Dword, AssetRole::None, UpdateImpact::Colorization, false },
-		{ Id::BlurDeviation, L"BlurDeviation", ValueType::Dword, AssetRole::None, UpdateImpact::Colorization, false },
-		{ Id::BlurOptimization, L"BlurOptimization", ValueType::Dword, AssetRole::None, UpdateImpact::Colorization, false },
-		{ Id::RoundRectRadius, L"RoundRectRadius", ValueType::Dword, AssetRole::None, UpdateImpact::Colorization, false },
-		{ Id::CustomThemeMaterial, L"CustomThemeMaterial", ValueType::String, AssetRole::Material, UpdateImpact::Theme, true },
-		{ Id::MaterialOpacity, L"MaterialOpacity", ValueType::Dword, AssetRole::None, UpdateImpact::Colorization, false },
-		{ Id::UseDirect3DRendering, L"UseDirect3DRendering", ValueType::Dword, AssetRole::None, UpdateImpact::Colorization, false },
-		{ Id::CaptionButtons, L"CaptionButtons", ValueType::Dword, AssetRole::None, UpdateImpact::Theme, false },
-		{ Id::CenterCaption, L"CenterCaption", ValueType::Dword, AssetRole::None, UpdateImpact::Theme, false },
-		{ Id::TextGlowMode, L"TextGlowMode", ValueType::Dword, AssetRole::None, UpdateImpact::Theme, false },
-		{ Id::CustomThemeAtlas, L"CustomThemeAtlas", ValueType::String, AssetRole::ThemeAtlas, UpdateImpact::Theme, true },
-		{ Id::DisableModernBorders, L"DisableModernBorders", ValueType::Dword, AssetRole::None, UpdateImpact::Theme, false },
-		{ Id::DisableGlassOnBattery, L"DisableGlassOnBattery", ValueType::Dword, AssetRole::None, UpdateImpact::Colorization, false },
-		{ Id::DisabledHooks, L"DisabledHooks", ValueType::Dword, AssetRole::None, UpdateImpact::RestartRequired, true },
-		{ Id::GlassSafetyZoneMode, L"GlassSafetyZoneMode", ValueType::Dword, AssetRole::None, UpdateImpact::Colorization, true },
-		{ Id::MinMaxButtonGlowId, L"MINMAXBUTTONGLOWid", ValueType::Dword, AssetRole::None, UpdateImpact::RestartRequired, true, 1, false },
-		{ Id::CloseButtonGlowId, L"CLOSEBUTTONGLOWid", ValueType::Dword, AssetRole::None, UpdateImpact::RestartRequired, true, 1, false },
-		{ Id::ToolCloseButtonGlowId, L"TOOLCLOSEBUTTONGLOWid", ValueType::Dword, AssetRole::None, UpdateImpact::RestartRequired, true, 1, false }
+		{ Id::ColorizationColor, L"ColorizationColor", ValueType::Dword, AssetRole::None, UpdateImpact::Colorization, 1, true, 2 },
+		{ Id::ColorizationColorOverride, L"ColorizationColorOverride", ValueType::Dword, AssetRole::None, UpdateImpact::Colorization, 1, false },
+		{ Id::ColorizationAfterglow, L"ColorizationAfterglow", ValueType::Dword, AssetRole::None, UpdateImpact::Colorization, 1, true, 2 },
+		{ Id::ColorizationAfterglowOverride, L"ColorizationAfterglowOverride", ValueType::Dword, AssetRole::None, UpdateImpact::Colorization, 1, false },
+		{ Id::ColorizationColorBalance, L"ColorizationColorBalance", ValueType::Dword, AssetRole::None, UpdateImpact::Colorization, 1, true, 2 },
+		{ Id::ColorizationColorBalanceOverride, L"ColorizationColorBalanceOverride", ValueType::Dword, AssetRole::None, UpdateImpact::Colorization },
+		{ Id::ColorizationAfterglowBalance, L"ColorizationAfterglowBalance", ValueType::Dword, AssetRole::None, UpdateImpact::Colorization, 1, true, 2 },
+		{ Id::ColorizationAfterglowBalanceOverride, L"ColorizationAfterglowBalanceOverride", ValueType::Dword, AssetRole::None, UpdateImpact::Colorization },
+		{ Id::ColorizationBlurBalance, L"ColorizationBlurBalance", ValueType::Dword, AssetRole::None, UpdateImpact::Colorization, 1, true, 2 },
+		{ Id::ColorizationBlurBalanceOverride, L"ColorizationBlurBalanceOverride", ValueType::Dword, AssetRole::None, UpdateImpact::Colorization },
+		{ Id::ColorizationColorInactive, L"ColorizationColorInactive", ValueType::Dword, AssetRole::None, UpdateImpact::Colorization },
+		{ Id::GlassOpacity, L"GlassOpacity", ValueType::Dword, AssetRole::None, UpdateImpact::Colorization },
+		{ Id::GlassOpacityInactive, L"GlassOpacityInactive", ValueType::Dword, AssetRole::None, UpdateImpact::Colorization },
+		{ Id::ColorizationColorCaption, L"ColorizationColorCaption", ValueType::Dword, AssetRole::None, UpdateImpact::Theme },
+		{ Id::ColorizationColorCaptionInactive, L"ColorizationColorCaptionInactive", ValueType::Dword, AssetRole::None, UpdateImpact::Theme },
+		{ Id::ColorizationColorCaptionMaximized, L"ColorizationColorCaptionMaximized", ValueType::Dword, AssetRole::None, UpdateImpact::Theme },
+		{ Id::ColorizationColorCaptionInactiveMaximized, L"ColorizationColorCaptionInactiveMaximized", ValueType::Dword, AssetRole::None, UpdateImpact::Theme },
+		{ Id::ColorizationOpaqueBlend, L"ColorizationOpaqueBlend", ValueType::Dword, AssetRole::None, UpdateImpact::Colorization },
+		{ Id::ColorizationBaseTransparent, L"ColorizationBaseTransparent", ValueType::Dword, AssetRole::None, UpdateImpact::Colorization },
+		{ Id::ColorizationBaseMaximized, L"ColorizationBaseMaximized", ValueType::Dword, AssetRole::None, UpdateImpact::Colorization },
+		{ Id::ColorizationBaseOpaque, L"ColorizationBaseOpaque", ValueType::Dword, AssetRole::None, UpdateImpact::Colorization },
+		{ Id::ColorizationOpaqueBlendPriority, L"ColorizationOpaqueBlendPriority", ValueType::Dword, AssetRole::None, UpdateImpact::Colorization },
+		{ Id::ColorizationOpacity, L"ColorizationOpacity", ValueType::Dword, AssetRole::None, UpdateImpact::Colorization },
+		{ Id::ColorizationOpacityInactive, L"ColorizationOpacityInactive", ValueType::Dword, AssetRole::None, UpdateImpact::Colorization },
+		{ Id::ColorizationOpacityMaximized, L"ColorizationOpacityMaximized", ValueType::Dword, AssetRole::None, UpdateImpact::Colorization },
+		{ Id::ColorizationOpacityInactiveMaximized, L"ColorizationOpacityInactiveMaximized", ValueType::Dword, AssetRole::None, UpdateImpact::Colorization },
+		{ Id::GlassType, L"GlassType", ValueType::Dword, AssetRole::None, UpdateImpact::Colorization },
+		{ Id::GlassOverrideAccent, L"GlassOverrideAccent", ValueType::Dword, AssetRole::None, UpdateImpact::Colorization },
+		{ Id::CustomThemeReflection, L"CustomThemeReflection", ValueType::String, AssetRole::Reflection, UpdateImpact::Theme },
+		{ Id::ColorizationGlassReflectionIntensity, L"ColorizationGlassReflectionIntensity", ValueType::Dword, AssetRole::None, UpdateImpact::Colorization },
+		{ Id::ColorizationGlassReflectionOpacity, L"ColorizationGlassReflectionOpacity", ValueType::Dword, AssetRole::None, UpdateImpact::Colorization },
+		{ Id::ColorizationGlassReflectionOpacityInactive, L"ColorizationGlassReflectionOpacityInactive", ValueType::Dword, AssetRole::None, UpdateImpact::Colorization },
+		{ Id::ColorizationGlassReflectionOpacityMaximized, L"ColorizationGlassReflectionOpacityMaximized", ValueType::Dword, AssetRole::None, UpdateImpact::Colorization },
+		{ Id::ColorizationGlassReflectionOpacityInactiveMaximized, L"ColorizationGlassReflectionOpacityInactiveMaximized", ValueType::Dword, AssetRole::None, UpdateImpact::Colorization },
+		{ Id::ColorizationGlassReflectionParallaxIntensity, L"ColorizationGlassReflectionParallaxIntensity", ValueType::Dword, AssetRole::None, UpdateImpact::Colorization },
+		{ Id::ColorizationGlassReflectionPolicy, L"ColorizationGlassReflectionPolicy", ValueType::Dword, AssetRole::None, UpdateImpact::Colorization },
+		{ Id::BlurDeviation, L"BlurDeviation", ValueType::Dword, AssetRole::None, UpdateImpact::Colorization },
+		{ Id::BlurOptimization, L"BlurOptimization", ValueType::Dword, AssetRole::None, UpdateImpact::Colorization },
+		{ Id::RoundRectRadius, L"RoundRectRadius", ValueType::Dword, AssetRole::None, UpdateImpact::Colorization },
+		{ Id::CustomThemeMaterial, L"CustomThemeMaterial", ValueType::String, AssetRole::Material, UpdateImpact::Theme },
+		{ Id::MaterialOpacity, L"MaterialOpacity", ValueType::Dword, AssetRole::None, UpdateImpact::Colorization },
+		{ Id::UseDirect3DRendering, L"UseDirect3DRendering", ValueType::Dword, AssetRole::None, UpdateImpact::Colorization },
+		{ Id::CaptionButtons, L"CaptionButtons", ValueType::Dword, AssetRole::None, UpdateImpact::Theme },
+		{ Id::CenterCaption, L"CenterCaption", ValueType::Dword, AssetRole::None, UpdateImpact::Theme },
+		{ Id::TextGlowMode, L"TextGlowMode", ValueType::Dword, AssetRole::None, UpdateImpact::Theme },
+		{ Id::CustomThemeAtlas, L"CustomThemeAtlas", ValueType::String, AssetRole::ThemeAtlas, UpdateImpact::Theme },
+		{ Id::DisableModernBorders, L"DisableModernBorders", ValueType::Dword, AssetRole::None, UpdateImpact::Theme },
+		{ Id::DisableGlassOnBattery, L"DisableGlassOnBattery", ValueType::Dword, AssetRole::None, UpdateImpact::Colorization },
+		{ Id::DisabledHooks, L"DisabledHooks", ValueType::Dword, AssetRole::None, UpdateImpact::RestartRequired },
+		{ Id::GlassSafetyZoneMode, L"GlassSafetyZoneMode", ValueType::Dword, AssetRole::None, UpdateImpact::Colorization },
+		{ Id::MinMaxButtonGlowId, L"MINMAXBUTTONGLOWid", ValueType::Dword, AssetRole::None, UpdateImpact::RestartRequired, 1, false },
+		{ Id::CloseButtonGlowId, L"CLOSEBUTTONGLOWid", ValueType::Dword, AssetRole::None, UpdateImpact::RestartRequired, 1, false },
+		{ Id::ToolCloseButtonGlowId, L"TOOLCLOSEBUTTONGLOWid", ValueType::Dword, AssetRole::None, UpdateImpact::RestartRequired, 1, false }
 	}};
 
 	consteval bool IsValidCatalog()
@@ -192,11 +191,9 @@ namespace OpenGlass::Settings
 		return Catalog[static_cast<std::size_t>(id)];
 	}
 
-	static_assert(!Get(Id::DisableGlassOnBattery).sensitive);
 	static_assert(Get(Id::GlassOverrideAccent).impact == UpdateImpact::Colorization);
 	static_assert(Get(Id::GlassSafetyZoneMode).impact == UpdateImpact::Colorization);
 	static_assert(Get(Id::UseDirect3DRendering).impact == UpdateImpact::Colorization);
-	static_assert(!Get(Id::UseDirect3DRendering).sensitive);
 	static_assert(!Get(Id::MinMaxButtonGlowId).includeInPresetPacks);
 	static_assert(!Get(Id::CloseButtonGlowId).includeInPresetPacks);
 	static_assert(!Get(Id::ToolCloseButtonGlowId).includeInPresetPacks);

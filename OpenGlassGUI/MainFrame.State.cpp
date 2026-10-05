@@ -274,13 +274,9 @@ namespace OpenGlass
 
 		// IMPORTANT: m_rbGlassType->GetContainingSizer() is the *row* that hosts the radiobox,
 		// not the page root sizer. Use the Glass Colors page for visibility changes.
-		wxWindow* page = m_glassColorsPanel;
-		if (page)
+		if (m_glassColorsPanel)
 		{
-			if (wxScrolledWindow* scrolled = wxDynamicCast(page, wxScrolledWindow))
-			{
-				LayoutWrappingPage(scrolled);
-			}
+			LayoutWrappingPage(m_glassColorsPanel);
 		}
 
 		UpdateOptionStatusIcons();

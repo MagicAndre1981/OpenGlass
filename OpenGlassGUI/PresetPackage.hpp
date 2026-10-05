@@ -38,7 +38,6 @@ namespace OpenGlass::PresetPackages
 		std::vector<std::string> inheritedLicenses;
 		std::optional<DWORD> accentColor;
 		std::vector<std::wstring> conversions;
-		unsigned schemaVersion{};
 		std::string libraryId;
 		std::string sourceType;
 		// Local admission is never read from an imported manifest.
@@ -112,5 +111,4 @@ namespace OpenGlass::PresetPackages
 	void RemoveLibraryEntry(std::string_view id, const std::filesystem::path& root = GetPresetRoot());
 	void PreserveSource(CreateRequest& request, const Package& source, bool imageAssets);
 	void PreserveRevisionProvenance(CreateRequest& request, const Package* target, const Package* origin);
-	void CreateArchive(const std::filesystem::path& path, CreateRequest request);
 }

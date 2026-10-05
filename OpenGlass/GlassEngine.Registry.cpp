@@ -45,6 +45,6 @@ namespace OpenGlass::GlassEngine
 			machineOverride,
 			machineBase,
 			defaultValue
-		).value;
+		);
 	}
 }

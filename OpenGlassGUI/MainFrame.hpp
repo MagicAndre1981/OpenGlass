@@ -18,7 +18,7 @@ namespace OpenGlass
 	class MainFrame : public wxFrame
 	{
 	public:
-		MainFrame(const wxString& title, std::wstring userSid, Settings::Scope scope);
+		MainFrame(std::wstring userSid, Settings::Scope scope);
 
 	private:
 		void CreateControls();
@@ -28,8 +28,9 @@ namespace OpenGlass
 		void CreateThemeTab();
 		void CreateAppearanceTab(); // Text and Caption settings
 		void CreateGlassColorsTab();
-		// void CreateAccentTab();
 		void CreateBottomControls(wxSizer* parentSizer);
+		bool CanSwitchEditingScope() const;
+		void SwitchEditingScope();
 
 		void BindEvents();
 		void LoadSettings();
@@ -37,12 +38,13 @@ namespace OpenGlass
 		void SaveSettings();
 
 		// Helpers
+		static std::wstring ResolveAccountName(const std::wstring& sidText, bool includeDomain);
 		void AddProperty(
 			wxWindow* parent,
 			wxSizer* sizer,
 			const wxString& label,
 			wxWindow* control,
-			std::optional<Settings::Id> setting = std::nullopt
+			Settings::Id setting
 		);
 		void AddOptionStatus(
 			wxWindow* parent,
@@ -72,12 +74,12 @@ namespace OpenGlass
 		void ApplyChoiceSlider(wxChoice* ch, wxSlider* sl, DWORD value, DWORD themeSentinel, DWORD autoSentinel, int disabledValue) const;
 		void TrackSettingChange(Settings::Id id);
 		void TrackSettingChange(Settings::Scope scope, Settings::Id id);
-		bool CheckRegistryWrite(HRESULT result, const std::wstring& name);
+		void ReportRegistryError(HRESULT result, const std::wstring& name);
 		void StartSymbolDownload();
 		void RefreshDiagnosticsLayout();
 		void RefreshTransparencyDiagnostics();
 		void UpdateSymbolDownloadProgress(const SymbolDownloadProgress& progress);
-		void UpdateSymbolDownloadResult(wxArtID iconId, const wxString& summary, const wxString& details = wxEmptyString);
+		void UpdateSymbolDownloadResult(wxArtID iconId, const wxString& details);
 		void FinishSymbolDownload(const SymbolDownloadOutcome& outcome);
 		void RefreshDwmCrashDumpConfiguration();
 		void SetDwmCrashDumpsEnabled(bool enabled);
@@ -94,10 +96,10 @@ namespace OpenGlass
 		void ImportDroppedPresetPackages(const wxDropFilesEvent& event);
 		void ApplySelectedPresetPackage();
 		void CreatePresetPackage(bool update);
-		void CaptureEffectivePreset(PresetPackages::CreateRequest& request, bool accentColor, const PresetPackages::Package* localSource = nullptr);
+		void CaptureEffectivePreset(PresetPackages::CreateRequest& request, bool accentColor, const PresetPackages::Package* localSource);
 		void ExportSelectedPresetPackage();
 		void RemoveSelectedPresetPackage();
-		bool ApplyPresetPackage(const PresetPackages::Package& package);
+		void ApplyPresetPackage(const PresetPackages::Package& package);
 
 		// Save/Revert identity includes the editing or Windows-state registry scope and stable catalog ID.
 		struct TrackedSetting
@@ -189,8 +191,6 @@ namespace OpenGlass
 		wxCheckBox* m_chkReflectionPolicyTitlebar{ nullptr };
 		wxCheckBox* m_chkReflectionPolicyPeek{ nullptr };
 		wxCheckBox* m_chkReflectionPolicySnap{ nullptr };
-		// Legacy (kept for reference):
-		// wxCheckListBox* m_clReflectionPolicy{ nullptr };
 		wxCheckBox* m_chkCustomThemeMaterial{ nullptr }; // Added
 		wxFilePickerCtrl* m_fpCustomThemeMaterial{ nullptr };
 		wxSlider* m_slMaterialOpacity{ nullptr };
@@ -277,7 +277,6 @@ namespace OpenGlass
 			wxFilePickerCtrl* picker{};
 			wxCheckBox* checkbox{};
 			wxStaticBitmap* icon{};
-			wxString title;
 			wxString lastPath;
 			bool lastEnabled{ false };
 			bool lastExists{ false };

@@ -12,30 +12,56 @@ namespace OpenGlass
 {
 	namespace
 	{
-		std::wstring FormatTargetUser(const std::wstring& sidText)
+		class MoreButton final : public wxButton
 		{
-			PSID sid{};
-			if (!ConvertStringSidToSidW(sidText.c_str(), &sid)) return sidText;
-			wil::unique_hlocal sidStorage{ sid };
-			DWORD nameLength{}, domainLength{};
-			SID_NAME_USE use{};
-			LookupAccountSidW(nullptr, sid, nullptr, &nameLength, nullptr, &domainLength, &use);
-			if (GetLastError() != ERROR_INSUFFICIENT_BUFFER) return sidText;
-			std::wstring name(nameLength, L'\0');
-			std::wstring domain(domainLength, L'\0');
-			if (!LookupAccountSidW(nullptr, sid, name.data(), &nameLength, domain.data(), &domainLength, &use)) return sidText;
-			if (!name.empty() && name.back() == L'\0') name.pop_back();
-			if (!domain.empty() && domain.back() == L'\0') domain.pop_back();
-			return domain.empty() ? name : domain + L"\\" + name;
-		}
+		public:
+			using wxButton::wxButton;
+
+		private:
+			bool DoPopupMenu(wxMenu* menu, int x, int y) override
+			{
+				const auto position = ClientToScreen(wxPoint(x, y));
+				// Keep wx's popup wrapper and status-bar help, changing only alignment.
+				const auto selected = TrackPopupMenuEx(reinterpret_cast<HMENU>(menu->GetHMenu()),
+					TPM_RIGHTBUTTON | TPM_RECURSE | TPM_BOTTOMALIGN | TPM_RETURNCMD,
+					position.x, position.y, reinterpret_cast<HWND>(GetHandle()), nullptr);
+				if (selected) menu->MSWCommand(0, static_cast<WXWORD>(selected));
+				return true;
+			}
+		};
 	}
 
-	MainFrame::MainFrame(const wxString& title, std::wstring userSid, Settings::Scope scope)
-		: wxFrame(nullptr, wxID_ANY, title, wxDefaultPosition, wxSize(900, 750))
+	std::wstring MainFrame::ResolveAccountName(const std::wstring& sidText, bool includeDomain)
+	{
+		PSID sid{};
+		if (!ConvertStringSidToSidW(sidText.c_str(), &sid)) return {};
+		wil::unique_hlocal sidStorage{ sid };
+		DWORD nameLength{}, domainLength{};
+		SID_NAME_USE use{};
+		LookupAccountSidW(nullptr, sid, nullptr, &nameLength, nullptr, &domainLength, &use);
+		if (GetLastError() != ERROR_INSUFFICIENT_BUFFER) return {};
+		std::wstring name(nameLength, L'\0');
+		std::wstring domain(domainLength, L'\0');
+		if (!LookupAccountSidW(nullptr, sid, name.data(), &nameLength, domain.data(), &domainLength, &use)) return {};
+		if (!name.empty() && name.back() == L'\0') name.pop_back();
+		if (!domain.empty() && domain.back() == L'\0') domain.pop_back();
+		return !includeDomain || domain.empty() ? name : domain + L"\\" + name;
+	}
+
+	MainFrame::MainFrame(std::wstring userSid, Settings::Scope scope)
+		: wxFrame(nullptr, wxID_ANY, L"Aero Glass for Win10+", wxDefaultPosition, wxSize(900, 750))
 	{
 		m_isAdmin = Elevation::IsProcessElevated();
 		m_editScope = scope;
-		SetTitle(title + (scope == Settings::Scope::User ? L" (HKCU: " + FormatTargetUser(userSid) + L")" : L" (HKLM)"));
+		if (scope == Settings::Scope::User)
+		{
+			const auto accountName = ResolveAccountName(userSid, true);
+			SetTitle(GetTitle() + L" (HKCU: " + (accountName.empty() ? userSid : accountName) + L")");
+		}
+		else
+		{
+			SetTitle(GetTitle() + L" (HKLM)");
+		}
 		m_baseTitle = GetTitle();
 		m_config = std::make_unique<RegistryConfig>(scope == Settings::Scope::User ? RegistryConfig::Mode::User : RegistryConfig::Mode::Machine, userSid);
 		m_userConfig = std::make_unique<RegistryConfig>(RegistryConfig::Mode::User, userSid);
@@ -78,7 +104,7 @@ namespace OpenGlass
 	{
 		wxBoxSizer* btnSizer = new wxBoxSizer(wxHORIZONTAL);
 
-		auto* more = new wxButton(this, wxID_ANY, L"More \u25BE");
+		auto* more = new MoreButton(this, wxID_ANY, L"More \u25B4");
 		more->SetToolTip(L"Merge configuration or restore defaults in the editing scope.");
 		more->Bind(wxEVT_BUTTON, [this, more](wxCommandEvent&)
 		{
@@ -94,9 +120,19 @@ namespace OpenGlass
 				!allowed ? L"Requires administrator privileges to modify HKLM."
 					: L"Remove this scope's custom settings. Values from the other scope may still apply. Revert can undo this preview.");
 			restore->Enable(allowed);
-			const auto selected = more->GetPopupMenuSelectionFromUser(menu, wxPoint(0, more->GetSize().y));
+			wxMenuItem* switchView{};
+			if (wxGetKeyState(WXK_SHIFT))
+			{
+				menu.AppendSeparator();
+				switchView = menu.Append(wxID_ANY,
+					m_editScope == Settings::Scope::User ? L"Switch to HKLM view" : L"Switch to HKCU view",
+					L"Switch editing scope after saving or reverting pending changes and finishing symbol downloads.");
+				switchView->Enable(CanSwitchEditingScope());
+			}
+			const auto selected = more->GetPopupMenuSelectionFromUser(menu, wxPoint(0, 0));
 			if (selected == merge->GetId()) MergeConfiguration();
 			else if (selected == restore->GetId()) RestoreDefaults();
+			else if (switchView && selected == switchView->GetId()) SwitchEditingScope();
 		});
 
 		m_btnSave = new wxButton(this, wxID_ANY, L"Save");
@@ -112,6 +148,49 @@ namespace OpenGlass
 		btnSizer->Add(m_btnRevert, 0);
 
 		parentSizer->Add(btnSizer, 0, wxEXPAND | wxALL, 5);
+	}
+
+	bool MainFrame::CanSwitchEditingScope() const
+	{
+		return !m_isDirty && !m_colorPreference.IsDirty() && !m_preview.IsAttemptActive()
+			&& !m_symbolDownloadRunning && !m_closeWhenSymbolDownloadStops && !IsBeingDeleted();
+	}
+
+	void MainFrame::SwitchEditingScope()
+	{
+		if (!CanSwitchEditingScope()) return;
+		Enable(false);
+		auto enableOnFailure = wil::scope_exit([this] { Enable(); });
+		MainFrame* replacement{};
+		try
+		{
+			// Keep the verified original user and the app's single-instance lock.
+			const auto scope = m_editScope == Settings::Scope::User ? Settings::Scope::Machine : Settings::Scope::User;
+			WINDOWPLACEMENT placement{ sizeof(WINDOWPLACEMENT) };
+			THROW_IF_WIN32_BOOL_FALSE(GetWindowPlacement(reinterpret_cast<HWND>(GetHandle()), &placement));
+			replacement = new MainFrame(m_targetUserSid.ToStdWstring(), scope);
+			// Copy the restore rectangle too, while keeping the new window hidden.
+			placement.showCmd = SW_HIDE;
+			THROW_IF_WIN32_BOOL_FALSE(SetWindowPlacement(reinterpret_cast<HWND>(replacement->GetHandle()), &placement));
+			replacement->m_notebook->ChangeSelection(m_notebook->GetSelection());
+			if (IsMaximized()) replacement->Maximize();
+		}
+		catch (...)
+		{
+			if (replacement) replacement->Destroy();
+			wxMessageBox(wxString::Format(L"The other editing view could not be opened (HRESULT 0x%08lX).",
+				static_cast<unsigned long>(wil::ResultFromCaughtException())), L"Switch editing scope", wxOK | wxICON_ERROR, this);
+			return;
+		}
+		wxTheApp->SetTopWindow(replacement);
+		if (!CanSwitchEditingScope() || !Close())
+		{
+			wxTheApp->SetTopWindow(this);
+			replacement->Destroy();
+			return;
+		}
+		enableOnFailure.release();
+		replacement->Show();
 	}
 
 	bool MainFrame::NotifySettingsChange(Settings::UpdateImpact impact)
@@ -185,7 +264,7 @@ namespace OpenGlass
 			symbolDirectory = GetSymbolCacheDirectory();
 			m_dpSymbolCacheDirectory->SetPath(symbolDirectory);
 		}
-		UpdateSymbolDownloadResult(wxART_INFORMATION, wxEmptyString, wxEmptyString);
+		UpdateSymbolDownloadResult(wxART_INFORMATION, wxEmptyString);
 		UpdateSymbolDownloadProgress(SymbolDownloadProgress{
 			0,
 			true,
@@ -361,14 +440,14 @@ namespace OpenGlass
 		if (textChanged) RefreshDiagnosticsLayout();
 	}
 
-	void MainFrame::UpdateSymbolDownloadResult(wxArtID iconId, const wxString& summary, const wxString& details)
+	void MainFrame::UpdateSymbolDownloadResult(wxArtID iconId, const wxString& details)
 	{
 		if (!m_pnlSymbolDownloadResult || !m_bmpSymbolDownloadResult || !m_lblSymbolDownloadResult)
 		{
 			return;
 		}
 
-		if (summary.empty() && details.empty())
+		if (details.empty())
 		{
 			m_symbolDownloadResultText.clear();
 			m_lblSymbolDownloadResult->SetLabel(wxEmptyString);
@@ -381,17 +460,7 @@ namespace OpenGlass
 			wxArtProvider::GetBitmap(iconId, wxART_MESSAGE_BOX, wxSize(16, 16))
 		);
 
-		wxString message = summary;
-		if (!details.empty())
-		{
-			if (!message.empty())
-			{
-				message += L"\n\n";
-			}
-			message += details;
-		}
-
-		m_symbolDownloadResultText = message;
+		m_symbolDownloadResultText = details;
 		WrapStaticTextToParentWidth(m_lblSymbolDownloadResult, m_symbolDownloadResultText);
 		m_pnlSymbolDownloadResult->Show();
 		RefreshDiagnosticsLayout();
@@ -413,7 +482,7 @@ namespace OpenGlass
 				L"Symbols downloaded successfully.",
 				std::format(L"The symbol cache has been updated:\n{}", outcome.symbolDirectory)
 			});
-			UpdateSymbolDownloadResult(wxART_INFORMATION, wxEmptyString, wxEmptyString);
+			UpdateSymbolDownloadResult(wxART_INFORMATION, wxEmptyString);
 			break;
 		case SymbolDownloadResult::Cancelled:
 			UpdateSymbolDownloadProgress(SymbolDownloadProgress{
@@ -422,7 +491,7 @@ namespace OpenGlass
 				L"Symbol download cancelled.",
 				L"No further network requests will be started."
 			});
-			UpdateSymbolDownloadResult(wxART_WARNING, wxEmptyString, outcome.details);
+			UpdateSymbolDownloadResult(wxART_WARNING, outcome.details);
 			break;
 		case SymbolDownloadResult::Failed:
 		default:
@@ -432,7 +501,7 @@ namespace OpenGlass
 				L"Symbol download failed.",
 				outcome.summary
 			});
-			UpdateSymbolDownloadResult(wxART_ERROR, wxEmptyString, outcome.details);
+			UpdateSymbolDownloadResult(wxART_ERROR, outcome.details);
 			break;
 		}
 
@@ -600,9 +669,9 @@ namespace OpenGlass
 		SetDirty(m_preview.IsDirty() || m_colorPreference.IsDirty() || m_resources.IsDirty());
 	}
 
-	bool MainFrame::CheckRegistryWrite(HRESULT result, const std::wstring& name)
+	void MainFrame::ReportRegistryError(HRESULT result, const std::wstring& name)
 	{
-		if (SUCCEEDED(result)) return true;
+		if (SUCCEEDED(result)) return;
 		if (m_preview.IsAttemptActive()) THROW_IF_FAILED(result);
 		SetDirty(m_preview.IsDirty() || m_colorPreference.IsDirty() || m_resources.IsDirty());
 		NotifySettingsChange();
@@ -613,7 +682,6 @@ namespace OpenGlass
 			wxOK | wxICON_ERROR,
 			this
 		);
-		return false;
 	}
 
 	void MainFrame::RestoreDefaults()
@@ -851,7 +919,7 @@ namespace OpenGlass
 		wxSizer* sizer,
 		const wxString& label,
 		wxWindow* control,
-		std::optional<Settings::Id> setting
+		Settings::Id setting
 	)
 	{
 		if (wxSlider* slider = dynamic_cast<wxSlider*>(control))
@@ -873,10 +941,7 @@ namespace OpenGlass
 		wxStaticText* text = new wxStaticText(parent, wxID_ANY, label, wxDefaultPosition, wxSize(300, -1));
 		row->Add(text, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 5);
 		row->Add(control, 1, wxALIGN_CENTER_VERTICAL);
-		if (setting)
-		{
-			AddOptionStatus(parent, row, *setting);
-		}
+		AddOptionStatus(parent, row, setting);
 		sizer->Add(row, 0, wxEXPAND | wxALL, 2);
 	}
 
@@ -945,10 +1010,7 @@ namespace OpenGlass
 		{
 			if (m_glassColorsPanel)
 			{
-				if (wxScrolledWindow* scrolled = wxDynamicCast(m_glassColorsPanel, wxScrolledWindow))
-				{
-					LayoutWrappingPage(scrolled);
-				}
+				LayoutWrappingPage(m_glassColorsPanel);
 			}
 			Layout();
 			Refresh();
@@ -971,7 +1033,7 @@ namespace OpenGlass
 
 		row->Add(warn, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT | wxLEFT, 2);
 
-		m_pathWarnings.push_back({ picker, checkbox, warn, title, wxString(), false, false, false });
+		m_pathWarnings.push_back({ picker, checkbox, warn });
 	}
 
 	void MainFrame::UpdatePathWarningIcons()
@@ -1058,7 +1120,7 @@ namespace OpenGlass
 			const std::wstring name(spec.name);
 			if (spec.type != Settings::ValueType::Dword)
 			{
-				CheckRegistryWrite(E_INVALIDARG, name);
+				ReportRegistryError(E_INVALIDARG, name);
 				return;
 			}
 			RegistryConfig* config = m_config.get();
@@ -1166,7 +1228,7 @@ namespace OpenGlass
 			const std::wstring name(spec.name);
 			if (spec.type != Settings::ValueType::String)
 			{
-				CheckRegistryWrite(E_INVALIDARG, name);
+				ReportRegistryError(E_INVALIDARG, name);
 				return;
 			}
 			RegistryConfig* config = m_config.get();
@@ -1184,7 +1246,7 @@ namespace OpenGlass
 					THROW_IF_FAILED(config->SetString(name, prepared ? m_resources.Path(m_editScope, id).wstring() : val));
 				}, false, spec.impact)) LoadSettings();
 			}
-			catch (...) { CheckRegistryWrite(wil::ResultFromCaughtException(), name); }
+			catch (...) { ReportRegistryError(wil::ResultFromCaughtException(), name); }
 		};
 
 		auto deleteValue = [this](Settings::Id id) {
@@ -1300,8 +1362,8 @@ namespace OpenGlass
 			setSliderTooltipValue(m_slReflectionIntensity, val);
 		});
 
-		auto bindRefOpacity = [&](wxChoice* ch, wxSlider* sl, Settings::Id id, DWORD themeSentinel, DWORD autoSentinel) {
-			auto update = [this, ch, sl, id, themeSentinel, autoSentinel, updateDword, deleteValue, updateInheritance]() {
+		auto bindRefOpacity = [&](wxChoice* ch, wxSlider* sl, Settings::Id id, DWORD themeSentinel) {
+			auto update = [ch, sl, id, themeSentinel, updateDword, deleteValue, updateInheritance]() {
 				int sel = ch->GetSelection();
 				sl->Enable(sel == 2);
 				if (sel == 0) deleteValue(id);
@@ -1314,10 +1376,10 @@ namespace OpenGlass
 			sl->Bind(wxEVT_SLIDER, [update](wxCommandEvent&) { update(); });
 		};
 
-		bindRefOpacity(m_chModeReflectionOpacity, m_slReflectionOpacity, Settings::Id::ColorizationGlassReflectionOpacity, 0xFFFFFFFF, 0xFFFFFFFE);
-		bindRefOpacity(m_chModeReflectionOpacityInactive, m_slReflectionOpacityInactive, Settings::Id::ColorizationGlassReflectionOpacityInactive, 0xFFFFFFFF, 0xFFFFFFFE);
-		bindRefOpacity(m_chModeReflectionOpacityMaximized, m_slReflectionOpacityMaximized, Settings::Id::ColorizationGlassReflectionOpacityMaximized, 0xFFFFFFFF, 0xFFFFFFFE);
-		bindRefOpacity(m_chModeReflectionOpacityInactiveMaximized, m_slReflectionOpacityInactiveMaximized, Settings::Id::ColorizationGlassReflectionOpacityInactiveMaximized, 0xFFFFFFFF, 0xFFFFFFFE);
+		bindRefOpacity(m_chModeReflectionOpacity, m_slReflectionOpacity, Settings::Id::ColorizationGlassReflectionOpacity, 0xFFFFFFFF);
+		bindRefOpacity(m_chModeReflectionOpacityInactive, m_slReflectionOpacityInactive, Settings::Id::ColorizationGlassReflectionOpacityInactive, 0xFFFFFFFF);
+		bindRefOpacity(m_chModeReflectionOpacityMaximized, m_slReflectionOpacityMaximized, Settings::Id::ColorizationGlassReflectionOpacityMaximized, 0xFFFFFFFF);
+		bindRefOpacity(m_chModeReflectionOpacityInactiveMaximized, m_slReflectionOpacityInactiveMaximized, Settings::Id::ColorizationGlassReflectionOpacityInactiveMaximized, 0xFFFFFFFF);
 
 		m_slReflectionParallax->Bind(wxEVT_SLIDER, [this, updateDword, deleteValue, setSliderTooltipValue]([[maybe_unused]] wxCommandEvent& e) {
 			int val = e.GetInt();
@@ -1644,8 +1706,8 @@ namespace OpenGlass
 			m_slColorIntensity->SetToolTip(wxString::Format(L"%d", m_slColorIntensity->GetValue()));
 		});
 
-		auto bindChoiceColorEx = [&](wxChoice* ch, wxColourPickerCtrl* cp, Settings::Id id, DWORD themeSentinel, DWORD autoSentinel, DWORD systemSentinel) {
-			auto update = [this, ch, cp, id, themeSentinel, autoSentinel, systemSentinel, updateDword, deleteValue, colorToDwordBgr, updateInheritance]() {
+		auto bindChoiceColorEx = [&](wxChoice* ch, wxColourPickerCtrl* cp, Settings::Id id, DWORD themeSentinel, DWORD systemSentinel) {
+			auto update = [ch, cp, id, themeSentinel, systemSentinel, updateDword, deleteValue, colorToDwordBgr, updateInheritance]() {
 				int sel = ch->GetSelection();
 				cp->Enable(sel == 2);
 				if (sel == 0) deleteValue(id);
@@ -1658,13 +1720,13 @@ namespace OpenGlass
 			cp->Bind(wxEVT_COLOURPICKER_CHANGED, [update](wxColourPickerEvent&) { update(); });
 		};
 
-		bindChoiceColorEx(m_chModeColorCaption, m_cpColorCaption, Settings::Id::ColorizationColorCaption, 0xFFFFFFFE, 0xFFFFFFFD, 0xFFFFFFFF);
-		bindChoiceColorEx(m_chModeColorCaptionInactive, m_cpColorCaptionInactive, Settings::Id::ColorizationColorCaptionInactive, 0xFFFFFFFE, 0xFFFFFFFD, 0xFFFFFFFF);
-		bindChoiceColorEx(m_chModeColorCaptionMaximized, m_cpColorCaptionMaximized, Settings::Id::ColorizationColorCaptionMaximized, 0xFFFFFFFE, 0xFFFFFFFD, 0xFFFFFFFF);
-		bindChoiceColorEx(m_chModeColorCaptionInactiveMaximized, m_cpColorCaptionInactiveMaximized, Settings::Id::ColorizationColorCaptionInactiveMaximized, 0xFFFFFFFE, 0xFFFFFFFD, 0xFFFFFFFF);
+		bindChoiceColorEx(m_chModeColorCaption, m_cpColorCaption, Settings::Id::ColorizationColorCaption, 0xFFFFFFFE, 0xFFFFFFFF);
+		bindChoiceColorEx(m_chModeColorCaptionInactive, m_cpColorCaptionInactive, Settings::Id::ColorizationColorCaptionInactive, 0xFFFFFFFE, 0xFFFFFFFF);
+		bindChoiceColorEx(m_chModeColorCaptionMaximized, m_cpColorCaptionMaximized, Settings::Id::ColorizationColorCaptionMaximized, 0xFFFFFFFE, 0xFFFFFFFF);
+		bindChoiceColorEx(m_chModeColorCaptionInactiveMaximized, m_cpColorCaptionInactiveMaximized, Settings::Id::ColorizationColorCaptionInactiveMaximized, 0xFFFFFFFE, 0xFFFFFFFF);
 
-		auto bindBaseColor = [this, updateDword, deleteValue](wxChoice* choice, wxColourPickerCtrl* picker, wxSpinCtrl* alphaSpin, Settings::Id id, DWORD themeVal, DWORD autoVal) {
-			auto update = [this, choice, picker, alphaSpin, id, autoVal, themeVal, updateDword, deleteValue]() {
+		auto bindBaseColor = [updateDword, deleteValue](wxChoice* choice, wxColourPickerCtrl* picker, wxSpinCtrl* alphaSpin, Settings::Id id, DWORD themeVal) {
+			auto update = [choice, picker, alphaSpin, id, themeVal, updateDword, deleteValue]() {
 				int sel = choice->GetSelection();
 				if (sel == 0)
 				{
@@ -1695,9 +1757,9 @@ namespace OpenGlass
 			alphaSpin->Bind(wxEVT_TEXT, [update](wxCommandEvent&) { update(); });
 		};
 
-		bindBaseColor(m_chModeBaseTransparent, m_cpBaseTransparent, m_scBaseTransparentAlpha, Settings::Id::ColorizationBaseTransparent, 0xFFFFFFFF, 0xFFFFFFFE);
-		bindBaseColor(m_chModeBaseMaximized, m_cpBaseMaximized, m_scBaseMaximizedAlpha, Settings::Id::ColorizationBaseMaximized, 0xFFFFFFFF, 0xFFFFFFFE);
-		bindBaseColor(m_chModeBaseOpaque, m_cpBaseOpaque, m_scBaseOpaqueAlpha, Settings::Id::ColorizationBaseOpaque, 0xFFFFFFFF, 0xFFFFFFFE);
+		bindBaseColor(m_chModeBaseTransparent, m_cpBaseTransparent, m_scBaseTransparentAlpha, Settings::Id::ColorizationBaseTransparent, 0xFFFFFFFF);
+		bindBaseColor(m_chModeBaseMaximized, m_cpBaseMaximized, m_scBaseMaximizedAlpha, Settings::Id::ColorizationBaseMaximized, 0xFFFFFFFF);
+		bindBaseColor(m_chModeBaseOpaque, m_cpBaseOpaque, m_scBaseOpaqueAlpha, Settings::Id::ColorizationBaseOpaque, 0xFFFFFFFF);
 
 		m_chOpaqueBlendPriority->Bind(wxEVT_CHOICE, [this, updateDword, deleteValue](wxCommandEvent& e) {
 			int sel = e.GetSelection();
@@ -1711,8 +1773,8 @@ namespace OpenGlass
 			}
 		});
 
-		auto bindOpacity = [this, updateDword, deleteValue, updateInheritance](wxChoice* ch, wxSlider* sl, Settings::Id id, DWORD themeSentinel, DWORD autoSentinel) {
-			auto update = [this, ch, sl, id, themeSentinel, autoSentinel, updateDword, deleteValue, updateInheritance]() {
+		auto bindOpacity = [updateDword, deleteValue, updateInheritance](wxChoice* ch, wxSlider* sl, Settings::Id id, DWORD themeSentinel) {
+			auto update = [ch, sl, id, themeSentinel, updateDword, deleteValue, updateInheritance]() {
 				int sel = ch->GetSelection();
 				sl->Enable(sel == 2);
 				if (sel == 0) {
@@ -1727,10 +1789,10 @@ namespace OpenGlass
 			sl->Bind(wxEVT_SLIDER, [update](wxCommandEvent&) { update(); });
 		};
 
-		bindOpacity(m_chModeColorizationOpacity, m_slColorizationOpacity, Settings::Id::ColorizationOpacity, 0xFFFFFFFF, 0xFFFFFFFE);
-		bindOpacity(m_chModeColorizationOpacityInactive, m_slColorizationOpacityInactive, Settings::Id::ColorizationOpacityInactive, 0xFFFFFFFF, 0xFFFFFFFE);
-		bindOpacity(m_chModeColorizationOpacityMaximized, m_slColorizationOpacityMaximized, Settings::Id::ColorizationOpacityMaximized, 0xFFFFFFFF, 0xFFFFFFFE);
-		bindOpacity(m_chModeColorizationOpacityInactiveMaximized, m_slColorizationOpacityInactiveMaximized, Settings::Id::ColorizationOpacityInactiveMaximized, 0xFFFFFFFF, 0xFFFFFFFE);
+		bindOpacity(m_chModeColorizationOpacity, m_slColorizationOpacity, Settings::Id::ColorizationOpacity, 0xFFFFFFFF);
+		bindOpacity(m_chModeColorizationOpacityInactive, m_slColorizationOpacityInactive, Settings::Id::ColorizationOpacityInactive, 0xFFFFFFFF);
+		bindOpacity(m_chModeColorizationOpacityMaximized, m_slColorizationOpacityMaximized, Settings::Id::ColorizationOpacityMaximized, 0xFFFFFFFF);
+		bindOpacity(m_chModeColorizationOpacityInactiveMaximized, m_slColorizationOpacityInactiveMaximized, Settings::Id::ColorizationOpacityInactiveMaximized, 0xFFFFFFFF);
 
 		m_chkGlassOverrideAccent->Bind(wxEVT_CHECKBOX, [this, updateDword, deleteValue](wxCommandEvent& e) {
 			if (!e.IsChecked())
@@ -1849,7 +1911,6 @@ namespace OpenGlass
 				}
 			}
 
-			//wxMessageBox(L"System theme atlas exported successfully!\nA layout file was also generated.", L"Success", wxICON_INFORMATION);
 		});
 
 		m_btnDownloadSymbols->Bind(wxEVT_BUTTON, [this](wxCommandEvent&) {

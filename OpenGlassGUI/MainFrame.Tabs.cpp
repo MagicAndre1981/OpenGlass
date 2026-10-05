@@ -465,14 +465,6 @@ namespace OpenGlass
 			AddOptionStatus(panel, row, Settings::Id::ColorizationGlassReflectionPolicy);
 			reflectionGroup->Add(row, 0, wxEXPAND | wxALL, 2);
 		}
-		// Legacy (kept for reference):
-		// wxArrayString policies;
-		// policies.Add(L"Titlebar");    // 1<<0
-		// policies.Add(L"Aero Peek");   // 1<<2
-		// policies.Add(L"Aero Snap");   // 1<<3
-		// m_clReflectionPolicy = new wxCheckListBox(panel, wxID_ANY, wxDefaultPosition, wxSize(-1, 60), policies);
-		// AddProperty(panel, reflectionGroup, L"Glass Reflection Policy:", m_clReflectionPolicy, L"ColorizationGlassReflectionPolicy");
-		
 		// Reflection Opacity & Variants
 		auto* reflectionOpacityPane = AddCollapsibleSection(
 			panel,

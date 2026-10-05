@@ -1,6 +1,5 @@
 #include "pch.h"
 #include "ConfigurationResources.hpp"
-#include "EffectiveConfiguration.hpp"
 #include <nlohmann/json.hpp>
 
 namespace OpenGlass

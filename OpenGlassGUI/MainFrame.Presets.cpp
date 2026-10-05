@@ -355,11 +355,6 @@ namespace OpenGlass
 			return result.empty() ? L"openglass-preset" : result;
 		}
 
-		std::optional<DWORD> GetPackagePreviewColor(const PresetPackages::Package& package)
-		{
-			return package.accentColor;
-		}
-
 		struct PackagePreviewMetrics
 		{
 			int canvasDip;
@@ -372,7 +367,7 @@ namespace OpenGlass
 			PackagePreviewMetrics metrics
 		)
 		{
-			const auto argb = GetPackagePreviewColor(package);
+			const auto argb = package.accentColor;
 			const wxColour color = argb
 				? wxColour((*argb >> 16) & 0xFF, (*argb >> 8) & 0xFF, *argb & 0xFF)
 				: wxSystemSettings::GetColour(wxSYS_COLOUR_GRAYTEXT);
@@ -443,7 +438,7 @@ namespace OpenGlass
 				};
 				auto* required = new wxFlexGridSizer(2, 8, 8);
 				required->AddGrowableCol(1, 1);
-				m_name = new wxTextCtrl(this, wxID_ANY);
+				m_name = new wxTextCtrl(this, wxID_ANY, L"Untitled preset");
 				m_author = new wxTextCtrl(this, wxID_ANY, defaultAuthor);
 				addField(this, required, L"Name", m_name);
 				addField(this, required, L"Author", m_author);
@@ -858,7 +853,7 @@ namespace OpenGlass
 			{
 				auto verified = PresetPackages::LoadArchive(package.source);
 				THROW_HR_IF(HRESULT_FROM_WIN32(ERROR_FILE_INVALID), verified.digest != package.digest);
-				[[maybe_unused]] const auto saved = PresetPackages::Publish(verified, "imported");
+				(void)PresetPackages::Publish(verified, "imported");
 				++imported;
 			}
 		}
@@ -904,7 +899,7 @@ namespace OpenGlass
 		ApplyPresetPackage(selected);
 	}
 
-	bool MainFrame::ApplyPresetPackage(const PresetPackages::Package& inputPackage)
+	void MainFrame::ApplyPresetPackage(const PresetPackages::Package& inputPackage)
 	{
 		try
 		{
@@ -939,13 +934,11 @@ namespace OpenGlass
 				RebuildPresetPackageList(package.libraryId);
 			}
 			if (applied && restartRequired) wxMessageBox(L"Some settings take effect after restarting DWM or signing out. DWM has not been restarted.", L"Preset applied", wxOK | wxICON_INFORMATION, this);
-			return applied;
 		}
 		catch (...)
 		{
 			wxMessageBox(wxString::Format(L"The preset could not be prepared (0x%08lX).", wil::ResultFromCaughtException()),
 				L"Preset apply", wxOK | wxICON_ERROR, this);
-			return false;
 		}
 	}
 
@@ -996,6 +989,10 @@ namespace OpenGlass
 			const auto selection = m_lstPresetPackages->GetFirstSelected();
 			if (selection == wxNOT_FOUND || static_cast<std::size_t>(selection) >= m_presetPackages.size()) return;
 			source = m_presetPackages.at(selection);
+		}
+		if (!source && defaultAuthor.empty())
+		{
+			defaultAuthor = ResolveAccountName(m_targetUserSid.ToStdWstring(), false);
 		}
 
 		bool autoColorization{};

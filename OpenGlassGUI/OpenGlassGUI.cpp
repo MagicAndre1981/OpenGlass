@@ -52,7 +52,7 @@ namespace OpenGlass
 		if (m_singleInstanceChecker.IsAnotherRunning())
 			return false;
 
-		MainFrame* frame = new MainFrame(L"Aero Glass for Win10+", startup.userSid, *scope);
+		MainFrame* frame = new MainFrame(startup.userSid, *scope);
 		frame->Show(true);
 		return true;
 	}

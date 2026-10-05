@@ -33,8 +33,6 @@ namespace OpenGlass
 
 		if (RunPreview([&]
 		{
-			const auto color = argb ? std::optional<DWORD>{ ColorizationPresets::BuildApplication(
-				*argb, family, m_chkEnableTransparency && !m_chkEnableTransparency->IsChecked()).color } : std::nullopt;
 			auto setDword = [this](Settings::Id id, DWORD value) {
 				const std::wstring name(Settings::Get(id).name);
 				TrackSettingChange(id);
@@ -44,7 +42,7 @@ namespace OpenGlass
 			const auto cleanup = EffectiveConfiguration::PlanColorCleanup(EffectiveConfiguration::Read(*m_userConfig), EffectiveConfiguration::Read(*m_systemConfig));
 			THROW_IF_FAILED(m_userConfig->CheckDeleteAccess());
 			THROW_IF_FAILED(m_systemConfig->CheckDeleteAccess());
-			THROW_IF_FAILED(m_colorPreference.Apply(m_targetUserSid.ToStdWstring(), color));
+			THROW_IF_FAILED(m_colorPreference.Apply(m_targetUserSid.ToStdWstring(), argb));
 			for (const auto& change : cleanup)
 			{
 				THROW_HR_IF(HRESULT_FROM_WIN32(ERROR_RETRY), GetConfigForScope(change.scope)->ReadRaw(change.Name()) != change.before);

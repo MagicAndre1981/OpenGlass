@@ -387,7 +387,6 @@ namespace OpenGlass::PresetPackages
 			THROW_HR_IF(E_INVALIDARG, duplicateJsonKey || !manifest.is_object());
 			const auto schemaVersion = manifest.value("schema_version", 0u);
 			THROW_HR_IF(E_INVALIDARG, schemaVersion != 1 && schemaVersion != 2 && schemaVersion != 3);
-			package.schemaVersion = schemaVersion;
 			package.catalogVersion = manifest.value("catalog_version", 0u);
 			THROW_HR_IF(E_INVALIDARG, package.catalogVersion == 0 || (schemaVersion >= 3 && package.catalogVersion < 2));
 			package.metadata.uuid = manifest.at("uuid").get<std::string>();
@@ -596,7 +595,7 @@ namespace OpenGlass::PresetPackages
 			return entries;
 		}
 
-		std::string BuildManifest(CreateRequest& request, const std::map<std::string, std::vector<std::byte>>& assets)
+		std::string BuildManifest(const CreateRequest& request, const std::map<std::string, std::vector<std::byte>>& assets)
 		{
 			nlohmann::ordered_json manifest;
 			manifest["schema_version"] = 3;
@@ -1062,7 +1061,6 @@ namespace OpenGlass::PresetPackages
 		if (!request.licenseText.empty())
 		{
 			ValidateLicense(request.licenseText);
-			request.metadata.licenseName = InferLicenseName(request.licenseText);
 		}
 		THROW_HR_IF(E_INVALIDARG,
 			request.metadata.name.empty()
@@ -1107,11 +1105,6 @@ namespace OpenGlass::PresetPackages
 		auto package = ParsePackage(std::move(entries), {}, false);
 		package.assetSources = std::move(request.assetSources);
 		return package;
-	}
-
-	void CreateArchive(const std::filesystem::path& path, CreateRequest request)
-	{
-		ExportArchive(path, CreateSnapshot(std::move(request)));
 	}
 
 	void ExportArchive(const std::filesystem::path& path, const Package& input)

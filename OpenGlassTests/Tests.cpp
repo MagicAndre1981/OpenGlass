@@ -847,36 +847,27 @@ namespace
 
 			if (userOverride)
 			{
-				Check(resolved.value == 11);
-				Check(resolved.source == RegistryValueSource::UserOverride);
+				Check(resolved == 11);
 			}
 			else if (machineOverride)
 			{
-				Check(resolved.value == 33);
-				Check(resolved.source == RegistryValueSource::MachineOverride);
+				Check(resolved == 33);
 			}
 			else if (userBase)
 			{
-				Check(resolved.value == 22);
-				Check(resolved.source == RegistryValueSource::UserBase);
+				Check(resolved == 22);
 			}
 			else if (machineBase)
 			{
-				Check(resolved.value == 44);
-				Check(resolved.source == RegistryValueSource::MachineBase);
+				Check(resolved == 44);
 			}
 			else
 			{
-				Check(resolved.value == defaultValue);
-				Check(resolved.source == RegistryValueSource::Default);
+				Check(resolved == defaultValue);
 			}
-			Check(resolved.IsOverride() == (
-				resolved.source == RegistryValueSource::UserOverride
-				|| resolved.source == RegistryValueSource::MachineOverride
-			));
 		}
 
-		// All combinations of missing, valid and wrong-type values through typed readers.
+		// Typed registry reads make missing and wrong-type values unavailable.
 		for (unsigned combination = 0; combination < 81; ++combination)
 		{
 			std::array<std::optional<DWORD>, 4> values;
@@ -889,67 +880,29 @@ namespace
 					: std::variant<std::monostate, DWORD, std::wstring>{ L"invalid DWORD type" };
 				if (const auto value = std::get_if<DWORD>(&raw)) values[slot] = *value;
 			}
-			const auto resolved = ResolveOverridableRegistryValueFromReaders(0, 1, defaultValue,
-				[&](int name) { return values[name ? 0 : 2]; },
-				[&](int name) { return values[name ? 1 : 3]; });
+			const auto resolved = ResolveOverridableRegistryValue(values[0], values[2], values[1], values[3], defaultValue);
 			DWORD expected = defaultValue;
 			for (const auto& value : values) if (value) { expected = *value; break; }
-			Check(resolved.value == expected);
+			Check(resolved == expected);
 			for (const bool userScope : { false, true })
 			{
-				const auto display = ResolveEditorRegistryValue(userScope, values[0], values[2], values[1], values[3], defaultValue);
-				const auto localOverride = values[userScope ? 0 : 1];
-				const auto localBase = values[userScope ? 2 : 3];
-				Check(display.value == localOverride.value_or(localBase.value_or(defaultValue)));
-				Check((display.source == RegistryValueSource::Default) == (!localOverride && !localBase));
 				const auto notice = GetEditorRegistryNotice(userScope, values[2].has_value(), values[3].has_value());
 				Check((notice == EditorRegistryNotice::Inherited) == (userScope && !values[2] && values[3]));
 				Check((notice == EditorRegistryNotice::Overridden) == (!userScope && values[2].has_value()));
 			}
 		}
 
-		// Empty HKCU must show its own default even when HKLM is customized.
+		// Empty HKCU reports inheritance when HKLM is customized.
 		const std::optional<DWORD> absent, zero = 0u, one = 1u;
-		Check(ResolveEditorRegistryValue(true, absent, absent, absent, one, DWORD{}).value == 0u);
 		Check(GetEditorRegistryNotice(true, false, true) == EditorRegistryNotice::Inherited);
 		// An explicit default is a real user value, not inheritance (also masks equal HKLM).
 		Check(GetEditorRegistryNotice(true, zero.has_value(), one.has_value()) == EditorRegistryNotice::None);
 		Check(GetEditorRegistryNotice(false, zero.has_value(), zero.has_value()) == EditorRegistryNotice::Overridden);
-		Check(ResolveEditorRegistryValue(false, absent, one, absent, absent, DWORD{}).value == 0u);
 		Check(GetEditorRegistryNotice(false, true, false) == EditorRegistryNotice::Overridden);
-		// Deleting this layer restores its local default while runtime inheritance continues.
-		Check(ResolveOverridableRegistryValue(absent, absent, absent, one, DWORD{}).value == 1u);
-		const std::optional<std::wstring> emptyPath = L"", machinePath = L"machine.png", noPath;
-		Check(ResolveEditorRegistryValue(true, noPath, noPath, noPath, machinePath, std::wstring{}).value.empty());
+		// Runtime inheritance continues when HKCU is absent.
+		Check(ResolveOverridableRegistryValue(absent, absent, absent, one, DWORD{}) == 1u);
+		const std::optional<std::wstring> emptyPath = L"", machinePath = L"machine.png";
 		Check(GetEditorRegistryNotice(true, emptyPath.has_value(), machinePath.has_value()) == EditorRegistryNotice::None);
-
-		const std::map<std::wstring_view, DWORD> userValues
-		{
-			{ L"Base", 22 },
-			{ L"Override", 11 }
-		};
-		const std::map<std::wstring_view, DWORD> machineValues
-		{
-			{ L"Base", 44 },
-			{ L"Override", 33 }
-		};
-		auto reader = [](const auto& values)
-		{
-			return [&values](std::wstring_view name) -> std::optional<DWORD>
-			{
-				const auto it = values.find(name);
-				return it == values.end() ? std::nullopt : std::optional<DWORD>{ it->second };
-			};
-		};
-		const auto fromReaders = ResolveOverridableRegistryValueFromReaders(
-			std::wstring_view{ L"Base" },
-			std::wstring_view{ L"Override" },
-			defaultValue,
-			reader(userValues),
-			reader(machineValues)
-		);
-		Check(fromReaders.value == 11);
-		Check(fromReaders.source == RegistryValueSource::UserOverride);
 	}
 
 	const std::array<unsigned char, 120>& ValidPng()
@@ -1168,14 +1121,11 @@ namespace
 			Check(Windows7[index].argb == expectedWindows7[index].second);
 		}
 
-		std::vector<std::wstring_view> ids;
 		for (const auto family : { Family::Vista, Family::Windows7 })
 		{
 			for (const auto& preset : Get(family))
 			{
 				Check(preset.family == family);
-				Check(std::find(ids.begin(), ids.end(), preset.id) == ids.end());
-				ids.push_back(preset.id);
 			}
 		}
 
@@ -1247,21 +1197,6 @@ namespace
 					intensity, opaque));
 			}
 		}
-
-		const auto vistaApplication = BuildApplication(Vista.front(), false);
-		Check(vistaApplication.color == Vista.front().argb);
-		Check(vistaApplication.vistaOpacity == 27u);
-		Check(!vistaApplication.windows7);
-
-		const auto windows7Application = BuildApplication(Windows7.front(), false);
-		Check(windows7Application.color == Windows7.front().argb);
-		Check(!windows7Application.vistaOpacity);
-		Check(windows7Application.windows7 == sky);
-
-		const auto customApplication = BuildApplication(0x804080C0, Family::Windows7, false);
-		Check(customApplication.color == 0x804080C0);
-		Check(!customApplication.vistaOpacity);
-		Check(customApplication.windows7 == CalculateWindows7Parameters(0x804080C0, false));
 	}
 
 	void TestBlurSettings()
@@ -1301,16 +1236,12 @@ namespace
 			if (spec.type == Settings::ValueType::String)
 			{
 				Check(spec.assetRole != Settings::AssetRole::None);
-				Check(spec.sensitive);
 			}
 		}
 		Check(Settings::PresetPackSettingCount(1) == Settings::PresetPackSettingCount() + 5);
-		Check(!Settings::Get(Settings::Id::DisableGlassOnBattery).sensitive);
 		Check(Settings::Get(Settings::Id::GlassOverrideAccent).impact == Settings::UpdateImpact::Colorization);
 		Check(Settings::Get(Settings::Id::GlassSafetyZoneMode).impact == Settings::UpdateImpact::Colorization);
-		Check(Settings::Get(Settings::Id::GlassSafetyZoneMode).sensitive);
 		Check(Settings::Get(Settings::Id::UseDirect3DRendering).impact == Settings::UpdateImpact::Colorization);
-		Check(!Settings::Get(Settings::Id::UseDirect3DRendering).sensitive);
 		Check(!Settings::Get(Settings::Id::MinMaxButtonGlowId).includeInPresetPacks);
 		Check(!Settings::Get(Settings::Id::CloseButtonGlowId).includeInPresetPacks);
 		Check(!Settings::Get(Settings::Id::ToolCloseButtonGlowId).includeInPresetPacks);
@@ -1420,7 +1351,7 @@ namespace
 		for (bool explicitUser : { false, true })
 		{
 			const auto resolved = ResolveOverridableRegistryValue<DWORD>(explicitUser ? std::optional<DWORD>{1} : std::nullopt, 3, 2, 4, 5);
-			Check(resolved.value == (explicitUser ? 1u : 2u));
+			Check(resolved == (explicitUser ? 1u : 2u));
 		}
 		user.values[ColorizationColorOverride] = { true, REG_BINARY, { 1, 2 } };
 		user.values[ColorizationAfterglowOverride] = Encode(Value{ DWORD{0xBB112233} });
@@ -1881,6 +1812,10 @@ namespace
 
 	void TestPresetPackageRoundTrip()
 	{
+		auto createArchive = [](const std::filesystem::path& path, const PresetPackages::CreateRequest& request)
+		{
+			PresetPackages::ExportArchive(path, PresetPackages::CreateSnapshot(request));
+		};
 		Check(PresetPackages::IsValidHomepageUrl(L"https://example.com"));
 		Check(PresetPackages::IsValidHomepageUrl(L"http://example.com/author"));
 		Check(!PresetPackages::IsValidHomepageUrl(L"https://"));
@@ -1921,8 +1856,8 @@ namespace
 
 		const auto first = directory / L"first.zip";
 		const auto second = directory / L"second.zip";
-		PresetPackages::CreateArchive(first, request);
-		PresetPackages::CreateArchive(second, request);
+		createArchive(first, request);
+		createArchive(second, request);
 		auto readFile = [](const std::filesystem::path& path)
 		{
 			std::ifstream stream(path, std::ios::binary);
@@ -1932,7 +1867,7 @@ namespace
 		Check((GetFileAttributesW(first.c_str()) & FILE_ATTRIBUTE_READONLY) != 0);
 
 		const auto loaded = PresetPackages::LoadArchive(first);
-		Check(loaded.schemaVersion == 3);
+		Check(nlohmann::json::parse(loaded.manifestText).at("schema_version") == 3);
 		Check(!loaded.legacyLicense);
 		auto noHomepage = request; noHomepage.metadata.authorHomepage.clear();
 		Check(PresetPackages::CreateSnapshot(noHomepage).metadata.authorHomepage.empty());
@@ -1960,7 +1895,7 @@ namespace
 		unlicensedRequest.metadata.licenseName.clear();
 		unlicensedRequest.licenseText.clear();
 		const auto unlicensedArchive = directory / L"unlicensed.zip";
-		PresetPackages::CreateArchive(unlicensedArchive, unlicensedRequest);
+		createArchive(unlicensedArchive, unlicensedRequest);
 		const auto unlicensed = PresetPackages::LoadArchive(unlicensedArchive);
 		Check(unlicensed.licenseText.empty());
 		Check(unlicensed.metadata.licenseName.empty());
@@ -1969,7 +1904,7 @@ namespace
 		undescribedRequest.metadata.uuid = "20112233-4455-6677-8899-aabbccddeeff";
 		undescribedRequest.metadata.description.clear();
 		const auto undescribedArchive = directory / L"undescribed.zip";
-		PresetPackages::CreateArchive(undescribedArchive, undescribedRequest);
+		createArchive(undescribedArchive, undescribedRequest);
 		const auto undescribed = PresetPackages::LoadArchive(undescribedArchive);
 		Check(undescribed.metadata.description.empty());
 
@@ -1984,7 +1919,7 @@ namespace
 		assetRequest.settings[Settings::Id::CustomThemeReflection] = PresetPackages::AssetReference{ "assets/reflection.png" };
 		assetRequest.assetSources.emplace("assets/reflection.png", validPng);
 		const auto assetArchive = directory / L"asset.zip";
-		PresetPackages::CreateArchive(assetArchive, assetRequest);
+		createArchive(assetArchive, assetRequest);
 		const auto loadedAsset = PresetPackages::LoadArchive(assetArchive);
 		Check(loadedAsset.assets.contains("assets/reflection.png"));
 		Check(std::get<PresetPackages::AssetReference>(loadedAsset.settings.at(Settings::Id::CustomThemeReflection)).path == "assets/reflection.png");
@@ -2016,7 +1951,7 @@ namespace
 		atlasRequest.assetSources.emplace("assets/theme-atlas.png", validPng);
 		atlasRequest.assetSources.emplace("assets/theme-atlas.png.layout", validLayout);
 		const auto atlasArchive = directory / L"atlas.zip";
-		PresetPackages::CreateArchive(atlasArchive, atlasRequest);
+		createArchive(atlasArchive, atlasRequest);
 		const auto loadedAtlas = PresetPackages::LoadArchive(atlasArchive);
 		Check(loadedAtlas.assets.contains("assets/theme-atlas.png.layout"));
 
@@ -2028,26 +1963,26 @@ namespace
 		atlasRequest.metadata.uuid = "41112233-4455-6677-8899-aabbccddeeff";
 		atlasRequest.assetSources["assets/theme-atlas.png.layout"] = invalidLayout;
 		bool rejectedLayout{};
-		try { PresetPackages::CreateArchive(directory / L"bad-layout.zip", atlasRequest); }
+		try { createArchive(directory / L"bad-layout.zip", atlasRequest); }
 		catch (...) { rejectedLayout = true; }
 		Check(rejectedLayout);
 
 		bool rejectedOverwrite{};
-		try { PresetPackages::CreateArchive(first, request); }
+		try { createArchive(first, request); }
 		catch (...) { rejectedOverwrite = true; }
 		Check(rejectedOverwrite);
 
 		auto invalid = request;
 		invalid.metadata.authorHomepage = L"file:///not-allowed";
 		bool rejectedUrl{};
-		try { PresetPackages::CreateArchive(directory / L"bad-url.zip", invalid); }
+		try { createArchive(directory / L"bad-url.zip", invalid); }
 		catch (...) { rejectedUrl = true; }
 		Check(rejectedUrl);
 
 		invalid = request;
 		invalid.settings.erase(Settings::Id::GlassType);
 		bool rejectedIncompleteCatalog{};
-		try { PresetPackages::CreateArchive(directory / L"bad-catalog.zip", invalid); }
+		try { createArchive(directory / L"bad-catalog.zip", invalid); }
 		catch (...) { rejectedIncompleteCatalog = true; }
 		Check(rejectedIncompleteCatalog);
 
@@ -2400,7 +2335,7 @@ namespace
 
 		auto noColor = request;
 		noColor.accentColor.reset();
-		PresetPackages::CreateArchive(directory / L"no-color.zip", noColor);
+		createArchive(directory / L"no-color.zip", noColor);
 		Check(!PresetPackages::LoadArchive(directory / L"no-color.zip").accentColor);
 		auto missingColor = nlohmann::ordered_json::parse(loaded.manifestText);
 		missingColor.erase("accent_color");
@@ -2408,7 +2343,7 @@ namespace
 		Check(!PresetPackages::LoadArchive(directory / L"automatic-color.zip").accentColor);
 		auto blackColor = request;
 		blackColor.accentColor = 0; // Black is manual RGB, not the automatic sentinel.
-		PresetPackages::CreateArchive(directory / L"black-color.zip", blackColor);
+		createArchive(directory / L"black-color.zip", blackColor);
 		Check(PresetPackages::LoadArchive(directory / L"black-color.zip").accentColor == std::optional<DWORD>{ 0 });
 		for (const auto rgb : { "#GG1122", "#12345", "112233", "#11223344" })
 		{
@@ -2469,7 +2404,7 @@ namespace
 		invalid = request;
 		invalid.licenseText = std::string("invalid-") + static_cast<char>(0xff);
 		bool rejectedLicense{};
-		try { PresetPackages::CreateArchive(directory / L"bad-license.zip", invalid); }
+		try { createArchive(directory / L"bad-license.zip", invalid); }
 		catch (...) { rejectedLicense = true; }
 		Check(rejectedLicense);
 
@@ -2482,7 +2417,7 @@ namespace
 		invalid.settings[Settings::Id::CustomThemeReflection] = PresetPackages::AssetReference{ "assets/reflection.png" };
 		invalid.assetSources.emplace("assets/reflection.png", fakePng);
 		bool rejectedImage{};
-		try { PresetPackages::CreateArchive(directory / L"bad-image.zip", invalid); }
+		try { createArchive(directory / L"bad-image.zip", invalid); }
 		catch (...) { rejectedImage = true; }
 		Check(rejectedImage);
 	}

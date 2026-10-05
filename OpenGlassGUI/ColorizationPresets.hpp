@@ -2,7 +2,6 @@
 
 #include <array>
 #include <cstdint>
-#include <optional>
 #include <span>
 #include <string_view>
 
@@ -19,7 +18,6 @@ namespace OpenGlass::ColorizationPresets
 
 	struct Preset
 	{
-		std::wstring_view id;
 		std::wstring_view name;
 		std::uint32_t argb;
 		Family family;
@@ -36,44 +34,37 @@ namespace OpenGlass::ColorizationPresets
 		constexpr bool operator==(const Windows7Parameters&) const noexcept = default;
 	};
 
-	struct Application
-	{
-		std::uint32_t color;
-		std::optional<std::uint32_t> vistaOpacity;
-		std::optional<Windows7Parameters> windows7;
-	};
-
 	// Extracted from the stock Vista and Windows 7 themecpl.dll swatch inventories.
 	inline constexpr std::array Vista
 	{
-		Preset{ L"vista.default", L"Default", 0x45409EFE, Family::Vista },
-		Preset{ L"vista.graphite", L"Graphite", 0xA3000000, Family::Vista },
-		Preset{ L"vista.blue", L"Blue", 0xA8004ADE, Family::Vista },
-		Preset{ L"vista.teal", L"Teal", 0x82008CA5, Family::Vista },
-		Preset{ L"vista.red", L"Red", 0x9CCE0C0F, Family::Vista },
-		Preset{ L"vista.orange", L"Orange", 0xA6FF7700, Family::Vista },
-		Preset{ L"vista.pink", L"Pink", 0x49F93EE7, Family::Vista },
-		Preset{ L"vista.frost", L"Frost", 0xCCEFF7F7, Family::Vista }
+		Preset{ L"Default", 0x45409EFE, Family::Vista },
+		Preset{ L"Graphite", 0xA3000000, Family::Vista },
+		Preset{ L"Blue", 0xA8004ADE, Family::Vista },
+		Preset{ L"Teal", 0x82008CA5, Family::Vista },
+		Preset{ L"Red", 0x9CCE0C0F, Family::Vista },
+		Preset{ L"Orange", 0xA6FF7700, Family::Vista },
+		Preset{ L"Pink", 0x49F93EE7, Family::Vista },
+		Preset{ L"Frost", 0xCCEFF7F7, Family::Vista }
 	};
 
 	inline constexpr std::array Windows7
 	{
-		Preset{ L"windows7.sky", L"Sky", 0x6B74B8FC, Family::Windows7 },
-		Preset{ L"windows7.twilight", L"Twilight", 0xA80046AD, Family::Windows7 },
-		Preset{ L"windows7.sea", L"Sea", 0x8032CDCD, Family::Windows7 },
-		Preset{ L"windows7.leaf", L"Leaf", 0x6614A600, Family::Windows7 },
-		Preset{ L"windows7.lime", L"Lime", 0x6697D937, Family::Windows7 },
-		Preset{ L"windows7.sun", L"Sun", 0x54FADC0E, Family::Windows7 },
-		Preset{ L"windows7.pumpkin", L"Pumpkin", 0x80FF9C00, Family::Windows7 },
-		Preset{ L"windows7.ruby", L"Ruby", 0xA8CE0F0F, Family::Windows7 },
-		Preset{ L"windows7.fuchsia", L"Fuchsia", 0x66FF0099, Family::Windows7 },
-		Preset{ L"windows7.blush", L"Blush", 0x70FCC7F8, Family::Windows7 },
-		Preset{ L"windows7.violet", L"Violet", 0x856E3BA1, Family::Windows7 },
-		Preset{ L"windows7.lavender", L"Lavender", 0x528D5A94, Family::Windows7 },
-		Preset{ L"windows7.taupe", L"Taupe", 0x6698844C, Family::Windows7 },
-		Preset{ L"windows7.chocolate", L"Chocolate", 0xA84F1B1B, Family::Windows7 },
-		Preset{ L"windows7.slate", L"Slate", 0x80555555, Family::Windows7 },
-		Preset{ L"windows7.frost", L"Frost", 0x54FCFCFC, Family::Windows7 }
+		Preset{ L"Sky", 0x6B74B8FC, Family::Windows7 },
+		Preset{ L"Twilight", 0xA80046AD, Family::Windows7 },
+		Preset{ L"Sea", 0x8032CDCD, Family::Windows7 },
+		Preset{ L"Leaf", 0x6614A600, Family::Windows7 },
+		Preset{ L"Lime", 0x6697D937, Family::Windows7 },
+		Preset{ L"Sun", 0x54FADC0E, Family::Windows7 },
+		Preset{ L"Pumpkin", 0x80FF9C00, Family::Windows7 },
+		Preset{ L"Ruby", 0xA8CE0F0F, Family::Windows7 },
+		Preset{ L"Fuchsia", 0x66FF0099, Family::Windows7 },
+		Preset{ L"Blush", 0x70FCC7F8, Family::Windows7 },
+		Preset{ L"Violet", 0x856E3BA1, Family::Windows7 },
+		Preset{ L"Lavender", 0x528D5A94, Family::Windows7 },
+		Preset{ L"Taupe", 0x6698844C, Family::Windows7 },
+		Preset{ L"Chocolate", 0xA84F1B1B, Family::Windows7 },
+		Preset{ L"Slate", 0x80555555, Family::Windows7 },
+		Preset{ L"Frost", 0x54FCFCFC, Family::Windows7 }
 	};
 
 	[[nodiscard]] constexpr std::span<const Preset> Get(Family family) noexcept
@@ -157,23 +148,5 @@ namespace OpenGlass::ColorizationPresets
 			&& actual.colorBalance == expected.colorBalance
 			&& actual.afterglowBalance == expected.afterglowBalance
 			&& actual.blurBalance == expected.blurBalance;
-	}
-
-	[[nodiscard]] constexpr Application BuildApplication(
-		std::uint32_t argb,
-		Family family,
-		bool opaque
-	) noexcept
-	{
-		if (family == Family::Vista)
-		{
-			return { argb, CalculateVistaOpacity(argb), std::nullopt };
-		}
-		return { argb, std::nullopt, CalculateWindows7Parameters(argb, opaque) };
-	}
-
-	[[nodiscard]] constexpr Application BuildApplication(const Preset& preset, bool opaque) noexcept
-	{
-		return BuildApplication(preset.argb, preset.family, opaque);
 	}
 }

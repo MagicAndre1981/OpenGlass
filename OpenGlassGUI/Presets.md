@@ -26,7 +26,7 @@ Restore defaults and Merge are configuration actions in the bottom-left More men
 
 ## Preview checkpoints
 
-The preview journal stores the first raw type/bytes/absence and last observed state of GUI-modified identities. It reconciles only touched entries, ignores no-ops and removes changes that return to baseline. Attempt rollback restores the prior preview. Failed recovery retains enough baseline state for Revert to retry. Untouched external values survive; a later external change to an already modified value does not revoke GUI ownership of that baseline.
+The preview journal stores the first raw type/bytes/absence of GUI-modified identities and each attempt's before-values. It reads only entries touched by that operation to reconcile net changes, ignores no-ops and removes changes that return to baseline. Attempt rollback restores the prior preview. Failed recovery retains enough baseline state for Revert to retry. Untouched external values survive; a later external change to an already modified value does not revoke the GUI's original before-value.
 
 Windows colors use the special contract in Configuration.design.md section 6. The checkpoint records the original user's AutoColorization and manual RGB, not Windows-generated base colors, palette, history or alpha. Manual uses AutoColorization=0 and SetUserColorPreference; Automatic uses AutoColorization=1 and the synchronous forced shell request used by UpdateWallpaperTransition. The destination of ColorizationColor and ColorizationAfterglow is always original-user HKCU, even for an HKLM preset target; these APIs replace direct DWM base-color writes and GUI color IAT hooks. Restoring Manual reapplies the chosen RGB; restoring Automatic recomputes from the current wallpaper. Save accepts the choice without waiting for Explorer's derived writes. Accepted side effects such as ColorPrevalence changes are not separately undone. Fixed/custom/Automatic color selection deletes ColorizationColorOverride and ColorizationAfterglowOverride from both original-user HKCU and HKLM, independent of editing scope. This special color cleanup is included in the complete preset application plan; all four identities have reversible raw-value backups, and access to both layers is checked before mutation. These two Override settings are never applied, even when explicitly included by a legacy package. The GUI may only write their old values back to undo its own deletions. Runtime/manual-registry compatibility and the three balance Overrides remain supported. The synchronous shell request prevents successful GUI requests from remaining queued behind a newer manual choice; later external writes remain independent.
 
@@ -52,7 +52,7 @@ The first library access converts visible legacy index entries (or recognized de
 
 ## Author and attached terms
 
-For new presets with LICENSE, **Author identifies the declared LICENSE rights holder**, without identity verification. Without LICENSE, Author identifies a reference source, not ownership. Do not default it to the signed-in account. Legacy package author information retains its original meaning.
+For new presets with LICENSE, **Author identifies the declared LICENSE rights holder**, without identity verification. Without LICENSE, Author identifies a reference source, not ownership. Without source metadata, New preset starts with `Untitled preset` and the last entered author, falling back to the original interactive user's account name. Both fields are editable; a suggested account name does not verify rights. Source and Update metadata retain their existing values. Legacy package author information retains its original meaning.
 
 Metadata is editable for both local and imported entries. Known source notices and attached external terms are carried forward as flat metadata; updating an entry can edit its own terms without discarding retained third-party terms. There is no import-based edit lock, required license-prefix template, local ownership history or ownership inference from equal image bytes. Resources carry notices so extracting after restart or library deletion retains known sources.
 
@@ -78,7 +78,7 @@ For configuration parameters, accent RGB and layout data contributed under this 
 
 `LICENSE` governs referenced texture, material, reflection and atlas images only under the new convention. Identify applicable third-party image terms in that file. Layout data remains configuration even though it is stored alongside an atlas image.
 
-Schema 1–2 imports and derivatives instead use:
+Schema 3 snapshots derived from schema 1–2 instead use:
 
 ```json
 "rights": {
@@ -88,7 +88,7 @@ Schema 1–2 imports and derivatives instead use:
 }
 ```
 
-They retain their original license text and its original scope, including any express limitations. Absence of a legacy LICENSE grants no new permissions. Schema conversion never silently relicenses legacy content. Known source notices from fixed configuration resources survive restart and extraction.
+They retain their original license text and its original scope, including any express limitations. Importing or exporting an unchanged schema 1–2 package preserves its original manifest; it does not add a `rights` field. Absence of a legacy LICENSE grants no new permissions. Schema conversion never silently relicenses legacy content. Known source notices from fixed configuration resources survive restart and extraction.
 
 ## Validation boundary
 

@@ -15,7 +15,6 @@ namespace OpenGlass
 		std::set<Key> m_pending;
 		std::optional<std::map<Key, Value>> m_previousBaseline;
 	public:
-		bool Contains(const Key& key) const { return m_baseline.contains(key); }
 		bool IsDirty() const noexcept { return !m_baseline.empty(); }
 		bool IsAttemptActive() const noexcept { return m_previousBaseline.has_value(); }
 		void Begin()
@@ -62,7 +61,6 @@ namespace OpenGlass
 				if (m_previousBaseline) for (const auto& [key, value] : *m_previousBaseline) m_baseline.insert_or_assign(key, value);
 				for (const auto& [key, value] : m_attempt) m_baseline.try_emplace(key, value);
 			}
-			m_pending.clear();
 			CommitAttempt();
 			return success;
 		}
@@ -73,6 +71,6 @@ namespace OpenGlass
 			if (success && acceptOnSuccess) Accept();
 			return success;
 		}
-		void Accept() noexcept { m_baseline.clear(); m_pending.clear(); CommitAttempt(); }
+		void Accept() noexcept { m_baseline.clear(); CommitAttempt(); }
 	};
 }

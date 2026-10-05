@@ -85,10 +85,7 @@ namespace OpenGlass
 			// If writing, try to create it
 			if (!readOnly)
 			{
-				if (FAILED(wil::reg::create_unique_key_nothrow(root, subKey.c_str(), key, access)))
-				{
-					// Fallback
-				}
+				(void)wil::reg::create_unique_key_nothrow(root, subKey.c_str(), key, access);
 			}
 		}
 
