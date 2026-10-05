@@ -336,7 +336,7 @@ void GlassKernel::Update(GlassEngine::UpdateType type)
 
 		g_reflectionSurface = nullptr;
 	}
-	if (type & GlassEngine::UpdateType::Framework)
+	if (type & (GlassEngine::UpdateType::Framework | GlassEngine::UpdateType::Backdrop))
 	{
 		Shared::g_disableOnBattery = static_cast<bool>(
 			GlassEngine::GetDwordFromRegistry(

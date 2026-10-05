@@ -105,9 +105,9 @@ Name: "ukrainian"; MessagesFile: "compiler:Languages\Ukrainian.isl"
 LaunchOpenGlassGUI=Launch OpenGlass GUI
 UninstallOptionsTitle=OpenGlass uninstall options
 UninstallOptionsDescription=Choose the OpenGlass data to remove.
-UninstallDeleteCurrentAndMachineConfig=Delete current-user and machine configuration
+UninstallDeleteCurrentAndMachineConfig=Delete current-user and machine configuration and its resources
 OtherUserConfigNotice=Settings in other Windows user profiles are preserved and must be removed manually while signed in as that user.
-UninstallDeletePresetPackages=Delete installed OpenGlass preset packages
+UninstallDeletePresetPackages=Delete the preset library and retained legacy packages (keep current resources)
 ContinueUninstall=Uninstall
 ServiceDescription=This service injects DLL into DWM for you and also maintains that user settings are correctly loaded.
 
@@ -115,9 +115,9 @@ ServiceDescription=This service injects DLL into DWM for you and also maintains 
 chinesesimplified.LaunchOpenGlassGUI=启动 OpenGlass GUI
 chinesesimplified.UninstallOptionsTitle=OpenGlass 卸载选项
 chinesesimplified.UninstallOptionsDescription=选择要删除的 OpenGlass 数据。
-chinesesimplified.UninstallDeleteCurrentAndMachineConfig=删除当前用户和本机的配置
+chinesesimplified.UninstallDeleteCurrentAndMachineConfig=删除当前用户和本机的配置及其资源
 chinesesimplified.OtherUserConfigNotice=其他 Windows 用户配置文件中的设置将被保留，需登录相应用户后手动删除。
-chinesesimplified.UninstallDeletePresetPackages=删除已安装的 OpenGlass 预设包
+chinesesimplified.UninstallDeletePresetPackages=删除预设库及旧版包（保留当前配置资源）
 chinesesimplified.ContinueUninstall=卸载
 chinesesimplified.ServiceDescription=该服务会为您将 DLL 注入 DWM，并确保 OpenGlass 能正确加载用户配置。
 #endif
@@ -126,9 +126,9 @@ chinesesimplified.ServiceDescription=该服务会为您将 DLL 注入 DWM，并�
 chinesestraditional.LaunchOpenGlassGUI=啟動 OpenGlass GUI
 chinesestraditional.UninstallOptionsTitle=OpenGlass 卸載選項
 chinesestraditional.UninstallOptionsDescription=選擇要刪除的 OpenGlass 資料。
-chinesestraditional.UninstallDeleteCurrentAndMachineConfig=刪除目前使用者與本機的設定
+chinesestraditional.UninstallDeleteCurrentAndMachineConfig=刪除目前使用者與本機的設定及其資源
 chinesestraditional.OtherUserConfigNotice=其他 Windows 使用者設定檔中的設定會予以保留；需登入該使用者後手動刪除。
-chinesestraditional.UninstallDeletePresetPackages=刪除已安裝的 OpenGlass 預設套件
+chinesestraditional.UninstallDeletePresetPackages=刪除預設庫與舊版套件（保留目前設定資源）
 chinesestraditional.ContinueUninstall=卸載
 chinesestraditional.ServiceDescription=該服務負責為您將 DLL 注入 DWM，並確保 OpenGlass 能正確載入使用者設定。
 #endif
@@ -146,6 +146,7 @@ Name: "{commonappdata}\OpenGlass\symbols"
 ; Full DWM dumps can contain sensitive process memory; do not grant ordinary users access.
 Name: "{commonappdata}\OpenGlass\dumps"
 Name: "{commonappdata}\OpenGlass\Presets"
+Name: "{commonappdata}\OpenGlass\Configuration"
 
 [UninstallDelete]
 Type: filesandordirs; Name: "{commonappdata}\OpenGlass\symbols"
@@ -184,6 +185,7 @@ Filename: "{sys}\icacls.exe"; Parameters: """{commonappdata}\OpenGlass\symbols""
 Filename: "{sys}\icacls.exe"; Parameters: """{commonappdata}\OpenGlass\dumps"" /inheritance:r /grant:r *S-1-5-18:(OI)(CI)F *S-1-5-32-544:(OI)(CI)F *S-1-5-90-0:(OI)(CI)M"; Flags: runhidden waituntilterminated
 ; Presets: SYSTEM/Admins = Full, Users/Window Manager = Read/Execute. Package directories retain the same protected ACL.
 Filename: "{sys}\icacls.exe"; Parameters: """{commonappdata}\OpenGlass\Presets"" /inheritance:r /grant:r *S-1-5-18:(OI)(CI)F *S-1-5-32-544:(OI)(CI)F *S-1-5-32-545:(OI)(CI)RX *S-1-5-90-0:(OI)(CI)RX"; Flags: runhidden waituntilterminated
+Filename: "{sys}\icacls.exe"; Parameters: """{commonappdata}\OpenGlass\Configuration"" /inheritance:r /grant:r *S-1-5-18:(OI)(CI)F *S-1-5-32-544:(OI)(CI)F *S-1-5-32-545:(OI)(CI)RX *S-1-5-90-0:(OI)(CI)RX"; Flags: runhidden waituntilterminated
 
 ; Create the service
 Filename: "{sys}\sc.exe"; Parameters: "delete OpenGlassHost"; Flags: runhidden waituntilterminated
@@ -257,10 +259,123 @@ end;
 // When uninstall is started from a non-admin account (UAC prompt / run-as),
 // HKEY_CURRENT_USER is that admin account, not the launching user; that
 // user's settings then remain and are only reachable by logging in as them.
+// Inno Setup 6 runs its Pascal code in a 32-bit process, even in x64 install mode.
+function GetUserNameExW(NameFormat: Integer; Buffer: String; var Size: LongWord): Boolean;
+  external 'GetUserNameExW@secur32.dll stdcall';
+function LookupAccountNameW(System: LongWord; Account: String; var Sid: Byte;
+  var SidSize: LongWord; Domain: String; var DomainSize: LongWord; var Use: LongWord): Boolean;
+  external 'LookupAccountNameW@advapi32.dll stdcall';
+function ConvertSidToStringSidW(var Sid: Byte; var Text: LongWord): Boolean;
+  external 'ConvertSidToStringSidW@advapi32.dll stdcall';
+function CopySidText(Buffer: String; Source: LongWord; Count: Integer): LongWord;
+  external 'lstrcpynW@kernel32.dll stdcall';
+function FreeSidText(Address: LongWord): LongWord;
+  external 'LocalFree@kernel32.dll stdcall';
+
+function ResourceAttributes(Name: String): LongWord;
+  external 'GetFileAttributesW@kernel32.dll stdcall';
+
+function CurrentUninstallSid: String;
+var
+  Account, Domain, Text: String;
+  AccountSize, DomainSize, SidSize, Use, Address: LongWord;
+  Sid: array of Byte;
+begin
+  Result := '';
+  AccountSize := 512; DomainSize := 512; SidSize := 68;
+  SetLength(Account, AccountSize); SetLength(Domain, DomainSize); SetArrayLength(Sid, SidSize);
+  if not GetUserNameExW(2, Account, AccountSize) then Exit;
+  SetLength(Account, Pos(#0, Account) - 1);
+  if not LookupAccountNameW(0, Account, Sid[0], SidSize, Domain, DomainSize, Use) then Exit;
+  if not ConvertSidToStringSidW(Sid[0], Address) then Exit;
+  try
+    SetLength(Text, 256);
+    CopySidText(Text, Address, 256);
+    SetLength(Text, Pos(#0, Text) - 1);
+    if (Pos('S-1-', Text) = 1) and (Pos('\', Text) = 0) and (Pos('/', Text) = 0) then Result := Text;
+  finally
+    FreeSidText(Address);
+  end;
+end;
+
+procedure DeleteConfigurationResources(const Folder: String);
+var
+  Names, Suffixes: TArrayOfString;
+  i, j: Integer;
+  Parent: String;
+begin
+  Parent := Folder;
+  while Length(Parent) > 3 do
+  begin
+    if (ResourceAttributes(Parent) <> $FFFFFFFF) and ((ResourceAttributes(Parent) and $400) <> 0) then
+    begin
+      Log('Preserving configuration resource path containing a reparse point: ' + Folder);
+      Exit;
+    end;
+    Parent := ExtractFileDir(Parent);
+  end;
+  // Delete only known fixed slots, never recurse into a user-selected asset path.
+  Names := ['CustomThemeReflection.png', 'CustomThemeMaterial.png', 'CustomThemeAtlas.png'];
+  Suffixes := ['', '.source.json', '.pending', '.restore', '.source.json.pending', '.source.json.restore'];
+  for i := 0 to GetArrayLength(Names) - 1 do
+    for j := 0 to GetArrayLength(Suffixes) - 1 do
+      DeleteFile(Folder + '\' + Names[i] + Suffixes[j]);
+  DeleteFile(Folder + '\CustomThemeAtlas.png.layout');
+  DeleteFile(Folder + '\CustomThemeAtlas.png.layout.pending');
+  DeleteFile(Folder + '\CustomThemeAtlas.png.layout.restore');
+  RemoveDir(Folder);
+end;
+
+function SafeResourceTree(const Folder: String): Boolean;
+var
+  Item: TFindRec;
+  Parent: String;
+begin
+  Parent := Folder;
+  while Length(Parent) > 3 do
+  begin
+    if (ResourceAttributes(Parent) <> $FFFFFFFF) and ((ResourceAttributes(Parent) and $400) <> 0) then
+    begin
+      Result := False;
+      Exit;
+    end;
+    Parent := ExtractFileDir(Parent);
+  end;
+  Result := (ResourceAttributes(Folder) and $400) = 0;
+  if not Result then Exit;
+  if FindFirst(Folder + '\*', Item) then
+  try
+    repeat
+      if (Item.Name <> '.') and (Item.Name <> '..') then
+      begin
+        if (Item.Attributes and $400) <> 0 then Result := False
+        else if (Item.Attributes and $10) <> 0 then
+          Result := SafeResourceTree(Folder + '\' + Item.Name);
+        if not Result then Exit;
+      end;
+    until not FindNext(Item);
+  finally
+    FindClose(Item);
+  end;
+end;
+
+procedure DeleteOwnedRecovery(const Sid: String);
+var
+  Folder, Marker: String;
+  Owner: AnsiString;
+begin
+  Folder := ExpandConstant('{commonappdata}\OpenGlass\Configuration\.operation-') + Sid;
+  if DirExists(Folder) and SafeResourceTree(Folder) then
+    if not DelTree(Folder, True, True, True) then Log('Configuration recovery cleanup incomplete: ' + Folder);
+  Marker := ExpandConstant('{commonappdata}\OpenGlass\Configuration\operation-owner');
+  if LoadStringFromFile(Marker, Owner) and (String(Owner) = Sid) then DeleteFile(Marker);
+end;
+
 procedure DeleteConfig;
 var
   OpenGlassKeys: array of string;
   pref: IMMERSIVE_COLOR_PREFERENCE;
+  Sid: String;
 begin
   OpenGlassKeys := [
     'ColorizationColor', 'ColorizationColorOverride', 'ColorizationColorInactive',
@@ -285,6 +400,16 @@ begin
 
   DeleteConfigValues(HKEY_CURRENT_USER, 'SOFTWARE\Microsoft\Windows\DWM', OpenGlassKeys);
   DeleteConfigValues(HKEY_LOCAL_MACHINE, 'SOFTWARE\Microsoft\Windows\DWM', OpenGlassKeys);
+
+  DeleteConfigurationResources(ExpandConstant('{commonappdata}\OpenGlass\Configuration\Machine'));
+  Sid := CurrentUninstallSid;
+  if Sid <> '' then
+  begin
+    DeleteConfigurationResources(ExpandConstant('{commonappdata}\OpenGlass\Configuration\Users\') + Sid);
+    DeleteOwnedRecovery(Sid);
+  end
+  else
+    Log('Could not determine the uninstall account SID; user resource directories were preserved.');
 
   // Refresh DWM by calling GetUserColorPreference
   GetUserColorPreference(pref, True);

@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "MainFrame.hpp"
+#include "WrappingLayout.hpp"
 #include "BlurSettings.hpp"
 
 namespace OpenGlass
@@ -66,14 +67,8 @@ namespace OpenGlass
 		}
 	}
 
-	void MainFrame::LoadSettings(bool saveBackup)
+	void MainFrame::LoadSettings()
 	{
-		if (saveBackup)
-		{
-			m_backupSettings.clear();
-			m_dirtyKeys.clear();
-		}
-
 		// System
 		m_chkDisableGlassOnBattery->SetValue(m_config->GetDword(L"DisableGlassOnBattery", 1) != 0);
 
@@ -106,15 +101,9 @@ namespace OpenGlass
 		syncSliderTooltip(m_slReflectionIntensity);
 
 		DWORD refOpacityActive = m_config->GetDword(L"ColorizationGlassReflectionOpacity", 0xFFFFFFFE);
-		DWORD refOpacityInactive = m_config->HasValue(L"ColorizationGlassReflectionOpacityInactive")
-			? m_config->GetDword(L"ColorizationGlassReflectionOpacityInactive", refOpacityActive)
-			: refOpacityActive;
-		DWORD refOpacityMaximized = m_config->HasValue(L"ColorizationGlassReflectionOpacityMaximized")
-			? m_config->GetDword(L"ColorizationGlassReflectionOpacityMaximized", refOpacityActive)
-			: refOpacityActive;
-		DWORD refOpacityInactiveMaximized = m_config->HasValue(L"ColorizationGlassReflectionOpacityInactiveMaximized")
-			? m_config->GetDword(L"ColorizationGlassReflectionOpacityInactiveMaximized", refOpacityInactive)
-			: refOpacityInactive;
+		DWORD refOpacityInactive = m_config->GetDword(L"ColorizationGlassReflectionOpacityInactive", refOpacityActive);
+		DWORD refOpacityMaximized = m_config->GetDword(L"ColorizationGlassReflectionOpacityMaximized", refOpacityActive);
+		DWORD refOpacityInactiveMaximized = m_config->GetDword(L"ColorizationGlassReflectionOpacityInactiveMaximized", refOpacityInactive);
 
 		ApplyChoiceSlider(m_chModeReflectionOpacity, m_slReflectionOpacity, refOpacityActive, 0xFFFFFFFF, 0xFFFFFFFE, 50);
 		ApplyChoiceSlider(m_chModeReflectionOpacityInactive, m_slReflectionOpacityInactive, refOpacityInactive, 0xFFFFFFFF, 0xFFFFFFFE, 50);
@@ -141,18 +130,6 @@ namespace OpenGlass
 			if (m_chkReflectionPolicyPeek) m_chkReflectionPolicyPeek->SetValue((refPolicy & (1 << 2)) != 0);
 			if (m_chkReflectionPolicySnap) m_chkReflectionPolicySnap->SetValue((refPolicy & (1 << 3)) != 0);
 		}
-		// Legacy (kept for reference):
-		// if (refPolicy == 0xFFFFFFFF)
-		// {
-		// 	for (unsigned int i = 0; i < m_clReflectionPolicy->GetCount(); ++i)
-		// 		m_clReflectionPolicy->Check(i, true);
-		// }
-		// else
-		// {
-		// 	m_clReflectionPolicy->Check(0, (refPolicy & (1 << 0)) != 0);
-		// 	m_clReflectionPolicy->Check(1, (refPolicy & (1 << 2)) != 0);
-		// 	m_clReflectionPolicy->Check(2, (refPolicy & (1 << 3)) != 0);
-		// }
 
 		std::wstring material = m_config->GetString(L"CustomThemeMaterial", L"");
 		m_fpCustomThemeMaterial->SetPath(material);
@@ -206,62 +183,18 @@ namespace OpenGlass
 		m_rbGlassType->SetSelection(std::clamp<int>(m_config->GetDword(L"GlassType", 0), 0, 1));
 		m_chkEnableTransparency->SetValue(m_config->GetDword(L"ColorizationOpaqueBlend", 0) == 0);
 
-		const DWORD activeColor = ResolveOverridableDword(
-			Settings::Id::ColorizationColor,
-			Settings::Id::ColorizationColorOverride,
-			0xFF000000
-		).value;
-		m_cpColorizationColor->SetColour(dwordToColor(activeColor));
-		const bool isVistaGlass = m_rbGlassType->GetSelection() == 0;
 		m_slColorIntensity->SetRange(
 			ColorizationPresets::ClassicIntensityMinimum,
 			ColorizationPresets::ClassicIntensityMaximum
 		);
-		const DWORD colorIntensity = isVistaGlass
-			? m_config->GetDword(L"GlassOpacity", 63)
-			: ColorizationPresets::CalculateVistaOpacity(activeColor);
+		const DWORD colorIntensity = std::clamp<DWORD>(m_config->GetDword(L"GlassOpacity", 63), ColorizationPresets::ClassicIntensityMinimum, ColorizationPresets::ClassicIntensityMaximum);
 		m_slColorIntensity->SetValue(colorIntensity);
 		syncSliderTooltip(m_slColorIntensity);
 
-		auto loadOptColor = [&](wxCheckBox* chk, wxColourPickerCtrl* cp, const std::wstring& key, DWORD defVal) {
-			DWORD val = m_config->GetDword(key, 0xFFFFFFFE);
-			// If missing (returns sentinel) or explicitly set to "Auto" (FE) or "Theme" (FF) -> Uncheck
-			if (val == 0xFFFFFFFE || val == 0xFFFFFFFF) {
-				chk->SetValue(false);
-				cp->Enable(false);
-				if (defVal == 0xFF000000)
-					cp->SetColour(m_cpColorizationColor->GetColour());
-				else
-					cp->SetColour(dwordToColor(defVal));
-			} else {
-				chk->SetValue(true);
-				cp->Enable(true);
-				cp->SetColour(dwordToColor(val));
-			}
-		};
-
-		// Inactive Color
-		loadOptColor(m_chkEnableInactiveColor, m_cpColorizationColorInactive, L"ColorizationColorInactive", 0xFF000000); // 0xFF000000 means use active as visual default
-
-		// Inactive Opacity
-		const DWORD activeOpacity = m_config->GetDword(L"GlassOpacity", 63);
-		const bool hasInactiveOpacity = m_config->HasValue(L"GlassOpacityInactive");
-		DWORD inactiveOp = hasInactiveOpacity ? m_config->GetDword(L"GlassOpacityInactive", activeOpacity) : activeOpacity;
-		m_chkEnableInactiveOpacity->SetValue(hasInactiveOpacity);
-		m_slGlassOpacityInactive->Enable(hasInactiveOpacity);
-		m_slGlassOpacityInactive->SetValue(inactiveOp);
-		syncSliderTooltip(m_slGlassOpacityInactive);
-
 		DWORD captionActive = m_config->GetDword(L"ColorizationColorCaption", 0xFFFFFFFD);
-		DWORD captionInactive = m_config->HasValue(L"ColorizationColorCaptionInactive")
-			? m_config->GetDword(L"ColorizationColorCaptionInactive", captionActive)
-			: captionActive;
-		DWORD captionMaximized = m_config->HasValue(L"ColorizationColorCaptionMaximized")
-			? m_config->GetDword(L"ColorizationColorCaptionMaximized", captionActive)
-			: captionActive;
-		DWORD captionInactiveMaximized = m_config->HasValue(L"ColorizationColorCaptionInactiveMaximized")
-			? m_config->GetDword(L"ColorizationColorCaptionInactiveMaximized", captionInactive)
-			: captionInactive;
+		DWORD captionInactive = m_config->GetDword(L"ColorizationColorCaptionInactive", captionActive);
+		DWORD captionMaximized = m_config->GetDword(L"ColorizationColorCaptionMaximized", captionActive);
+		DWORD captionInactiveMaximized = m_config->GetDword(L"ColorizationColorCaptionInactiveMaximized", captionInactive);
 
 		ApplyChoiceColorEx(m_chModeColorCaption, m_cpColorCaption, captionActive, 0xFFFFFFFE, 0xFFFFFFFD, 0xFFFFFFFF);
 		ApplyChoiceColorEx(m_chModeColorCaptionInactive, m_cpColorCaptionInactive, captionInactive, 0xFFFFFFFE, 0xFFFFFFFD, 0xFFFFFFFF);
@@ -300,15 +233,9 @@ namespace OpenGlass
 		m_chOpaqueBlendPriority->SetSelection(priority == 0xFFFFFFFF ? 2 : std::clamp<int>(priority, 0, 1));
 
 		DWORD colorOpacityActive = m_config->GetDword(L"ColorizationOpacity", 0xFFFFFFFE);
-		DWORD colorOpacityInactive = m_config->HasValue(L"ColorizationOpacityInactive")
-			? m_config->GetDword(L"ColorizationOpacityInactive", colorOpacityActive)
-			: colorOpacityActive;
-		DWORD colorOpacityMaximized = m_config->HasValue(L"ColorizationOpacityMaximized")
-			? m_config->GetDword(L"ColorizationOpacityMaximized", colorOpacityActive)
-			: colorOpacityActive;
-		DWORD colorOpacityInactiveMaximized = m_config->HasValue(L"ColorizationOpacityInactiveMaximized")
-			? m_config->GetDword(L"ColorizationOpacityInactiveMaximized", colorOpacityInactive)
-			: colorOpacityInactive;
+		DWORD colorOpacityInactive = m_config->GetDword(L"ColorizationOpacityInactive", colorOpacityActive);
+		DWORD colorOpacityMaximized = m_config->GetDword(L"ColorizationOpacityMaximized", colorOpacityActive);
+		DWORD colorOpacityInactiveMaximized = m_config->GetDword(L"ColorizationOpacityInactiveMaximized", colorOpacityInactive);
 
 		ApplyChoiceSlider(m_chModeColorizationOpacity, m_slColorizationOpacity, colorOpacityActive, 0xFFFFFFFF, 0xFFFFFFFE, 100);
 		ApplyChoiceSlider(m_chModeColorizationOpacityInactive, m_slColorizationOpacityInactive, colorOpacityInactive, 0xFFFFFFFF, 0xFFFFFFFE, 100);
@@ -318,41 +245,6 @@ namespace OpenGlass
 		syncSliderTooltip(m_slColorizationOpacityInactive);
 		syncSliderTooltip(m_slColorizationOpacityMaximized);
 		syncSliderTooltip(m_slColorizationOpacityInactiveMaximized);
-
-		m_slBlurBalance->SetValue(ResolveOverridableDword(
-			Settings::Id::ColorizationBlurBalance,
-			Settings::Id::ColorizationBlurBalanceOverride,
-			50
-		).value);
-		syncSliderTooltip(m_slBlurBalance);
-
-		m_slAfterglowBalance->SetValue(ResolveOverridableDword(
-			Settings::Id::ColorizationAfterglowBalance,
-			Settings::Id::ColorizationAfterglowBalanceOverride,
-			10
-		).value);
-		syncSliderTooltip(m_slAfterglowBalance);
-
-		m_slColorBalance->SetValue(ResolveOverridableDword(
-			Settings::Id::ColorizationColorBalance,
-			Settings::Id::ColorizationColorBalanceOverride,
-			10
-		).value);
-		syncSliderTooltip(m_slColorBalance);
-		wxColour afterglowColor;
-		DWORD afterglowVal = ResolveOverridableDword(
-			Settings::Id::ColorizationAfterglow,
-			Settings::Id::ColorizationAfterglowOverride,
-			0
-		).value;
-		// Format is: AA RR GG BB
-		afterglowColor.Set(
-			(afterglowVal >> 16) & 0xFF,
-			(afterglowVal >> 8) & 0xFF,
-			afterglowVal & 0xFF,
-			(afterglowVal >> 24) & 0xFF
-		);
-		m_cpAfterglow->SetColour(afterglowColor);
 
 		// Accent
 		m_chkGlassOverrideAccent->SetValue(m_config->GetDword(L"GlassOverrideAccent", 0) != 0);
@@ -368,21 +260,6 @@ namespace OpenGlass
 		// 0 = Vista blur, 1 = Win7 blur
 		bool isVista = (m_rbGlassType->GetSelection() == 0);
 
-		// Vista specific groups (Inactive Column is used in both, but layout differs)
-		// README says: "GlassOpacityInactive and ColorizationColorInactive ... Only used when GlassType = 0x0"
-		// So Inactive Column should be hidden for Win7.
-		if (m_colorsRowSizer && m_inactiveColumnSizer)
-			m_colorsRowSizer->Show(m_inactiveColumnSizer, isVista, true);
-
-		// Afterglow is ONLY for Win7 style (GlassType=1)
-		if (m_afterglowColumnSizer)
-		{
-			m_colorsRowSizer->Show(m_afterglowColumnSizer, !isVista, true);
-		}
-
-		if (m_glassColorsGroupSizer && m_vistaOpacitySizer)
-			m_glassColorsGroupSizer->Show(m_vistaOpacitySizer, isVista, true);
-
 		if (m_colorPresetsGroupSizer)
 		{
 			if (m_vistaPresetSizer)
@@ -396,22 +273,13 @@ namespace OpenGlass
 		}
 
 		// IMPORTANT: m_rbGlassType->GetContainingSizer() is the *row* that hosts the radiobox,
-		// not the page root sizer. Use the Glass Colors page/root sizer for visibility changes.
+		// not the page root sizer. Use the Glass Colors page for visibility changes.
 		wxWindow* page = m_glassColorsPanel;
-		if (m_detailedColorizationSizer)
-		{
-			if (m_win7GroupSizer)
-			{
-				m_detailedColorizationSizer->Show(m_win7GroupSizer, !isVista, true);
-			}
-		}
-
 		if (page)
 		{
-			page->Layout();
 			if (wxScrolledWindow* scrolled = wxDynamicCast(page, wxScrolledWindow))
 			{
-				scrolled->FitInside();
+				LayoutWrappingPage(scrolled);
 			}
 		}
 

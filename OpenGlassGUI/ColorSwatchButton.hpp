@@ -4,10 +4,12 @@
 
 namespace OpenGlass
 {
+	void DrawAutomaticColorSwatch(wxGraphicsContext& context, const wxRect2DDouble& bounds, bool compact = false);
+
 	class ColorSwatchButton final : public wxToggleButton
 	{
 	public:
-		ColorSwatchButton(wxWindow* parent, wxWindowID id, const wxString& label, DWORD argb);
+		ColorSwatchButton(wxWindow* parent, wxWindowID id, const wxString& label, DWORD argb, bool automatic = false);
 		[[nodiscard]] DWORD GetColor() const noexcept { return m_argb; }
 		void SetColor(DWORD argb);
 		void SetValue(bool value) override;
@@ -19,6 +21,7 @@ namespace OpenGlass
 		void OnSystemColorChanged(wxSysColourChangedEvent& event);
 
 		DWORD m_argb{};
+		bool m_automatic{};
 		wxBitmap m_normalBitmap;
 		wxBitmap m_selectedBitmap;
 	};

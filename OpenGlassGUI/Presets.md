@@ -1,0 +1,95 @@
+# Effective presets and schema 3
+
+The behavior contract is [Configuration.design.md](Configuration.design.md). This document specifies its package format and storage details.
+
+Schema 3 consolidates this release's accent color, effective configuration, default-state and rights changes. Only published schemas 1 and 2 are legacy inputs; unpublished intermediate formats are not supported.
+
+A preset describes effective behavior, independent of the editor hive. Ordinary controls show and edit only the selected hive; an absent or invalid value displays the local default, not the other hive's value. A yellow warning marks HKLM settings masked by the current user's HKCU; an information icon marks absent HKCU settings inherited from HKLM at runtime. Explicit default-valued entries are still local settings. Controls remain editable, and internal Override variants are not presented as separate setting controls or tooltip details. Accent RGB remains an independent original-user Windows state operation. The shared `EffectiveConfiguration` model captures runtime precedence without materializing consumer defaults or replacing automatic/theme sentinels with temporary values.
+
+## Configuration states
+
+Every setting covered by the package catalog version is present. DWORDs remain unsigned 32-bit JSON numbers, assets are `{"asset":"assets/reflection.png"}`, and uncustomized states are `{"state":"default"}`. Missing covered fields are invalid; entries outside the recognized catalog surface or its version coverage are ignored for writes, retained in the content digest, and reported in reviews.
+
+`accent_color` is `null` (enable automatic accent color from the wallpaper) or `{"rgb":"#74B8FC"}` (disable automatic coloring and apply this RGB). A missing field has the same automatic meaning as null. Legacy packages use the mode implied by their converted main RGB; no usable main RGB selects automatic coloring. The five Windows base color keys are not schema 3 configuration entries. New capture reads only the three balance Overrides using HKCU/HKLM precedence; it never fills missing Overrides from base balances. Schema 3 ignores any base balance fields, reports them, and retains them only in the original digest. GUI balance writes target Overrides; it never directly writes or deletes the base balances. For compatibility, schema 1/2 import and explicit Merge may promote effective legacy base balances to Overrides, with explicit Overrides taking precedence, without writing or deleting the bases. This is separate from new preset capture. These ten names form the [OpenGlassGUI managed settings](Configuration.design.md#6-openglassgui-treats-color-configuration-specially) policy group. ColorizationColorOverride and ColorizationAfterglowOverride are excluded from new capture/update and all application models, including legacy inputs. Validate the original package/digest first, retain ignored entries in that original content and list them as ignored in review. Do not convert their RGB or alpha into accent_color or intensity. A distinct legacy afterglow is reported as ignored rather than converted into an Override; Windows generates both base colors from one accent choice. Intensity remains `GlassOpacity`; schema 1/2 conversion may derive legacy Win7 intensity from the main base color alpha only when intensity is absent. Old `null` settings become uncustomized states after the original archive digest has been verified.
+
+The extraction dialog labels this independent RGB capture **Include accent color**. Its initial checkbox state is the inverse of the original interactive user's `Control Panel\Desktop\AutoColorization` DWORD (missing means disabled); read failures and invalid types are reported. The user may override the initial selection: checked means manual RGB on application, unchecked means automatic coloring. The Glass colors page uses a multicolor **Automatic** swatch for the same mode choice; fixed/custom swatches select manual coloring. In automatic mode, Custom follows the original interactive user's current accent RGB. Color/settings notifications and window reactivation queue a read-only refresh of the color swatches; this does not write configuration or change Save/Revert state. The Automatic icon itself remains fixed. The Automatic swatch uses a fixed neutral background and a fan of five solid-color cards. Small library icons use an enlarged three-card fan without the background, frame or pivot detail when accent_color is absent/null, including legacy packages containing ignored color Override entries; included accent color uses the existing color swatch.
+
+## Default and application
+
+Default means no customization in the target scope. Applying `{"state":"default"}` deletes that scope's value and deliberately leaves normal inheritance intact. It does not force the program fallback: an HKCU default can inherit HKLM, and an HKLM default leaves existing HKCU configuration effective. No additional registry state controls inheritance.
+
+The application planner emits raw before/after changes before mutation. Explicit values applied to HKLM clear only blocking values in the original interactive user's hive; harmless same-value user values remain. Applying to HKCU writes user values and leaves HKLM intact. Defaults delete only the target layer in both cases. No other users are examined. Windows color synchronization remains a separate declared user-state operation, and the five base color keys are never default cleanup targets.
+
+Before each write the plan's raw precondition is checked again. A changed precondition fails the attempt. Registry transactions cannot serialize unrelated Windows processes or prevent subsequent external color writes.
+
+Restore defaults and Merge are configuration actions in the bottom-left More menu, separate from preset-library operations. Restore defaults resets every known OpenGlass value in the editing scope, including internal settings excluded from packages, while preserving the five Windows base color values, unknown values, the other layer and diagnostics. The reset is a preview that Save accepts or Revert undoes; default still permits normal inheritance. Merge also remains a preview after confirmation, rather than accepting its own checkpoint.
+
+## Preview checkpoints
+
+The preview journal stores the first raw type/bytes/absence and last observed state of GUI-modified identities. It reconciles only touched entries, ignores no-ops and removes changes that return to baseline. Attempt rollback restores the prior preview. Failed recovery retains enough baseline state for Revert to retry. Untouched external values survive; a later external change to an already modified value does not revoke GUI ownership of that baseline.
+
+Windows colors use the special contract in Configuration.design.md section 6. The checkpoint records the original user's AutoColorization and manual RGB, not Windows-generated base colors, palette, history or alpha. Manual uses AutoColorization=0 and SetUserColorPreference; Automatic uses AutoColorization=1 and the synchronous forced shell request used by UpdateWallpaperTransition. The destination of ColorizationColor and ColorizationAfterglow is always original-user HKCU, even for an HKLM preset target; these APIs replace direct DWM base-color writes and GUI color IAT hooks. Restoring Manual reapplies the chosen RGB; restoring Automatic recomputes from the current wallpaper. Save accepts the choice without waiting for Explorer's derived writes. Accepted side effects such as ColorPrevalence changes are not separately undone. Fixed/custom/Automatic color selection deletes ColorizationColorOverride and ColorizationAfterglowOverride from both original-user HKCU and HKLM, independent of editing scope. This special color cleanup is included in the complete preset application plan; all four identities have reversible raw-value backups, and access to both layers is checked before mutation. These two Override settings are never applied, even when explicitly included by a legacy package. The GUI may only write their old values back to undo its own deletions. Runtime/manual-registry compatibility and the three balance Overrides remain supported. The synchronous shell request prevents successful GUI requests from remaining queued behind a newer manual choice; later external writes remain independent.
+
+## Library, admission and resources
+
+The library stores one self-contained current directory per stable entry ID under `%ProgramData%\OpenGlass\Presets\Library`. It has no authoritative index or permanent revision history. `manifest.json`, optional `LICENSE` and `assets/` remain the package content; `.accepted.json` is a protected local admission record excluded from ZIP export and package digests. Its accepted digest must match the fully validated content before application. A ZIP cannot supply admission.
+
+External ZIPs are validated before the **Trust and import** review and reopened for digest comparison afterward. Review includes the application scope, differences, color mode, cross-layer cleanup, resource previews, conversions, ignored settings and notices. Trust authorizes applying that content; it does not verify authorship. Import never applies configuration. Import review and Properties initially show a concise General page; Changes, Contents and License retain the complete review information without displaying it all at once. Descriptions use at most three visible lines; image previews fill the remaining space and resize with the window. Double-click an image to view it at its original size. Batch import uses a list with per-entry properties. Batch import reviews all inputs before publication; partial publication failures report the completed imports. Changed or unaccepted entries cannot apply until explicitly reviewed and accepted again through Properties or import.
+
+The report ListView has **Name, Accent color, Author, License, Status** columns, small swatches, single/full-row selection, sorting and adjustable widths. Rows use a 24-DIP image slot with centered 16-DIP color swatches, scaled for the current DPI without enlarging the text. Selection survives sorting/refresh by entry ID. Status reports only trust or load problems; there is no current-preset marker or startup matching. A row context menu provides Apply, Update, Export, Delete and Properties; blank-space context provides New preset, Import and Refresh. Double-click/Enter applies once. Delete confirms; F5 refreshes; Esc clears selection; keyboard context menus are supported. There is no button bank or permanent details pane. Automatic uses the multicolor swatch. New/Update require a clean preview; Import, Export, Properties and Delete do not.
+
+Update replaces the selected entry, including imports, without changing the original external ZIP or requiring a copy. The new content has a new package UUID; the local entry ID stays fixed. Publication verifies a complete staging directory, rechecks the expected previous digest under the library lock, and replaces via a temporary recovery directory. Recovery directories are removed after success, not retained as history. Delete removes actual library files; cleanup failures are reported and retried. Export reads the saved content, never the current registry. Enumeration diagnoses broken entries independently.
+
+Application resources live separately under `%ProgramData%\OpenGlass\Configuration\Machine` and `Configuration\Users\<original SID>`, with fixed `CustomThemeReflection.png`, `CustomThemeMaterial.png`, `CustomThemeAtlas.png` and optional `.png.layout` paths. Apply and Merge materialize target-layer resources there. Ordinary external resource paths remain supported, but the GUI does not create live references into a deletable library entry or another owner's configuration directory.
+
+Eligible protected managed files use a hard link first, then copy on failure. External writable files are captured by copying. Never rewrite published file contents, ACLs or attributes through a shared hard link: stage a new file and replace the directory entry. The active link and rollback copies outlive library deletion; disk storage is freed after the last required link is released. Source notices accompany active resources without a revision ancestry graph.
+
+File contents and absence participate in the same preview checkpoint as registry and accent state. Same-path changes are dirty and refresh Theme resources; same content is a no-op. Atlas/layout are one operation. Failed attempts restore the preceding preview; Save releases the baseline and Revert restores it. A machine-wide GUI writer lock prevents competing previews; reading/browsing the library remains independent. A minimal durable operation record permits the original user to recover an interrupted operation before further edits. Completed previews after an abnormal exit become the next startup baseline; this is not an Unsaved draft or persistent session undo. File cleanup failures are distinct from incomplete recovery.
+
+Selection and dirty state remain independent. Save/Revert manage configuration changes and retained source notices; presets may combine with settings in either layer, so no current-preset identity is tracked or persisted. Delete does not change configuration or recreate a preset on Revert. Switching, Save, Revert and close never publish presets.
+
+The first library access converts visible legacy index entries (or recognized deployments when no index exists), validates them and records admission. A completion marker prevents deleted entries from being reimported. Original resource paths remain intact for compatibility; no registry or other-user migration occurs. New Apply/Merge operations use fixed paths. Legacy retained directories are explicitly separate from the new library's deletion behavior.
+
+## Author and attached terms
+
+For new presets with LICENSE, **Author identifies the declared LICENSE rights holder**, without identity verification. Without LICENSE, Author identifies a reference source, not ownership. Do not default it to the signed-in account. Legacy package author information retains its original meaning.
+
+Metadata is editable for both local and imported entries. Known source notices and attached external terms are carried forward as flat metadata; updating an entry can edit its own terms without discarding retained third-party terms. There is no import-based edit lock, required license-prefix template, local ownership history or ownership inference from equal image bytes. Resources carry notices so extracting after restart or library deletion retains known sources.
+
+## Rights envelope
+
+New schema 3 manifests include:
+
+```json
+"rights": {
+  "configuration": "openglass-attribution-v1",
+  "license_scope": "image-assets",
+  "sources": []
+}
+```
+
+`author` has the LICENSE-dependent meaning above; `homepage` may be empty in schema 3. `sources` retains known author/source notices as UTF-8 strings. `license` remains `null` or `{"file":"LICENSE"}`. An absent image LICENSE grants no additional image rights; a preset without images needs no image LICENSE.
+
+`rights.inherited_licenses` is an optional flat array of up to 256 retained UTF-8 texts. Each text remains present in LICENSE when creating/updating a package. It preserves attached terms without imposing a prefix layout, locking metadata, proving ownership or deciding license compatibility. Native editable terms are separate from these retained texts.
+
+### OpenGlass Attribution v1
+
+For configuration parameters, accent RGB and layout data contributed under this convention, the contributor grants permission to use, copy, modify and share that data for any purpose. Retain the author's identification and known-source notices in redistributed copies or their accompanying metadata. Do not impose proprietary restrictions on recipients' exercise of these permissions for that contributed configuration data. These permissions apply only to rights the contributor is authorized to grant; they do not grant rights to referenced images or other third-party content. The data is provided without warranty. This convention does not assert that every configuration value is independently copyrightable.
+
+`LICENSE` governs referenced texture, material, reflection and atlas images only under the new convention. Identify applicable third-party image terms in that file. Layout data remains configuration even though it is stored alongside an atlas image.
+
+Schema 1–2 imports and derivatives instead use:
+
+```json
+"rights": {
+  "configuration": "legacy-package",
+  "license_scope": "package",
+  "sources": ["Original author and known source"]
+}
+```
+
+They retain their original license text and its original scope, including any express limitations. Absence of a legacy LICENSE grants no new permissions. Schema conversion never silently relicenses legacy content. Known source notices from fixed configuration resources survive restart and extraction.
+
+## Validation boundary
+
+All formats continue through ZIP path/case/type/count/size/ratio checks, UTF-8 and content digest verification, PNG structure/CRC and WIC compatibility checks, layout grammar validation, protected ACL deployment and UUID/content conflict checks. Local saves share snapshot validation and bypass ZIP generation; exports read saved content instead of current registry/resource sources. The test executable uses isolated temporary library roots and in-memory registry models. It must not access the production library or install/inject/restart DWM.

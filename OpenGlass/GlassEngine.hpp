@@ -19,55 +19,19 @@ namespace OpenGlass::GlassEngine
 	HKEY GetDwmKey();
 	HKEY GetPersonalizeKey();
 
-	// Long-term compatibility contract for transformation packs and plug-ins:
-	// runtime reads always prefer the current user's DWM value, then fall back
-	// to the machine value. The GUI's canonical write scope must not alter this.
+	// Both architectures use the same scope-independent inheritance contract.
 	FORCEINLINE std::optional<DWORD> TryGetDwordFromRegistry(PCWSTR keyName)
 	{
-		HRESULT hr{ S_OK };
 		DWORD value{};
-		hr = wil::reg::get_value_dword_nothrow(
-			GetDwmKey(),
-			keyName,
-			&value
-		);
-		if (hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND))
-		{
-			hr = wil::reg::get_value_dword_nothrow(
-				HKEY_LOCAL_MACHINE,
-				L"Software\\Microsoft\\Windows\\DWM",
-				keyName,
-				&value
-			);
-		}
-		if (FAILED(hr))
-		{
-			return std::nullopt;
-		}
-
-		return value;
+		if (SUCCEEDED(wil::reg::get_value_dword_nothrow(GetDwmKey(), keyName, &value))) return value;
+		if (SUCCEEDED(wil::reg::get_value_dword_nothrow(HKEY_LOCAL_MACHINE,
+			L"Software\\Microsoft\\Windows\\DWM", keyName, &value))) return value;
+		return std::nullopt;
 	}
 
 	FORCEINLINE DWORD GetDwordFromRegistry(PCWSTR keyName, DWORD defaultValue = 0)
 	{
-		HRESULT hr{ S_OK };
-		DWORD value{ defaultValue };
-		hr = wil::reg::get_value_dword_nothrow(
-			GetDwmKey(),
-			keyName,
-			&value
-		);
-		if (hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND))
-		{
-			hr = wil::reg::get_value_dword_nothrow(
-				HKEY_LOCAL_MACHINE,
-				L"Software\\Microsoft\\Windows\\DWM",
-				keyName,
-				&value
-			);
-		}
-
-		return value;
+		return TryGetDwordFromRegistry(keyName).value_or(defaultValue);
 	}
 
 	DWORD GetOverridableDwordFromRegistry(
@@ -85,7 +49,7 @@ namespace OpenGlass::GlassEngine
 			keyName,
 			returnValue
 		);
-		if (hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND))
+		if (FAILED(hr))
 		{
 			hr = wil::reg::get_value_string_nothrow(
 				HKEY_LOCAL_MACHINE,
@@ -94,6 +58,7 @@ namespace OpenGlass::GlassEngine
 				returnValue
 			);
 		}
+		if (FAILED(hr)) returnValue[0] = L'\0';
 	}
 
 	void LoadRegistry(bool redrawNow = true);

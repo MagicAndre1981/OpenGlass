@@ -142,6 +142,23 @@ namespace OpenGlass::ColorizationPresets
 		return parameters;
 	}
 
+	// Accent color synchronization can change Alpha independently of GUI intensity.
+	[[nodiscard]] constexpr bool MatchesWindows7Preset(
+		const Preset& preset,
+		const Windows7Parameters& actual,
+		std::uint32_t intensity,
+		bool opaque
+	) noexcept
+	{
+		const auto expected = CalculateWindows7Parameters(preset.argb, opaque);
+		return intensity == CalculateVistaOpacity(preset.argb)
+			&& (actual.color & 0x00FFFFFF) == (expected.color & 0x00FFFFFF)
+			&& (actual.afterglow & 0x00FFFFFF) == (expected.afterglow & 0x00FFFFFF)
+			&& actual.colorBalance == expected.colorBalance
+			&& actual.afterglowBalance == expected.afterglowBalance
+			&& actual.blurBalance == expected.blurBalance;
+	}
+
 	[[nodiscard]] constexpr Application BuildApplication(
 		std::uint32_t argb,
 		Family family,

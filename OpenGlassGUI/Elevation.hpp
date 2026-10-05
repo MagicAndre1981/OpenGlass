@@ -1,5 +1,6 @@
 #pragma once
 #include "pch.h"
+#include "SettingsCatalog.hpp"
 
 namespace OpenGlass::Elevation
 {
@@ -9,6 +10,6 @@ namespace OpenGlass::Elevation
 		std::wstring userSid;
 	};
 
-	[[nodiscard]] StartupResult PrepareElevatedStartup();
+	[[nodiscard]] StartupResult PrepareElevatedStartup(Settings::Scope scope);
 	[[nodiscard]] bool IsProcessElevated() noexcept;
 }

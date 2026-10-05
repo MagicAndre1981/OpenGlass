@@ -1,5 +1,8 @@
 #pragma once
-#include "pch.h"
+#include <Windows.h>
+#include <wil/resource.h>
+#include <string>
+#include <vector>
 #include "SettingsCatalog.hpp"
 
 namespace OpenGlass
@@ -7,9 +10,17 @@ namespace OpenGlass
 	class RegistryConfig
 	{
 	public:
+		struct RawValue
+		{
+			bool present{};
+			DWORD type{};
+			std::vector<BYTE> bytes;
+			bool operator==(const RawValue&) const = default;
+		};
+		[[nodiscard]] RawValue ReadRaw(const std::wstring& name) const;
+		HRESULT WriteRaw(const std::wstring& name, const RawValue& value);
 		enum class Mode
 		{
-			Canonical,
 			User,
 			Machine
 		};
@@ -24,17 +35,16 @@ namespace OpenGlass
 		HRESULT SetString(const std::wstring& valueName, const std::wstring& value);
 		[[nodiscard]] bool TryGetString(const std::wstring& valueName, std::wstring& value) const;
 
+		HRESULT CheckDeleteAccess() const;
 		HRESULT DeleteValue(const std::wstring& valueName);
-		[[nodiscard]] bool HasValue(const std::wstring& valueName) const;
-		[[nodiscard]] bool HasKey() const;
 
+		const std::wstring& UserSid() const noexcept { return m_userSid; }
 		[[nodiscard]] Mode GetMode() const noexcept { return m_mode; }
-		[[nodiscard]] Settings::Scope ScopeFor(const std::wstring& valueName) const noexcept;
 
 	private:
-		wil::unique_hkey OpenKey(const std::wstring& valueName, bool readOnly) const;
-		[[nodiscard]] std::pair<HKEY, std::wstring> GetLocation(const std::wstring& valueName) const;
-		
+		wil::unique_hkey OpenKey(bool readOnly) const;
+		[[nodiscard]] std::pair<HKEY, std::wstring> GetLocation() const;
+
 		Mode m_mode;
 		std::wstring m_userSid;
 	};

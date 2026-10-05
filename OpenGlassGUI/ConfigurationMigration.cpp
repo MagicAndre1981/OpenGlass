@@ -1,140 +1,86 @@
 #include "pch.h"
 #include "ConfigurationMigration.hpp"
-#include "RegistryConfig.hpp"
-#include "SettingsCatalog.hpp"
-#include "ConfigurationMigrationPolicy.hpp"
+#include "EffectiveConfiguration.hpp"
 
 namespace OpenGlass::ConfigurationMigration
 {
-	namespace
+	std::vector<Change> Prepare(const RegistryConfig& user, const RegistryConfig& machine, Settings::Scope target)
 	{
-		using RawValue = std::variant<std::monostate, DWORD, std::wstring>;
-
-		RawValue ReadRaw(const RegistryConfig& config, const Settings::Spec& spec)
+		Values users, machines;
+		for (const auto& spec : Settings::Catalog)
 		{
-			if (spec.type == Settings::ValueType::Dword)
-			{
-				DWORD value{};
-				return config.TryGetDword(std::wstring(spec.name), value) ? RawValue{ value } : RawValue{};
-			}
-			std::wstring value;
-			return config.TryGetString(std::wstring(spec.name), value) ? RawValue{ std::move(value) } : RawValue{};
+			users[spec.id] = user.ReadRaw(std::wstring(spec.name));
+			machines[spec.id] = machine.ReadRaw(std::wstring(spec.name));
 		}
-
-		HRESULT WriteRaw(RegistryConfig& config, const Settings::Spec& spec, const RawValue& value)
-		{
-			const std::wstring name(spec.name);
-			if (const auto dword = std::get_if<DWORD>(&value))
-			{
-				return config.SetDword(name, *dword);
-			}
-			if (const auto string = std::get_if<std::wstring>(&value))
-			{
-				return config.SetString(name, *string);
-			}
-			return config.DeleteValue(name);
-		}
-
-		HRESULT RestoreAll(
-			RegistryConfig& user,
-			RegistryConfig& machine,
-			const std::array<std::pair<RawValue, RawValue>, Settings::Catalog.size()>& backup
-		) noexcept
-		{
-			HRESULT firstFailure{ S_OK };
-			for (std::size_t index = 0; index < Settings::Catalog.size(); ++index)
-			{
-				const auto& spec = Settings::Catalog[index];
-				const auto userResult = WriteRaw(user, spec, backup[index].first);
-				const auto machineResult = WriteRaw(machine, spec, backup[index].second);
-				if (SUCCEEDED(firstFailure) && FAILED(userResult)) firstFailure = userResult;
-				if (SUCCEEDED(firstFailure) && FAILED(machineResult)) firstFailure = machineResult;
-			}
-			return firstFailure;
-		}
-
-		bool ConfirmMigration(std::size_t moveCount)
-		{
-			wxDialog dialog(nullptr, wxID_ANY, L"OpenGlass configuration migration", wxDefaultPosition, wxSize(680, 500), wxDEFAULT_DIALOG_STYLE | wxRESIZE_BORDER);
-			auto* root = new wxBoxSizer(wxVERTICAL);
-			const auto message = wxString::Format(
-				L"The official OpenGlass GUI now stores the five Windows colorization values and their Override forms for the original interactive user. It stores the other OpenGlass settings it manages system-wide.\n\n"
-				L"OpenGlass itself still reads every supported setting from HKCU before HKLM. Per-user registry configurations and transformation packs remain supported; this migration changes only the locations managed by the official GUI and preset packages.\n\n"
-				L"%zu value(s) are outside those recommended locations and need to be moved or removed. Existing effective values will be preserved. Choosing Exit and migrate later leaves the current configuration unchanged.\n\n"
-				L"Migration is transactional. If any registry operation fails, both hives are restored and the editor will not open.",
-				moveCount
-			);
-			auto* label = new wxStaticText(&dialog, wxID_ANY, message);
-			label->Wrap(570);
-			root->Add(label, 1, wxEXPAND | wxALL, 16);
-			auto* buttons = new wxBoxSizer(wxHORIZONTAL);
-			buttons->AddStretchSpacer();
-			auto* exitButton = new wxButton(&dialog, wxID_CANCEL, L"Exit and migrate later");
-			auto* migrateButton = new wxButton(&dialog, wxID_OK, L"Migrate and continue");
-			buttons->Add(exitButton, 0, wxRIGHT, 8);
-			buttons->Add(migrateButton, 0);
-			root->Add(buttons, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, 16);
-			dialog.SetSizer(root);
-			dialog.SetEscapeId(wxID_CANCEL);
-			migrateButton->SetDefault();
-			return dialog.ShowModal() == wxID_OK;
-		}
+		return Prepare(std::move(users), std::move(machines), target);
 	}
 
-	bool EnsureCanonicalConfiguration(const std::wstring& userSid)
+	std::vector<Change> Prepare(Values users, Values machines, Settings::Scope target)
 	{
-		RegistryConfig user(RegistryConfig::Mode::User, userSid);
-		RegistryConfig machine(RegistryConfig::Mode::Machine, userSid);
-		std::array<std::pair<RawValue, RawValue>, Settings::Catalog.size()> backup{};
-		std::size_t moveCount{};
-		for (std::size_t index = 0; index < Settings::Catalog.size(); ++index)
+		using RawValue = RegistryConfig::RawValue;
+		Values targets;
+		std::map<Settings::Id, std::wstring> origins;
+		auto valid = [](const Settings::Spec& spec, const RawValue& value)
 		{
-			const auto& spec = Settings::Catalog[index];
-			backup[index] = { ReadRaw(user, spec), ReadRaw(machine, spec) };
-			const bool userPresent = !std::holds_alternative<std::monostate>(backup[index].first);
-			const bool machinePresent = !std::holds_alternative<std::monostate>(backup[index].second);
-			if ((spec.scope == Settings::Scope::User && machinePresent)
-				|| (spec.scope == Settings::Scope::Machine && userPresent))
+			return !std::holds_alternative<std::monostate>(EffectiveConfiguration::Decode(value, spec));
+		};
+		for (const auto& spec : Settings::Catalog)
+		{
+			if ((Settings::IsWindowsColorBase(spec.id) || Settings::IsColorOverride(spec.id))) continue;
+			if (valid(spec, users[spec.id])) { targets[spec.id] = users[spec.id]; origins[spec.id] = L"HKCU " + std::wstring(spec.name); }
+			else if (valid(spec, machines[spec.id])) { targets[spec.id] = machines[spec.id]; origins[spec.id] = L"HKLM " + std::wstring(spec.name); }
+		}
+		// Materialize the effective balances as explicit overrides. Windows owns
+		// the base values in HKCU; those values must survive this operation.
+		for (const auto base : { Settings::Id::ColorizationColorBalance,
+			Settings::Id::ColorizationAfterglowBalance, Settings::Id::ColorizationBlurBalance })
+		{
+			const auto overrideId = Settings::Find(std::wstring(Settings::Get(base).name) + L"Override")->id;
+			if (targets.contains(overrideId)) continue;
+			const auto& spec = Settings::Get(base);
+			if (valid(spec, users[base])) { targets[overrideId] = users[base]; origins[overrideId] = L"HKCU " + std::wstring(spec.name); }
+			else if (valid(spec, machines[base])) { targets[overrideId] = machines[base]; origins[overrideId] = L"HKLM " + std::wstring(spec.name); }
+		}
+		auto decode = [](const RawValue& value)
+		{
+			DWORD result{};
+			if (value.type == REG_DWORD && value.bytes.size() == sizeof(result)) std::memcpy(&result, value.bytes.data(), sizeof(result));
+			return result;
+		};
+		auto describe = [&](const RawValue& value)
+		{
+			if (!value.present) return std::wstring(L"<absent>");
+			if (value.type == REG_DWORD && value.bytes.size() == sizeof(DWORD)) return std::format(L"0x{:08X}", decode(value));
+			if (value.type == REG_SZ && value.bytes.size() >= sizeof(wchar_t))
 			{
-				++moveCount;
+				std::wstring text(value.bytes.size() / sizeof(wchar_t), L'\0');
+				std::memcpy(text.data(), value.bytes.data(), text.size() * sizeof(wchar_t));
+				if (!text.empty() && text.back() == L'\0') text.pop_back();
+				return text;
 			}
-		}
-
-		if (moveCount == 0)
+			return std::format(L"<type {}, {} bytes>", value.type, value.bytes.size());
+		};
+		std::vector<Change> changes;
+		auto& destination = target == Settings::Scope::User ? users : machines;
+		const auto targetName = target == Settings::Scope::User ? L"HKCU" : L"HKLM";
+		for (const auto& [id, value] : targets)
 		{
-			return true;
+			if (destination[id] == value) continue;
+			const auto name = std::wstring(Settings::Get(id).name);
+			changes.push_back({ target, id, destination[id], value,
+				origins[id] + L" -> " + targetName + L" " + name + L": " + describe(destination[id]) + L" -> " + describe(value)
+					+ (destination[id].present ? L" (replace conflict)" : L" (create)") });
 		}
-
-		if (!ConfirmMigration(moveCount))
+		// A user merge leaves machine configuration intact for other users.
+		if (target == Settings::Scope::User) return changes;
+		// Delete only valid user values whose effective destination was prepared.
+		// Malformed values are preserved for manual diagnosis, never destroyed.
+		for (const auto& spec : Settings::Catalog)
 		{
-			return false;
+			if ((Settings::IsWindowsColorBase(spec.id) || Settings::IsColorOverride(spec.id)) || !valid(spec, users[spec.id])) continue;
+			changes.push_back({ Settings::Scope::User, spec.id, users[spec.id], {},
+				L"HKCU -> HKLM: " + std::wstring(spec.name) + L" (delete HKCU after copying)" });
 		}
-
-		HRESULT failure{ S_OK };
-		for (std::size_t index = 0; index < Settings::Catalog.size(); ++index)
-		{
-			const auto& spec = Settings::Catalog[index];
-			const auto& [userValue, machineValue] = backup[index];
-			const auto canonical = ConfigurationMigrationPolicy::Canonicalize(spec.scope, ConfigurationMigrationPolicy::HiveValues<RawValue>{ userValue, machineValue });
-			failure = WriteRaw(user, spec, canonical.user);
-			if (SUCCEEDED(failure)) failure = WriteRaw(machine, spec, canonical.machine);
-			if (FAILED(failure))
-			{
-				break;
-			}
-		}
-		if (FAILED(failure))
-		{
-			const auto rollbackFailure = RestoreAll(user, machine, backup);
-			wxMessageBox(
-				FAILED(rollbackFailure)
-					? wxString::Format(L"The configuration migration failed (HRESULT 0x%08lX), and restoring both registry hives was incomplete (HRESULT 0x%08lX).", static_cast<unsigned long>(failure), static_cast<unsigned long>(rollbackFailure))
-					: wxString::Format(L"The configuration migration failed (HRESULT 0x%08lX). Both registry hives were restored.", static_cast<unsigned long>(failure)),
-				L"OpenGlass configuration migration",
-				wxOK | wxICON_ERROR
-			);
-			return false;
-		}
-		return true;
+		return changes;
 	}
 }

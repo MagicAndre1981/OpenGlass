@@ -1,12 +1,19 @@
 #include "pch.h"
+#include "ConfigurationResources.hpp"
 #include "ProjectionFixture.hpp"
 #include "RegistryValueResolver.hpp"
+#include "../Common/EditorScope.hpp"
+#include "../Common/PreviewJournal.hpp"
+#include "../OpenGlassGUI/EffectiveConfiguration.hpp"
 #include "BlurSettings.hpp"
 #include "PngAssetValidation.hpp"
 #include "ThemeAtlasLayout.hpp"
 #include "../OpenGlassGUI/ColorizationPresets.hpp"
+#include "../OpenGlassGUI/ColorPreference.hpp"
+#include "../OpenGlassGUI/ShellColorRefresh.hpp"
+#include <future>
 #include "../Common/SettingsCatalog.hpp"
-#include "../Common/ConfigurationMigrationPolicy.hpp"
+#include "../OpenGlassGUI/ConfigurationMigration.hpp"
 #include "../OpenGlassGUI/PresetPackage.hpp"
 #include "HookHelper.hpp"
 #include "Util.hpp"
@@ -20,6 +27,8 @@
 #include <nlohmann/json.hpp>
 #include <fstream>
 #include <wrl/client.h>
+
+int TestWrappingTextLayout();
 
 using namespace OpenGlass;
 using namespace OpenGlassTests;
@@ -101,11 +110,12 @@ namespace
 		return g_projectionChain2(value) + 1000;
 	}
 
-	void Check(bool condition)
+	void Check(bool condition, const std::source_location& location = std::source_location::current())
 	{
 		if (!condition)
 		{
 			g_failures++;
+			fprintf(stderr, "Check failed at %s:%u\n", location.file_name(), location.line());
 		}
 	}
 
@@ -840,15 +850,15 @@ namespace
 				Check(resolved.value == 11);
 				Check(resolved.source == RegistryValueSource::UserOverride);
 			}
-			else if (userBase)
-			{
-				Check(resolved.value == 22);
-				Check(resolved.source == RegistryValueSource::UserBase);
-			}
 			else if (machineOverride)
 			{
 				Check(resolved.value == 33);
 				Check(resolved.source == RegistryValueSource::MachineOverride);
+			}
+			else if (userBase)
+			{
+				Check(resolved.value == 22);
+				Check(resolved.source == RegistryValueSource::UserBase);
 			}
 			else if (machineBase)
 			{
@@ -865,6 +875,53 @@ namespace
 				|| resolved.source == RegistryValueSource::MachineOverride
 			));
 		}
+
+		// All combinations of missing, valid and wrong-type values through typed readers.
+		for (unsigned combination = 0; combination < 81; ++combination)
+		{
+			std::array<std::optional<DWORD>, 4> values;
+			auto states = combination;
+			for (std::size_t slot = 0; slot < values.size(); ++slot, states /= 3)
+			{
+				const std::variant<std::monostate, DWORD, std::wstring> raw = states % 3 == 0
+					? std::variant<std::monostate, DWORD, std::wstring>{}
+					: states % 3 == 1 ? std::variant<std::monostate, DWORD, std::wstring>{ static_cast<DWORD>(slot + 1) }
+					: std::variant<std::monostate, DWORD, std::wstring>{ L"invalid DWORD type" };
+				if (const auto value = std::get_if<DWORD>(&raw)) values[slot] = *value;
+			}
+			const auto resolved = ResolveOverridableRegistryValueFromReaders(0, 1, defaultValue,
+				[&](int name) { return values[name ? 0 : 2]; },
+				[&](int name) { return values[name ? 1 : 3]; });
+			DWORD expected = defaultValue;
+			for (const auto& value : values) if (value) { expected = *value; break; }
+			Check(resolved.value == expected);
+			for (const bool userScope : { false, true })
+			{
+				const auto display = ResolveEditorRegistryValue(userScope, values[0], values[2], values[1], values[3], defaultValue);
+				const auto localOverride = values[userScope ? 0 : 1];
+				const auto localBase = values[userScope ? 2 : 3];
+				Check(display.value == localOverride.value_or(localBase.value_or(defaultValue)));
+				Check((display.source == RegistryValueSource::Default) == (!localOverride && !localBase));
+				const auto notice = GetEditorRegistryNotice(userScope, values[2].has_value(), values[3].has_value());
+				Check((notice == EditorRegistryNotice::Inherited) == (userScope && !values[2] && values[3]));
+				Check((notice == EditorRegistryNotice::Overridden) == (!userScope && values[2].has_value()));
+			}
+		}
+
+		// Empty HKCU must show its own default even when HKLM is customized.
+		const std::optional<DWORD> absent, zero = 0u, one = 1u;
+		Check(ResolveEditorRegistryValue(true, absent, absent, absent, one, DWORD{}).value == 0u);
+		Check(GetEditorRegistryNotice(true, false, true) == EditorRegistryNotice::Inherited);
+		// An explicit default is a real user value, not inheritance (also masks equal HKLM).
+		Check(GetEditorRegistryNotice(true, zero.has_value(), one.has_value()) == EditorRegistryNotice::None);
+		Check(GetEditorRegistryNotice(false, zero.has_value(), zero.has_value()) == EditorRegistryNotice::Overridden);
+		Check(ResolveEditorRegistryValue(false, absent, one, absent, absent, DWORD{}).value == 0u);
+		Check(GetEditorRegistryNotice(false, true, false) == EditorRegistryNotice::Overridden);
+		// Deleting this layer restores its local default while runtime inheritance continues.
+		Check(ResolveOverridableRegistryValue(absent, absent, absent, one, DWORD{}).value == 1u);
+		const std::optional<std::wstring> emptyPath = L"", machinePath = L"machine.png", noPath;
+		Check(ResolveEditorRegistryValue(true, noPath, noPath, noPath, machinePath, std::wstring{}).value.empty());
+		Check(GetEditorRegistryNotice(true, emptyPath.has_value(), machinePath.has_value()) == EditorRegistryNotice::None);
 
 		const std::map<std::wstring_view, DWORD> userValues
 		{
@@ -1172,6 +1229,25 @@ namespace
 		Check(CalculateWindows7Parameters(0xBD000000, false).afterglowBalance == 0);
 		Check(CalculateWindows7Parameters(0xBD000000, false).blurBalance == 30);
 
+		// Preset identity uses the saved GUI intensity, not mutable system Alpha.
+		auto synchronizedSky = sky;
+		synchronizedSky.color &= 0x00FFFFFF;
+		synchronizedSky.afterglow |= 0xFF000000;
+		Check(MatchesWindows7Preset(Windows7.front(), synchronizedSky, 42, false));
+		Check(!MatchesWindows7Preset(Windows7.front(), synchronizedSky, 63, false));
+		++synchronizedSky.blurBalance;
+		Check(!MatchesWindows7Preset(Windows7.front(), synchronizedSky, 42, false));
+		for (const auto& preset : Windows7)
+		{
+			for (const bool opaque : { false, true })
+			{
+				const auto intensity = CalculateVistaOpacity(preset.argb);
+				Check(MatchesWindows7Preset(preset,
+					CalculateWindows7Parameters((preset.argb & 0x00FFFFFF) | (CalculateIntensityAlpha(intensity) << 24), opaque),
+					intensity, opaque));
+			}
+		}
+
 		const auto vistaApplication = BuildApplication(Vista.front(), false);
 		Check(vistaApplication.color == Vista.front().argb);
 		Check(vistaApplication.vistaOpacity == 27u);
@@ -1212,7 +1288,7 @@ namespace
 	void TestSettingsCatalog()
 	{
 		std::vector<std::wstring_view> names;
-		std::size_t userSettings{};
+
 		for (std::size_t index = 0; index < Settings::Catalog.size(); ++index)
 		{
 			const auto& spec = Settings::Catalog[index];
@@ -1222,30 +1298,13 @@ namespace
 			Check(std::find(names.begin(), names.end(), spec.name) == names.end());
 			names.push_back(spec.name);
 			Check(Settings::Find(spec.name) == &spec);
-			if (spec.scope == Settings::Scope::User)
-			{
-				++userSettings;
-				Check(spec.type == Settings::ValueType::Dword);
-				Check(spec.assetRole == Settings::AssetRole::None);
-				Check(spec.name == L"ColorizationColor"
-					|| spec.name == L"ColorizationColorOverride"
-					|| spec.name == L"ColorizationAfterglow"
-					|| spec.name == L"ColorizationAfterglowOverride"
-					|| spec.name == L"ColorizationColorBalance"
-					|| spec.name == L"ColorizationColorBalanceOverride"
-					|| spec.name == L"ColorizationAfterglowBalance"
-					|| spec.name == L"ColorizationAfterglowBalanceOverride"
-					|| spec.name == L"ColorizationBlurBalance"
-					|| spec.name == L"ColorizationBlurBalanceOverride");
-			}
 			if (spec.type == Settings::ValueType::String)
 			{
-				Check(spec.scope == Settings::Scope::Machine);
 				Check(spec.assetRole != Settings::AssetRole::None);
 				Check(spec.sensitive);
 			}
 		}
-		Check(userSettings == 10);
+		Check(Settings::PresetPackSettingCount(1) == Settings::PresetPackSettingCount() + 5);
 		Check(!Settings::Get(Settings::Id::DisableGlassOnBattery).sensitive);
 		Check(Settings::Get(Settings::Id::GlassOverrideAccent).impact == Settings::UpdateImpact::Colorization);
 		Check(Settings::Get(Settings::Id::GlassSafetyZoneMode).impact == Settings::UpdateImpact::Colorization);
@@ -1255,27 +1314,569 @@ namespace
 		Check(!Settings::Get(Settings::Id::MinMaxButtonGlowId).includeInPresetPacks);
 		Check(!Settings::Get(Settings::Id::CloseButtonGlowId).includeInPresetPacks);
 		Check(!Settings::Get(Settings::Id::ToolCloseButtonGlowId).includeInPresetPacks);
-		Check(Settings::PresetPackSettingCount() + 3 == Settings::Catalog.size());
+		Check(Settings::PresetPackSettingCount() + 10 == Settings::Catalog.size());
 		Check(Settings::Find(L"NotAnOpenGlassSetting") == nullptr);
+	}
+
+	void TestPreviewJournal()
+	{
+		PreviewJournal<int, std::optional<int>> journal;
+		std::map<int, int> registry{ { 1, 10 } };
+		auto read = [&](int key) -> std::optional<int> { if (registry.contains(key)) return registry[key]; return {}; };
+		auto write = [&](int key, std::optional<int> value) { if (value) registry[key] = *value; else registry.erase(key); return true; };
+		auto apply = [&](int value) { journal.Begin(); journal.Touch(1, read); registry[1] = value; journal.CommitAttempt(); };
+		apply(20); // A
+		journal.Begin(); journal.Touch(1, read); registry[1] = 30; journal.Touch(2, read); registry[2] = 7;
+		Check(journal.RollbackAttempt(write)); // B failed, return to A, including missing values.
+		Check(registry[1] == 20 && !registry.contains(2) && journal.IsDirty());
+		apply(40); // C
+		Check(journal.Revert(write)); Check(registry[1] == 10 && !journal.IsDirty());
+		apply(20); apply(30); apply(40); // Successful A -> B -> C keeps the initial checkpoint.
+		Check(journal.Revert(write)); Check(registry[1] == 10 && !journal.IsDirty());
+		apply(50); journal.Accept(); apply(60);
+		Check(!journal.Revert([](int, auto) { return false; })); Check(journal.IsDirty());
+		Check(journal.Revert(write)); Check(registry[1] == 50);
+		journal.Begin(); journal.Touch(2, read); registry[2] = 99;
+		Check(!journal.RollbackAttempt(write, false)); // Failed independent color recovery keeps baseline.
+		Check(journal.IsDirty()); Check(journal.Revert(write)); Check(!registry.contains(2));
+		apply(70);
+		Check(journal.Revert(write, true, false) && journal.IsDirty()); // Retain until refresh succeeds.
+		journal.Accept();
+		using ScopedKey = std::pair<Settings::Scope, int>;
+		PreviewJournal<ScopedKey, int> scoped;
+		std::map<ScopedKey, int> layers{ { { Settings::Scope::User, 1 }, 10 }, { { Settings::Scope::Machine, 1 }, 20 } };
+		for (const auto scope : { Settings::Scope::User, Settings::Scope::Machine })
+		{
+			const auto original = layers;
+			const ScopedKey key{ scope, 1 };
+			scoped.Begin(); scoped.Touch(key, [&](const auto& k) { return layers.at(k); }); layers[key] = 90; scoped.CommitAttempt();
+			Check(layers.at({ scope == Settings::Scope::User ? Settings::Scope::Machine : Settings::Scope::User, 1 })
+				== original.at({ scope == Settings::Scope::User ? Settings::Scope::Machine : Settings::Scope::User, 1 }));
+			Check(scoped.Revert([&](const auto& k, int value) { layers[k] = value; return true; })); Check(layers == original);
+		}
+	}
+
+	void TestEffectiveConfiguration()
+	{
+		using namespace EffectiveConfiguration;
+		using enum Settings::Id;
+		for (unsigned u = 0; u < 3; ++u) for (unsigned m = 0; m < 3; ++m)
+		{
+			Layer user, machine;
+			auto raw = [](unsigned kind, DWORD number) { return kind == 0 ? RegistryConfig::RawValue{} : kind == 1 ? Encode(Value{ number }) : RegistryConfig::RawValue{ true, REG_BINARY, { 1, 2 } }; };
+			user.values[GlassOpacity] = raw(u, 17); machine.values[GlassOpacity] = raw(m, 31);
+			const Value expected = u == 1 ? Value{ DWORD{17} } : m == 1 ? Value{ DWORD{31} } : Value{};
+			Check(Resolve(user, machine, GlassOpacity) == expected);
+			Check(Capture(user, machine).at(GlassOpacity) == expected);
+			for (const auto target : { Settings::Scope::User, Settings::Scope::Machine })
+			for (const auto& desired : { Value{}, Value{ DWORD{17} }, Value{ DWORD{0xFFFFFFFF} } })
+			{
+				auto newUser = user, newMachine = machine;
+				const auto plan = Plan(user, machine, { { GlassOpacity, desired } }, target);
+				for (const auto& change : plan)
+				{
+					auto& layer = change.scope == Settings::Scope::User ? newUser : newMachine;
+					layer.values[change.id] = change.after;
+				}
+				if (std::holds_alternative<std::monostate>(desired))
+				{
+					const auto& other = target == Settings::Scope::User ? machine : user;
+					Check(Resolve(newUser, newMachine, GlassOpacity) == Decode(Raw(other, GlassOpacity), Settings::Get(GlassOpacity)));
+					Check(!Raw(target == Settings::Scope::User ? newUser : newMachine, GlassOpacity).present);
+					if (target == Settings::Scope::Machine) Check(newUser.values == user.values);
+				}
+				else Check(Resolve(newUser, newMachine, GlassOpacity) == desired);
+				if (target == Settings::Scope::User) Check(newMachine.values == machine.values);
+			}
+		}
+		for (const auto [base, over] : { std::pair{ ColorizationColorBalance, ColorizationColorBalanceOverride },
+			std::pair{ ColorizationAfterglowBalance, ColorizationAfterglowBalanceOverride },
+			std::pair{ ColorizationBlurBalance, ColorizationBlurBalanceOverride } })
+		for (unsigned u = 0; u < 3; ++u) for (unsigned m = 0; m < 3; ++m)
+		{
+			Layer user, machine;
+			user.values[base] = Encode(Value{ DWORD{33} }); machine.values[base] = Encode(Value{ DWORD{66} });
+			auto raw = [](unsigned kind, DWORD value) { return kind == 0 ? RegistryConfig::RawValue{} : kind == 1
+				? Encode(Value{ value }) : RegistryConfig::RawValue{ true, REG_BINARY, { 1 } }; };
+			user.values[over] = raw(u, 17); machine.values[over] = raw(m, 31);
+			const Value expected = u == 1 ? Value{ DWORD{17} } : m == 1 ? Value{ DWORD{31} } : Value{};
+			for (const auto version : { 1u, Settings::CatalogVersion })
+			{
+				const auto captured = Capture(user, machine, version);
+				Check(!captured.contains(base) && captured.at(over) == expected);
+				for (const auto target : { Settings::Scope::User, Settings::Scope::Machine })
+					for (const auto& change : Plan(user, machine, captured, target, version)) Check(!Settings::IsWindowsColorBase(change.id));
+			}
+		}
+		Layer user, machine;
+		user.values[ColorizationColor] = Encode(Value{ DWORD{0xAA123456} });
+		user.values[ColorizationAfterglow] = Encode(Value{ DWORD{0xAA654321} });
+		machine.values[ColorizationColorOverride] = Encode(Value{ DWORD{0xBB112233} });
+		Check(!Capture(user, machine).contains(ColorizationColorOverride));
+		Check(!Capture(user, machine).contains(ColorizationAfterglowOverride));
+		user.values.erase(ColorizationColor);
+		Check(!Capture(user, machine).contains(ColorizationAfterglowOverride));
+		user.values[ColorizationColor] = Encode(Value{ DWORD{0xAA123456} });
+		for (bool explicitUser : { false, true })
+		{
+			const auto resolved = ResolveOverridableRegistryValue<DWORD>(explicitUser ? std::optional<DWORD>{1} : std::nullopt, 3, 2, 4, 5);
+			Check(resolved.value == (explicitUser ? 1u : 2u));
+		}
+		user.values[ColorizationColorOverride] = { true, REG_BINARY, { 1, 2 } };
+		user.values[ColorizationAfterglowOverride] = Encode(Value{ DWORD{0xBB112233} });
+		machine.values[ColorizationAfterglowOverride] = Encode(Value{ DWORD{0xBB112233} });
+		for (const auto target : { Settings::Scope::User, Settings::Scope::Machine })
+		{
+			const auto cleanup = Plan(user, machine, { { ColorizationColorOverride, DWORD{5} }, { ColorizationAfterglowOverride, DWORD{6} } }, target);
+			Check(cleanup.size() == 4);
+			for (const auto& change : cleanup) Check(Settings::IsColorOverride(change.id) && change.before.present && !change.after.present);
+		}
+		user.values[GlassOpacity] = machine.values[GlassOpacity] = Encode(Value{ DWORD{42} });
+		const auto same = Plan(user, machine, { { GlassOpacity, DWORD{42} } }, Settings::Scope::Machine);
+		Check(same.size() == 4);
+		const auto partial = Plan(user, machine, { { ColorizationColor, DWORD{5} }, { MinMaxButtonGlowId, DWORD{6} } }, Settings::Scope::Machine);
+		Check(partial.size() == 4); // Only the independent color cleanup, never base/internal settings.
+		user.values[CustomThemeReflection] = { true, REG_BINARY, { 1 } };
+		machine.values[CustomThemeReflection] = Encode(Value{ std::wstring(L"machine.png") });
+		Check(std::get<std::wstring>(Resolve(user, machine, CustomThemeReflection)) == L"machine.png");
+		Check(std::get<std::wstring>(Resolve(user, machine, CustomThemeReflection)) == L"machine.png");
+		user.values[GlassOpacity] = Encode(Value{ DWORD{12} });
+		machine.values[GlassOpacity] = Encode(Value{ DWORD{34} });
+		const Model model{ { GlassOpacity, DWORD{56} }, { CustomThemeReflection, std::monostate{} } };
+		for (const auto target : { Settings::Scope::User, Settings::Scope::Machine })
+		{
+			const auto plan = Plan(user, machine, model, target);
+			using Key = std::pair<Settings::Scope, std::wstring>;
+			using RawValue = RegistryConfig::RawValue;
+			std::map<Key, RawValue> initial;
+			for (const auto scope : { Settings::Scope::User, Settings::Scope::Machine })
+			{
+				const auto& layer = scope == Settings::Scope::User ? user : machine;
+				for (const auto& [id, raw] : layer.values) if (raw.present) initial[{ scope, std::wstring(Settings::Get(id).name) }] = raw;
+			}
+			for (std::size_t failAt = 0; failAt < plan.size(); ++failAt)
+			{
+				auto state = initial;
+				PreviewJournal<Key, RawValue> journal;
+				auto read = [&](const Key& key) { const auto found = state.find(key); return found == state.end() ? RawValue{} : found->second; };
+				auto write = [&](const Key& key, const RawValue& value) { if (value.present) state[key] = value; else state.erase(key); return true; };
+				journal.Begin();
+				for (std::size_t index = 0; index <= failAt; ++index)
+				{
+					const auto& change = plan[index]; const Key key{ change.scope, change.Name() };
+					journal.Touch(key, read); write(key, change.after);
+				}
+				journal.Reconcile(read);
+				const Key outside{ Settings::Scope::User, L"FutureSetting" };
+				state[outside] = Encode(Value{ DWORD{99} });
+				Check(journal.RollbackAttempt(write));
+				Check(state.at(outside) == Encode(Value{ DWORD{99} })); state.erase(outside);
+				Check(state == initial);
+			}
+		}
+
+	}
+
+	void TestConfigurationReset()
+	{
+		using namespace EffectiveConfiguration;
+		using RawValue = RegistryConfig::RawValue;
+		using Key = std::pair<Settings::Scope, Settings::Id>;
+		Layer user, machine;
+		for (const auto& spec : Settings::Catalog)
+		{
+			user.values[spec.id] = spec.type == Settings::ValueType::String
+				? Encode(Value{ std::wstring(L"user.png") }) : Encode(Value{ DWORD{17} });
+			machine.values[spec.id] = spec.type == Settings::ValueType::String
+				? Encode(Value{ std::wstring(L"machine.png") }) : Encode(Value{ DWORD{31} });
+		}
+		// Explicit reset removes malformed known values too, with exact raw rollback.
+		user.values[Settings::Id::MinMaxButtonGlowId] = { true, REG_BINARY, { 9, 8, 7 } };
+		const auto unknown = Settings::Id::Count;
+		user.values[unknown] = machine.values[unknown] = { true, REG_BINARY, { 1, 2 } };
+		for (const auto target : { Settings::Scope::User, Settings::Scope::Machine })
+		{
+			Check(PlanReset({}, target).empty());
+			const auto plan = PlanReset(target == Settings::Scope::User ? user : machine, target);
+			Check(plan.size() == Settings::Catalog.size() - 5);
+			for (const auto id : { Settings::Id::MinMaxButtonGlowId, Settings::Id::CloseButtonGlowId, Settings::Id::ToolCloseButtonGlowId })
+				Check(std::ranges::any_of(plan, [&](const auto& change) { return change.id == id; }));
+			for (const auto& change : plan)
+				Check(change.scope == target && !Settings::IsWindowsColorBase(change.id) && change.id != unknown && !change.after.present);
+			auto users = user, machines = machine;
+			auto& reset = target == Settings::Scope::User ? users : machines;
+			for (const auto& change : plan) reset.values.erase(change.id);
+			Check(PlanReset(reset, target).empty());
+			Check((target == Settings::Scope::User ? machines.values : users.values) == (target == Settings::Scope::User ? machine.values : user.values));
+			Check(reset.values.at(unknown) == user.values.at(unknown));
+			for (const auto& spec : Settings::Catalog) if (Settings::IsWindowsColorBase(spec.id))
+				Check(reset.values.at(spec.id) == Raw(target == Settings::Scope::User ? user : machine, spec.id));
+			Check(Resolve(users, machines, Settings::Id::GlassOpacity) == Value{ DWORD{target == Settings::Scope::User ? 31u : 17u} });
+			for (std::size_t failAt = 0; failAt < plan.size(); ++failAt)
+			{
+				std::map<Key, RawValue> state;
+				for (const auto& [id, value] : user.values) state[{ Settings::Scope::User, id }] = value;
+				for (const auto& [id, value] : machine.values) state[{ Settings::Scope::Machine, id }] = value;
+				auto expected = state;
+				PreviewJournal<Key, RawValue> journal;
+				auto read = [&](const Key& key) { const auto found = state.find(key); return found == state.end() ? RawValue{} : found->second; };
+				auto write = [&](const Key& key, const RawValue& value) { if (value.present) state[key] = value; else state.erase(key); return true; };
+				journal.Begin();
+				for (std::size_t index = 0; index <= failAt; ++index)
+				{
+					const auto& change = plan[index]; const Key key{ change.scope, change.id };
+					journal.Touch(key, read); write(key, change.after);
+				}
+				const Key untouched{ target == Settings::Scope::User ? Settings::Scope::Machine : Settings::Scope::User, Settings::Id::GlassOpacity };
+				state[untouched] = expected[untouched] = Encode(Value{ DWORD{77} });
+				Check(journal.RollbackAttempt(write)); Check(state == expected);
+			}
+		}
+	}
+
+	void TestShellColorRefresh()
+	{
+		// Real cross-thread window delivery, with a receiver modeling the audited
+		// one-shot pending flag. No Explorer, private API or registry is touched.
+		struct Receiver
+		{
+			DWORD color{};
+			bool pending{ true }, reject{};
+		};
+		const auto instance = GetModuleHandleW(nullptr);
+		constexpr auto className = L"OpenGlassTests.ColorRefresh";
+		WNDCLASSW windowClass{};
+		windowClass.hInstance = instance;
+		windowClass.lpszClassName = className;
+		windowClass.lpfnWndProc = [](HWND window, UINT message, WPARAM wparam, LPARAM lparam) -> LRESULT
+		{
+			if (message == WM_NCCREATE)
+				SetWindowLongPtrW(window, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(reinterpret_cast<CREATESTRUCTW*>(lparam)->lpCreateParams));
+			auto* receiver = reinterpret_cast<Receiver*>(GetWindowLongPtrW(window, GWLP_USERDATA));
+			if (message == 0x52C && wparam == 14 && receiver)
+			{
+				if (receiver->reject) return E_ACCESSDENIED;
+				if (lparam == static_cast<LPARAM>(0xFFFFFFFFull) || receiver->pending) receiver->color = 0x123456;
+				receiver->pending = false;
+				return S_OK;
+			}
+			if (message == WM_APP && receiver) { receiver->color = 0x74B8FC; return 0; } // Sky
+			if (message == WM_APP + 1 && receiver) return receiver->color;
+			if (message == WM_APP + 2 && receiver) { receiver->reject = true; return 0; }
+			if (message == WM_DESTROY) { PostQuitMessage(0); return 0; }
+			return DefWindowProcW(window, message, wparam, lparam);
+		};
+		Check(RegisterClassW(&windowClass) != 0);
+		auto unregister = wil::scope_exit([&] { UnregisterClassW(className, instance); });
+		std::promise<HWND> ready;
+		auto future = ready.get_future();
+		std::jthread thread([&]
+		{
+			Receiver receiver;
+			const auto window = CreateWindowExW(0, className, L"", 0, 0, 0, 0, 0, HWND_MESSAGE, nullptr, instance, &receiver);
+			ready.set_value(window);
+			if (!window) return;
+			MSG message{};
+			while (GetMessageW(&message, nullptr, 0, 0) > 0) DispatchMessageW(&message);
+		});
+		const auto window = future.get();
+		auto close = wil::scope_exit([&] { if (window) PostMessageW(window, WM_CLOSE, 0, 0); });
+		Check(window != nullptr);
+		if (!window) return;
+		Check(SUCCEEDED(ShellColorRefresh::Request(window)));
+		Check(SendMessageW(window, WM_APP + 1, 0, 0) == 0x123456);
+		SendMessageW(window, WM_APP, 0, 0);
+		// Reproduce the bug: ordinary refresh has no pending wallpaper result.
+		SendMessageW(window, 0x52C, 14, 0);
+		Check(SendMessageW(window, WM_APP + 1, 0, 0) == 0x74B8FC);
+		Check(SUCCEEDED(ShellColorRefresh::Request(window)));
+		Check(SendMessageW(window, WM_APP + 1, 0, 0) == 0x123456);
+		SendMessageW(window, WM_APP, 0, 0);
+		Check(SendMessageW(window, WM_APP + 1, 0, 0) == 0x74B8FC); // No late posted refresh.
+		SendMessageW(window, WM_APP + 2, 0, 0);
+		Check(ShellColorRefresh::Request(window) == E_ACCESSDENIED);
+		Check(FAILED(ShellColorRefresh::Request(nullptr)));
+	}
+
+	void TestAutomaticColorPreview()
+	{
+		using Snapshot = ColorPreference::Snapshot;
+		struct Backend final : ColorPreference::Backend
+		{
+			Snapshot live;
+			DWORD wallpaper{ 0x123456 }, derived{};
+			bool reject{}, fail{};
+			unsigned writes{}, refreshes{};
+			HRESULT Capture(const std::wstring&, Snapshot& value) noexcept override { value = live; return S_OK; }
+			HRESULT Prepare(const Snapshot&) noexcept override { return reject ? E_NOINTERFACE : S_OK; }
+			HRESULT Apply(const Snapshot& value) noexcept override
+			{
+				++writes;
+				live.automatic = value.automatic; // Failure may follow a partial mutation.
+				if (fail) return E_FAIL;
+				live = value;
+				if (value.IsAutomatic()) { ++refreshes; derived = wallpaper; }
+				else derived = *value.rgb;
+				return S_OK;
+			}
+		};
+		{
+			auto backend = std::make_unique<Backend>(); auto* live = backend.get();
+			ColorPreference fresh(std::move(backend));
+			const Snapshot persisted{ DWORD{0}, DWORD{0xABCDEF} };
+			Check(SUCCEEDED(fresh.RecoverSnapshot(persisted)) && live->writes == 1 && live->live == persisted && !fresh.IsDirty());
+			live->reject = true;
+			Check(FAILED(fresh.RecoverSnapshot(persisted)) && live->writes == 1);
+		}
+		for (const auto mode : { std::optional<DWORD>{}, std::optional<DWORD>{0}, std::optional<DWORD>{1}, std::optional<DWORD>{2} })
+		{
+			auto backend = std::make_unique<Backend>();
+			auto& live = *backend;
+			const Snapshot original{ mode, mode.value_or(0) ? std::nullopt : std::optional<DWORD>{0x112233} };
+			live.live = original;
+			ColorPreference preview(std::move(backend));
+			Check(SUCCEEDED(preview.Apply(L"user", std::nullopt)));
+			Check(preview.IsDirty() == (original != Snapshot{ 1u, std::nullopt }));
+			Check(SUCCEEDED(preview.RollbackAttempt()) && live.live == original && !preview.IsDirty());
+			Check(SUCCEEDED(preview.Apply(L"user", 0x445566))); preview.CommitAttempt();
+			Check(SUCCEEDED(preview.Apply(L"user", std::nullopt))); preview.CommitAttempt();
+			Check(SUCCEEDED(preview.Apply(L"user", 0))); preview.CommitAttempt();
+			live.wallpaper = 0x778899;
+			Check(SUCCEEDED(preview.Revert()) && live.live == original);
+			if (original.IsAutomatic()) Check(live.derived == live.wallpaper); // Recompute current wallpaper.
+			preview.Accept(); Check(!preview.IsDirty());
+		}
+		auto backend = std::make_unique<Backend>();
+		auto& live = *backend;
+		const Snapshot original{ 0u, 0x112233u };
+		live.live = original;
+		ColorPreference preview(std::move(backend));
+		Check(SUCCEEDED(preview.Apply(L"user", 0xFF112233)) && !preview.IsDirty()); preview.CommitAttempt();
+		Check(SUCCEEDED(preview.Apply(L"user", 0x445566))); preview.CommitAttempt();
+		const auto a = live.live;
+		live.reject = true;
+		const auto writes = live.writes;
+		Check(FAILED(preview.Apply(L"user", std::nullopt)) && writes == live.writes);
+		Check(SUCCEEDED(preview.RollbackAttempt()) && live.live == a && preview.IsDirty());
+		live.reject = false; live.fail = true;
+		Check(FAILED(preview.Apply(L"user", std::nullopt)));
+		live.fail = false;
+		Check(SUCCEEDED(preview.RollbackAttempt()) && live.live == a && preview.IsDirty());
+		Check(SUCCEEDED(preview.Apply(L"user", 0x778899))); preview.CommitAttempt();
+		// Untracked Windows output never becomes part of the GUI checkpoint.
+		live.derived = 0xABCDEF;
+		Check(preview.IsDirty());
+		live.fail = true;
+		Check(FAILED(preview.Revert()) && preview.IsDirty());
+		live.fail = false;
+		Check(SUCCEEDED(preview.Revert()) && live.live == original); preview.Accept();
+		Check(SUCCEEDED(preview.Apply(L"user", 0x445566))); preview.CommitAttempt();
+		Check(SUCCEEDED(preview.Apply(L"user", *original.rgb)) && !preview.IsDirty()); preview.CommitAttempt();
+		Check(SUCCEEDED(preview.Apply(L"user", std::nullopt))); preview.CommitAttempt(); preview.Accept();
+		live.wallpaper = 0xABCDEF; live.derived = live.wallpaper;
+		Check(!preview.IsDirty());
+		Check(SUCCEEDED(preview.Apply(L"user", 0))); preview.CommitAttempt();
+		live.wallpaper = 0xFEDCBA;
+		Check(SUCCEEDED(preview.Revert()) && live.live.IsAutomatic() && live.derived == 0xFEDCBA); preview.Accept();
+		// Failed recovery must keep a retryable baseline even after attempt rollback.
+		live.fail = true;
+		Check(FAILED(preview.Apply(L"user", 0x123456)));
+		Check(FAILED(preview.RollbackAttempt()) && preview.IsDirty());
+		live.fail = false;
+		Check(SUCCEEDED(preview.Revert()) && live.live.IsAutomatic()); preview.Accept();
+	}
+
+	void TestNetPreviewJournal()
+	{
+		PreviewJournal<int, int> journal;
+		std::map<int, int> state{ {1, 10}, {2, 20}, {3, 30} };
+		auto read = [&](int key) { return state.at(key); };
+		auto write = [&](int key, int value) { state[key] = value; return true; };
+		auto edit = [&](int key, int value)
+		{
+			journal.Begin(); journal.Touch(key, read); state[key] = value; journal.Reconcile(read); journal.CommitAttempt();
+		};
+		edit(1, 10); Check(!journal.IsDirty());
+		edit(1, 11); Check(journal.IsDirty()); edit(1, 10); Check(!journal.IsDirty());
+		edit(1, 12); state[2] = 200; state[1] = 999; // An external edit to an owned key does not discard its baseline.
+		edit(3, 31); Check(journal.Revert(write)); Check(state[1] == 10 && state[2] == 200 && state[3] == 30);
+		edit(1, 11);
+		journal.Begin(); journal.Touch(1, read); state[1] = 10; journal.Reconcile(read);
+		Check(!journal.RollbackAttempt([](int, int) { return false; }));
+		Check(journal.IsDirty()); Check(journal.Revert(write)); Check(state[1] == 10);
+		edit(1, 40); journal.Accept(); edit(1, 41); Check(journal.Revert(write)); Check(state[1] == 40);
 	}
 
 	void TestConfigurationMigrationPolicy()
 	{
-		using Raw = std::variant<std::monostate, DWORD, std::wstring>;
-		using ConfigurationMigrationPolicy::Canonicalize;
-		using ConfigurationMigrationPolicy::HiveValues;
-		const auto missing = [](const Raw& value) { return std::holds_alternative<std::monostate>(value); };
+		using enum Settings::Id;
+		using Raw = RegistryConfig::RawValue;
+		using Values = ConfigurationMigration::Values;
+		auto raw = [](DWORD value) { return EffectiveConfiguration::Encode(EffectiveConfiguration::Value{ value }); };
+		const Values user{ { GlassOpacity, raw(40) }, { ColorizationColorBalance, raw(33) },
+			{ ColorizationAfterglowBalance, raw(12) }, { ColorizationBlurBalance, raw(55) },
+			{ ColorizationColor, raw(0x8074B8FC) }, { ColorizationAfterglow, raw(0x80ABCDEF) } };
+		const Values machine{ { GlassOpacity, raw(60) }, { ColorizationColorBalanceOverride, raw(70) },
+			{ CustomThemeReflection, EffectiveConfiguration::Encode(EffectiveConfiguration::Value{ std::wstring(L"machine.png") }) },
+			{ ColorizationColor, raw(0xFF123456) }, { ColorizationAfterglow, raw(0xFF123456) } };
+		auto apply = [](Values& users, Values& machines, const auto& plan)
+		{
+			for (const auto& change : plan)
+			{
+				auto& layer = change.scope == Settings::Scope::User ? users : machines;
+				if (change.after.present) layer[change.id] = change.after;
+				else layer.erase(change.id);
+			}
+		};
+		for (const auto target : { Settings::Scope::User, Settings::Scope::Machine })
+		{
+			auto withUserOverrides = user, withMachineOverrides = machine;
+			withUserOverrides[ColorizationColorOverride] = raw(0xAA123456);
+			withMachineOverrides[ColorizationAfterglowOverride] = raw(0xBB112233);
+			const auto ignored = ConfigurationMigration::Prepare(withUserOverrides, withMachineOverrides, target);
+			for (const auto& change : ignored) Check(!Settings::IsColorOverride(change.id));
+			apply(withUserOverrides, withMachineOverrides, ignored);
+			Check(withUserOverrides.at(ColorizationColorOverride) == raw(0xAA123456));
+			Check(withMachineOverrides.at(ColorizationAfterglowOverride) == raw(0xBB112233));
+			Check(!withMachineOverrides.contains(ColorizationColorOverride) && !withUserOverrides.contains(ColorizationAfterglowOverride));
+			const auto plan = ConfigurationMigration::Prepare(user, machine, target);
+			bool deleting{};
+			for (const auto& change : plan)
+			{
+				Check(!Settings::IsWindowsColorBase(change.id) && !Settings::IsColorOverride(change.id));
+				if (target == Settings::Scope::User) Check(change.scope == target && change.after.present);
+				else
+				{
+					if (change.scope == Settings::Scope::User) { deleting = true; Check(!change.after.present); }
+					else Check(!deleting); // Complete destination writes before deleting sources.
+					Check(change.id != ColorizationColorBalanceOverride); // Machine Override already wins.
+				}
+			}
+			auto users = user, machines = machine;
+			apply(users, machines, plan);
+			const auto& destination = target == Settings::Scope::User ? users : machines;
+			Check(destination.at(GlassOpacity) == raw(40));
+			Check(destination.at(ColorizationColorBalanceOverride) == raw(70));
+			Check(destination.at(ColorizationAfterglowBalanceOverride) == raw(12));
+			Check(destination.at(ColorizationBlurBalanceOverride) == raw(55));
+			Check(!destination.contains(ColorizationAfterglowOverride));
+			Check(destination.at(CustomThemeReflection) == machine.at(CustomThemeReflection));
+			if (target == Settings::Scope::User) Check(machines == machine);
+			else Check(!users.contains(GlassOpacity));
+			for (const auto& spec : Settings::Catalog) if (Settings::IsWindowsColorBase(spec.id))
+			{
+				if (user.contains(spec.id)) Check(users.at(spec.id) == user.at(spec.id));
+				else Check(!users.contains(spec.id));
+				if (machine.contains(spec.id)) Check(machines.at(spec.id) == machine.at(spec.id));
+				else Check(!machines.contains(spec.id));
+			}
+			Check(ConfigurationMigration::Prepare(users, machines, target).empty());
+			// Every failed step restores both the destination and any deleted source.
+			for (std::size_t failAt = 0; failAt < plan.size(); ++failAt)
+			{
+				using Key = std::pair<Settings::Scope, Settings::Id>;
+				std::map<Key, Raw> state;
+				for (const auto& [id, value] : user) state[{ Settings::Scope::User, id }] = value;
+				for (const auto& [id, value] : machine) state[{ Settings::Scope::Machine, id }] = value;
+				const auto before = state;
+				PreviewJournal<Key, Raw> journal; journal.Begin();
+				for (std::size_t n = 0; n <= failAt; ++n)
+				{
+					const auto& change = plan[n]; const Key key{ change.scope, change.id };
+					journal.Touch(key, [&](const Key& k) { const auto it = state.find(k); return it == state.end() ? Raw{} : it->second; });
+					if (change.after.present) state[key] = change.after; else state.erase(key);
+				}
+				Check(journal.RollbackAttempt([&](const Key& key, const Raw& value) { if (value.present) state[key] = value; else state.erase(key); return true; }));
+				Check(state == before);
+			}
+			users = user;
+			users[GlassOpacity] = { true, REG_BINARY, { 0, 1 } };
+			const auto malformed = ConfigurationMigration::Prepare(users, machine, target);
+			if (target == Settings::Scope::Machine)
+				Check(std::ranges::none_of(malformed, [](const auto& change) { return change.id == GlassOpacity; }));
+			else
+			{
+				const auto replacement = std::ranges::find(malformed, GlassOpacity, &ConfigurationMigration::Change::id);
+				Check(replacement != malformed.end() && replacement->before == users.at(GlassOpacity) && replacement->after == raw(60));
+			}
+		}
+		// Merge and preset capture must agree on malformed string inputs.
+		for (const auto badPath : { Raw{ true, REG_SZ, { 'x', 0 } }, Raw{ true, REG_SZ, { 0, 0, 'x', 0, 0, 0 } } })
+		{
+			const Values malformedUser{ { CustomThemeReflection, badPath } };
+			Check(std::holds_alternative<std::monostate>(EffectiveConfiguration::Decode(badPath, Settings::Get(CustomThemeReflection))));
+			const auto toMachine = ConfigurationMigration::Prepare(malformedUser, machine, Settings::Scope::Machine);
+			Check(std::ranges::none_of(toMachine, [](const auto& change) { return change.id == CustomThemeReflection; }));
+			const auto toUser = ConfigurationMigration::Prepare(malformedUser, machine, Settings::Scope::User);
+			const auto replacement = std::ranges::find(toUser, CustomThemeReflection, &ConfigurationMigration::Change::id);
+			Check(replacement != toUser.end() && replacement->before == badPath && replacement->after == machine.at(CustomThemeReflection));
+		}
+		// Compatibility merge preserves all four lookup positions without changing base values.
+		for (unsigned uo = 0; uo < 3; ++uo) for (unsigned mo = 0; mo < 3; ++mo)
+		for (unsigned ub = 0; ub < 3; ++ub) for (unsigned mb = 0; mb < 3; ++mb)
+		{
+			auto value = [&](unsigned kind, DWORD number) { return kind == 0 ? Raw{} : kind == 1 ? raw(number) : Raw{ true, REG_BINARY, { 1, 2 } }; };
+			const Values users{ { ColorizationColorBalanceOverride, value(uo, 10) }, { ColorizationColorBalance, value(ub, 30) } };
+			const Values machines{ { ColorizationColorBalanceOverride, value(mo, 20) }, { ColorizationColorBalance, value(mb, 40) } };
+			const auto expected = uo == 1 ? raw(10) : mo == 1 ? raw(20) : ub == 1 ? raw(30) : mb == 1 ? raw(40) : Raw{};
+			for (const auto target : { Settings::Scope::User, Settings::Scope::Machine })
+			{
+				auto mergedUsers = users, mergedMachines = machines;
+				const auto plan = ConfigurationMigration::Prepare(users, machines, target);
+				apply(mergedUsers, mergedMachines, plan);
+				if (expected.present) Check((target == Settings::Scope::User ? mergedUsers : mergedMachines).at(ColorizationColorBalanceOverride) == expected);
+				else Check(plan.empty());
+				Check(mergedUsers.at(ColorizationColorBalance) == users.at(ColorizationColorBalance));
+				Check(mergedMachines.at(ColorizationColorBalance) == machines.at(ColorizationColorBalance));
+				if (target == Settings::Scope::User) Check(mergedMachines == machines);
+			}
+		}
+	}
 
-		auto result = Canonicalize(Settings::Scope::User, HiveValues<Raw>{ std::monostate{}, DWORD{ 10 } });
-		Check(std::get<DWORD>(result.user) == 10 && missing(result.machine));
-		result = Canonicalize(Settings::Scope::User, HiveValues<Raw>{ DWORD{ 20 }, DWORD{ 10 } });
-		Check(std::get<DWORD>(result.user) == 20 && missing(result.machine));
-		result = Canonicalize(Settings::Scope::Machine, HiveValues<Raw>{ DWORD{ 20 }, DWORD{ 10 } });
-		Check(missing(result.user) && std::get<DWORD>(result.machine) == 20);
-		result = Canonicalize(Settings::Scope::Machine, HiveValues<Raw>{ std::monostate{}, DWORD{ 10 } });
-		Check(missing(result.user) && std::get<DWORD>(result.machine) == 10);
-		result = Canonicalize(Settings::Scope::Machine, HiveValues<Raw>{ std::wstring(L"user"), std::wstring(L"machine") });
-		Check(missing(result.user) && std::get<std::wstring>(result.machine) == L"user");
+	void TestPresetProvenance()
+	{
+		PresetPackages::PreviewProvenance state;
+		PresetPackages::Package a, b, c;
+		a.metadata.uuid = "A"; a.libraryId = "entry-a"; a.digest = "A"; a.metadata.authorName = L"Author A"; a.sourceType = "local";
+		b.metadata.uuid = "B"; b.libraryId = "entry-b"; b.digest = "B"; b.metadata.authorName = L"Author B"; b.sourceType = "imported";
+		c.metadata.uuid = "C"; c.libraryId = "entry-c"; c.digest = "C"; c.sourceType = "local-copy";
+		Check(!state.Origin());
+		state.SetOrigin(a, true); state.Revert(); Check(!state.Origin());
+		state.SetOrigin(a, false);
+		state.SetOrigin(b, true); state.SetOrigin(c, true); state.Revert();
+		Check(state.Origin()->metadata.authorName == L"Author A");
+		a.metadata.authorName = L"Updated author A";
+		state.SetOrigin(a, false); // A saved snapshot retains known notices.
+		state.SetOrigin(b, true); state.Revert();
+		Check(state.Origin()->metadata.authorName == L"Updated author A");
+		state.SetOrigin(b, true); state.Accept(); state.SetOrigin(c, true); state.Revert();
+		Check(state.Origin()->metadata.authorName == L"Author B");
+		Check(!PresetPackages::HasInheritedMetadata(a));
+		Check(PresetPackages::HasInheritedMetadata(b) && PresetPackages::HasInheritedMetadata(c));
+		a.attribution = { L"Known source" }; Check(!PresetPackages::HasInheritedMetadata(a));
+		a.legacyLicense = true; Check(PresetPackages::HasInheritedMetadata(a));
+		a.legacyLicense = false; a.digest = "digest-A"; a.assets["assets/reflection.png"] = { std::byte{1} };
+
+		b.digest = "digest-B"; b.attribution = { L"Earlier source" }; b.licenseText = "B image terms";
+		PresetPackages::CreateRequest update;
+		update.metadata = a.metadata;
+		update.licenseText = "Edited local terms";
+		PresetPackages::PreserveRevisionProvenance(update, &a, &b);
+		Check(update.metadata.authorName == a.metadata.authorName);
+		Check(std::ranges::find(update.attribution, L"Earlier source") != update.attribution.end());
+		Check(std::ranges::any_of(update.attribution, [](const auto& value) { return value.find(L"Author B") != std::wstring::npos; }));
+		Check(update.licenseText == "Edited local terms" && update.inheritedLicenses.empty()); // Config-only source does not import image terms.
+		const auto notices = update.attribution;
+		PresetPackages::PreserveSource(update, b, false);
+		Check(update.attribution == notices); // Repeated capture is deduplicated.
+		PresetPackages::PreserveSource(update, b, true);
+		Check(update.licenseText == "Edited local terms\n\nB image terms");
+		Check(update.inheritedLicenses == std::vector<std::string>{ "B image terms" });
+		b.legacyLicense = true;
+		update.licenseText = "Edited local terms"; update.inheritedLicenses.clear();
+		PresetPackages::PreserveRevisionProvenance(update, &a, &b);
+		Check(update.legacyLicense && update.licenseText == "Edited local terms\n\nB image terms"); // Legacy package terms also cover configuration.
+
 	}
 
 	void TestPresetPackageRoundTrip()
@@ -1297,7 +1898,7 @@ namespace
 		std::filesystem::create_directories(directory);
 		auto cleanup = wil::scope_exit([&]
 		{
-			for (const auto& path : std::filesystem::directory_iterator(directory)) SetFileAttributesW(path.path().c_str(), FILE_ATTRIBUTE_NORMAL);
+			for (const auto& path : std::filesystem::recursive_directory_iterator(directory)) SetFileAttributesW(path.path().c_str(), FILE_ATTRIBUTE_NORMAL);
 			std::error_code error;
 			std::filesystem::remove_all(directory, error);
 		});
@@ -1311,6 +1912,7 @@ namespace
 			L"https://example.com/author",
 			L"MIT"
 		};
+		request.accentColor = 0x74B8FC;
 		request.licenseText = "MIT License\n\nPermission is granted for this test package.\n";
 		for (const auto& spec : Settings::Catalog)
 		{
@@ -1330,6 +1932,11 @@ namespace
 		Check((GetFileAttributesW(first.c_str()) & FILE_ATTRIBUTE_READONLY) != 0);
 
 		const auto loaded = PresetPackages::LoadArchive(first);
+		Check(loaded.schemaVersion == 3);
+		Check(!loaded.legacyLicense);
+		auto noHomepage = request; noHomepage.metadata.authorHomepage.clear();
+		Check(PresetPackages::CreateSnapshot(noHomepage).metadata.authorHomepage.empty());
+		Check(loaded.accentColor == request.accentColor);
 		Check(loaded.metadata.uuid == request.metadata.uuid);
 		Check(loaded.metadata.name == request.metadata.name);
 		Check(loaded.metadata.authorHomepage == request.metadata.authorHomepage);
@@ -1444,6 +2051,204 @@ namespace
 		catch (...) { rejectedIncompleteCatalog = true; }
 		Check(rejectedIncompleteCatalog);
 
+		// A library entry owns only its current version; fixtures never touch ProgramData.
+		const auto library = directory / L"library";
+		const auto snapshot = PresetPackages::CreateSnapshot(assetRequest);
+		const auto originalImage = readFile(validPng);
+		{ std::ofstream changed(validPng, std::ios::binary | std::ios::trunc); changed << "changed after capture"; }
+		const auto local = PresetPackages::Publish(snapshot, "local", {}, library);
+		Check(local.trusted && PresetPackages::LoadTrusted(local, library).assets == snapshot.assets);
+		{ std::ofstream restored(validPng, std::ios::binary | std::ios::trunc); restored.write(originalImage.data(), originalImage.size()); }
+		Check(!std::filesystem::exists(library / L"library.json"));
+		{
+			wil::unique_hfile writer(CreateFileW((library / L"library.lock").c_str(), GENERIC_READ | GENERIC_WRITE, 0, nullptr, OPEN_EXISTING, 0, nullptr));
+			Check(static_cast<bool>(writer));
+			bool busy{}; try { (void)PresetPackages::EnumerateInstalled(library); } catch (...) { busy = true; }
+			Check(busy);
+		}
+		// Interrupted directory replacement restores the old accepted entry; abandoned staging is removed.
+		const auto previousEntry = local.source.wstring() + L".previous";
+		std::filesystem::rename(local.source, previousEntry);
+		const auto abandoned = local.source.wstring() + L".staging";
+		std::filesystem::create_directory(abandoned);
+		Check(PresetPackages::EnumerateInstalled(library).front().digest == local.digest);
+		Check(!std::filesystem::exists(previousEntry) && !std::filesystem::exists(abandoned));
+		Check(PresetPackages::EnumerateInstalled(library).size() == 1);
+		Check(PresetPackages::Publish(snapshot, "imported", {}, library).libraryId == local.libraryId);
+		auto revisedRequest = assetRequest;
+		revisedRequest.metadata.uuid = PresetPackages::GeneratePackageUuid();
+		revisedRequest.metadata.authorName = L"Updated rights holder";
+		revisedRequest.licenseText = "Own replacement terms";
+		revisedRequest.settings[Settings::Id::GlassOpacity] = 31u;
+		const auto revised = PresetPackages::Publish(PresetPackages::CreateSnapshot(revisedRequest), "local", local.libraryId, library, local.digest);
+		Check(revised.libraryId == local.libraryId && revised.source == local.source && revised.digest != local.digest);
+		Check(PresetPackages::LoadDeployed(local.source).digest == revised.digest);
+		bool stale{};
+		try { (void)PresetPackages::Publish(snapshot, "local", local.libraryId, library, local.digest); } catch (...) { stale = true; }
+		Check(stale && PresetPackages::LoadTrusted(revised, library).digest == revised.digest);
+		PresetPackages::ExportArchive(directory / L"saved-entry.zip", PresetPackages::LoadTrusted(revised, library));
+		Check(PresetPackages::LoadArchive(directory / L"saved-entry.zip").digest == revised.digest);
+		const auto imported = PresetPackages::Publish(loaded, "imported", {}, library);
+		auto importUpdate = request; importUpdate.metadata.uuid = PresetPackages::GeneratePackageUuid(); importUpdate.metadata.authorName = L"Editable name";
+		PresetPackages::PreserveRevisionProvenance(importUpdate, &imported, &imported);
+		const auto updatedImport = PresetPackages::Publish(PresetPackages::CreateSnapshot(importUpdate), "local", imported.libraryId, library, imported.digest);
+		Check(updatedImport.libraryId == imported.libraryId && updatedImport.metadata.authorName == L"Editable name");
+		Check(!updatedImport.attribution.empty() && updatedImport.licenseText.find(imported.licenseText) != std::string::npos);
+		// Publication failure does not replace the accepted directory.
+		{
+			wil::unique_hfile held(CreateFileW((revised.source / L"manifest.json").c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, 0, nullptr));
+			auto candidate = revisedRequest; candidate.metadata.uuid = PresetPackages::GeneratePackageUuid();
+			bool blocked{}; try { (void)PresetPackages::Publish(PresetPackages::CreateSnapshot(candidate), "local", revised.libraryId, library, revised.digest); } catch (...) { blocked = true; }
+			Check(blocked && PresetPackages::LoadTrusted(revised, library).digest == revised.digest);
+		}
+		// Changed accepted content is not automatically trusted, even if still valid.
+		const auto admission = ManagedFiles::Read(updatedImport.source / L".accepted.json");
+		std::filesystem::remove(updatedImport.source / L".accepted.json");
+		const std::string changedAdmission = R"({"version":1,"digest":"changed"})";
+		ManagedFiles::Write(updatedImport.source / L".accepted.json", { reinterpret_cast<const std::byte*>(changedAdmission.data()), changedAdmission.size() });
+		bool mismatch{}; try { (void)PresetPackages::LoadTrusted(updatedImport, library); } catch (...) { mismatch = true; }
+		Check(mismatch);
+		std::filesystem::remove(updatedImport.source / L".accepted.json");
+		ManagedFiles::Write(updatedImport.source / L".accepted.json", admission);
+		// Admission cannot be forged by changing package metadata or omitting the local record.
+		std::filesystem::remove(updatedImport.source / L".accepted.json");
+		bool untrusted{}; try { (void)PresetPackages::LoadTrusted(updatedImport, library); } catch (...) { untrusted = true; }
+		Check(untrusted);
+		Check(std::ranges::any_of(PresetPackages::EnumerateInstalled(library), [](const auto& entry) { return !entry.trusted; }));
+		// Broken entries remain independently diagnosable.
+		const auto invalidId = PresetPackages::GeneratePackageUuid();
+		std::filesystem::create_directory(library / L"Library" / invalidId);
+		Check(std::ranges::any_of(PresetPackages::EnumerateInstalled(library), [](const auto& entry) { return !entry.loadError.empty(); }));
+		PresetPackages::RemoveLibraryEntry(invalidId, library);
+
+		ConfigurationResources resources;
+		const auto resourceRoot = directory / L"Configuration";
+		resources.Initialize(resourceRoot, L"S-1-5-21-1-2-3-1001");
+		const auto reflection = resources.Path(Settings::Scope::Machine, Settings::Id::CustomThemeReflection);
+		const auto userReflection = resources.Path(Settings::Scope::User, Settings::Id::CustomThemeReflection);
+		Check(reflection != userReflection && resources.IsManaged(reflection));
+		Check(!resources.NeedsImport(Settings::Scope::Machine, Settings::Id::CustomThemeReflection, reflection));
+		Check(resources.NeedsImport(Settings::Scope::User, Settings::Id::CustomThemeReflection, reflection));
+		Check(!resources.NeedsImport(Settings::Scope::Machine, Settings::Id::CustomThemeReflection, validPng));
+		{
+			auto writer = resources.AcquireWriter();
+			ConfigurationResources anotherSession; anotherSession.Initialize(resourceRoot, L"S-1-5-21-1-2-3-1002");
+			bool busy{}; try { auto conflicting = anotherSession.AcquireWriter(); } catch (...) { busy = true; }
+			Check(busy); writer.reset();
+			Check(static_cast<bool>(anotherSession.AcquireWriter()));
+		}
+		const auto prepared = resources.Prepare(revised, Settings::Scope::Machine);
+		resources.Begin(); resources.Install(*prepared); resources.CommitAttempt();
+		Check(resources.IsDirty() && ManagedFiles::Read(reflection) == snapshot.assets.at("assets/reflection.png"));
+		resources.Accept(); Check(!resources.IsDirty());
+		resources.Begin(); resources.Install(*prepared); resources.CommitAttempt(); Check(!resources.IsDirty());
+		// Independently linked resources survive deletion of their source preset.
+		PresetPackages::RemoveLibraryEntry(revised.libraryId, library);
+		Check(!std::filesystem::exists(revised.source) && std::filesystem::exists(reflection));
+		PresetPackages::CreateRequest extracted = request;
+		resources.PreserveSource(extracted, reflection);
+		Check(extracted.licenseText.find(revised.licenseText) != std::string::npos);
+		// The file transaction works on exact bytes, including same-path changes and absence.
+		const auto alternate = directory / L"alternate-resource";
+		ManagedFiles::Write(alternate, { reinterpret_cast<const std::byte*>("alternate"), 9 });
+		ConfigurationResources::Preparation replacement;
+		replacement.files[reflection] = alternate;
+		resources.Begin(); resources.Install(replacement); resources.CommitAttempt(); Check(resources.IsDirty());
+		Check(ManagedFiles::Read(reflection) != snapshot.assets.at("assets/reflection.png"));
+		resources.Begin(); resources.Install(*prepared); resources.CommitAttempt(); Check(!resources.IsDirty()); // Return to baseline.
+		resources.Begin(); resources.Install(replacement); resources.CommitAttempt();
+		Check(resources.Revert()); resources.Accept();
+		Check(ManagedFiles::Read(reflection) == snapshot.assets.at("assets/reflection.png"));
+		resources.Begin(); resources.Install(replacement);
+		Check(resources.RevertAttemptFiles() && resources.RollbackAttempt(true) && !resources.IsDirty());
+		// Restore failure retains the baseline and can be retried.
+		resources.Begin(); resources.Install(replacement); resources.CommitAttempt();
+		{
+			wil::unique_hfile held(CreateFileW(reflection.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, 0, nullptr));
+			Check(static_cast<bool>(held) && !resources.Revert() && resources.IsDirty());
+		}
+		Check(resources.Revert()); resources.Accept();
+		// Interrupted attempt is recoverable by a new instance with callbacks, without real registry writes.
+		resources.Begin(ColorPreference::Snapshot{ DWORD{0}, DWORD{0x123456} });
+		resources.TrackRegistry(Settings::Scope::Machine, Settings::Id::GlassOpacity, { true, REG_DWORD, { 42, 0, 0, 0 } });
+		resources.Install(replacement);
+		ConfigurationResources recovered; recovered.Initialize(resourceRoot, L"S-1-5-21-1-2-3-1001");
+		Check(recovered.HasRecovery());
+		ConfigurationResources foreign; foreign.Initialize(resourceRoot, L"S-1-5-21-1-2-3-1002");
+		Check(foreign.HasForeignRecovery() && !foreign.HasRecovery());
+		unsigned registryCalls{}, colorCalls{};
+		const auto recoveryPath = resourceRoot / L".operation-S-1-5-21-1-2-3-1001" / L"state.json";
+		const auto recoveryBytes = ManagedFiles::Read(recoveryPath);
+		auto invalidRecovery = nlohmann::json::parse(reinterpret_cast<const char*>(recoveryBytes.data()), reinterpret_cast<const char*>(recoveryBytes.data()) + recoveryBytes.size());
+		invalidRecovery["registry"][0]["name"] = "AnotherSetting";
+		std::filesystem::remove(recoveryPath);
+		const auto invalidText = invalidRecovery.dump();
+		ManagedFiles::Write(recoveryPath, { reinterpret_cast<const std::byte*>(invalidText.data()), invalidText.size() });
+		bool rejectedRecovery{};
+		try { (void)recovered.Recover([&](auto, auto, const auto&) { ++registryCalls; return true; }, [&](const auto&) { ++colorCalls; return true; }); } catch (...) { rejectedRecovery = true; }
+		Check(rejectedRecovery && registryCalls == 0 && colorCalls == 0 && ManagedFiles::Read(reflection) == ManagedFiles::Read(alternate));
+		std::filesystem::remove(recoveryPath); ManagedFiles::Write(recoveryPath, recoveryBytes);
+		Check(recovered.Recover([&](auto scope, auto id, const auto& value) { ++registryCalls; return scope == Settings::Scope::Machine && id == Settings::Id::GlassOpacity && value.bytes[0] == 42; },
+			[&](const auto& choice) { ++colorCalls; return choice.rgb == DWORD{0x123456}; }));
+		Check(registryCalls == 1 && colorCalls == 1 && !recovered.HasRecovery());
+		Check(ManagedFiles::Read(reflection) == snapshot.assets.at("assets/reflection.png"));
+		resources.Accept();
+		// Revert itself publishes a durable restore target before modifying files.
+		resources.Begin(); resources.Install(replacement); resources.CommitAttempt();
+		resources.PrepareRevert({ { Settings::Scope::User, Settings::Id::GlassOpacity, { false, 0, {} } } }, std::nullopt);
+		Check(recovered.HasRecovery());
+		Check(recovered.Recover([](auto scope, auto id, const auto& value) { return scope == Settings::Scope::User && id == Settings::Id::GlassOpacity && !value.present; }, [](const auto&) { return false; }));
+		Check(ManagedFiles::Read(reflection) == snapshot.assets.at("assets/reflection.png"));
+		resources.Accept();
+		// Atlas and layout are one transaction; a layout-less replacement removes the old sidecar.
+		const auto atlas = resources.Path(Settings::Scope::User, Settings::Id::CustomThemeAtlas);
+		const auto preparedAtlas = resources.Prepare(loadedAtlas, Settings::Scope::User);
+		resources.Begin(); resources.Install(*preparedAtlas); resources.CommitAttempt(); resources.Accept();
+		atlasRequest.assetSources.erase("assets/theme-atlas.png.layout");
+		atlasRequest.metadata.uuid = PresetPackages::GeneratePackageUuid();
+		const auto withoutLayout = resources.Prepare(PresetPackages::CreateSnapshot(atlasRequest), Settings::Scope::User);
+		resources.Begin(); resources.Install(*withoutLayout); resources.CommitAttempt();
+		Check(resources.IsDirty() && !std::filesystem::exists(atlas.wstring() + L".layout"));
+		Check(resources.Revert()); resources.Accept();
+		Check(std::filesystem::exists(atlas.wstring() + L".layout") && !std::filesystem::exists(resources.Path(Settings::Scope::Machine, Settings::Id::CustomThemeAtlas)));
+		// File sharing and replacement never mutate the other hard-link directory entry.
+		const auto link = resourceRoot / L"linked.png";
+		Check(ManagedFiles::LinkOrCopy(reflection, link, resourceRoot));
+		resources.Begin(); resources.Install(replacement); resources.CommitAttempt(); resources.Accept();
+		Check(ManagedFiles::Read(link) == snapshot.assets.at("assets/reflection.png"));
+		const auto external = directory / L"external-copy";
+		Check(!ManagedFiles::LinkOrCopy(validPng, external, resourceRoot));
+		Check(!ManagedFiles::LinkOrCopy(reflection.wstring() + L".source.json", resourceRoot / L"notice-copy.json", resourceRoot)); // Notices never share a file identity.
+		// A missing captured source cannot invalidate the already validated snapshot.
+		auto detached = snapshot; detached.assetSources["assets/reflection.png"] = directory / L"missing-source.png";
+		const auto detachedRoot = directory / L"detached-library";
+		Check(PresetPackages::Publish(detached, "local", {}, detachedRoot).trusted);
+		// Legacy library migration retains existing paths but never resurrects a deleted new entry.
+		const auto oldRoot = directory / L"old-library";
+		const auto oldDeployment = oldRoot / snapshot.metadata.uuid;
+		ManagedFiles::Directory(oldDeployment);
+		auto writeLegacyText = [&](const auto& name, const std::string& text)
+		{
+			ManagedFiles::Write(oldDeployment / name, { reinterpret_cast<const std::byte*>(text.data()), text.size() });
+		};
+		writeLegacyText(L"manifest.json", snapshot.manifestText);
+		if (!snapshot.licenseText.empty()) writeLegacyText(L"LICENSE", snapshot.licenseText);
+		for (const auto& [name, bytes] : snapshot.assets)
+		{
+			ManagedFiles::Directory((oldDeployment / name).parent_path());
+			ManagedFiles::Write(oldDeployment / name, bytes);
+		}
+		// Older deployments used read-only file attributes as well as ACLs.
+		for (const auto& item : std::filesystem::recursive_directory_iterator(oldDeployment))
+			if (item.is_regular_file()) Check(SetFileAttributesW(item.path().c_str(), FILE_ATTRIBUTE_READONLY) != FALSE);
+		const auto oldId = PresetPackages::GeneratePackageUuid();
+		{ std::ofstream file(oldRoot / L"library.json"); file << nlohmann::json{ { "version", 1 }, { "entries", nlohmann::json::array({ { { "id", oldId }, { "revision", snapshot.metadata.uuid }, { "digest", snapshot.digest }, { "source_type", "imported" }, { "source_digest", snapshot.digest } } }) } }.dump(); }
+		const auto migrated = PresetPackages::EnumerateInstalled(oldRoot);
+		Check(migrated.size() == 1 && migrated.front().libraryId == oldId && migrated.front().trusted);
+		Check((GetFileAttributesW((oldDeployment / L"assets/reflection.png").c_str()) & FILE_ATTRIBUTE_READONLY) != 0);
+		PresetPackages::RemoveLibraryEntry(oldId, oldRoot);
+		Check(PresetPackages::EnumerateInstalled(oldRoot).empty() && std::filesystem::exists(oldDeployment));
+
 		auto writeRawZip = [](const std::filesystem::path& path, const std::vector<std::pair<wxString, std::string>>& entries)
 		{
 			wxFFileOutputStream output(path.wstring());
@@ -1462,6 +2267,163 @@ namespace
 			catch (...) { return true; }
 			return false;
 		};
+
+		// Unpublished development formats are not compatibility contracts.
+		{
+			auto unsupported = nlohmann::ordered_json::parse(loaded.manifestText);
+			unsupported["schema_version"] = 4;
+			const auto path = directory / L"unsupported-schema.zip";
+			writeRawZip(path, { { L"manifest.json", unsupported.dump() }, { L"LICENSE", request.licenseText } });
+			Check(rejectedArchive(path));
+			unsupported["schema_version"] = 3;
+			unsupported.erase("rights");
+			writeRawZip(path, { { L"manifest.json", unsupported.dump() }, { L"LICENSE", request.licenseText } });
+			Check(rejectedArchive(path));
+		}
+
+		{
+			auto modern = nlohmann::ordered_json::parse(loaded.manifestText);
+			Check(!modern["settings"].contains("ColorizationColorOverride") && !modern["settings"].contains("ColorizationAfterglowOverride"));
+			modern["settings"]["ColorizationColorOverride"] = 0xAA112233u;
+			modern["settings"]["ColorizationAfterglowOverride"] = 0xBB445566u;
+			const auto path = directory / L"ignored-color-overrides.zip";
+			writeRawZip(path, { { L"manifest.json", modern.dump() }, { L"LICENSE", request.licenseText } });
+			const auto ignored = PresetPackages::LoadArchive(path);
+			Check(ignored.ignoredSettingCount == 2 && !ignored.settings.contains(Settings::Id::ColorizationColorOverride)
+				&& !ignored.settings.contains(Settings::Id::ColorizationAfterglowOverride));
+			modern["settings"]["ColorizationColorOverride"] = 0xAA778899u;
+			writeRawZip(path, { { L"manifest.json", modern.dump() }, { L"LICENSE", request.licenseText } });
+			Check(PresetPackages::LoadArchive(path).digest != ignored.digest); // Ignored input remains authenticated.
+		}
+		for (const unsigned catalog : { 1u, Settings::CatalogVersion, Settings::CatalogVersion + 1 })
+		{
+			auto modern = nlohmann::ordered_json::parse(loaded.manifestText);
+			modern["catalog_version"] = catalog;
+			for (const auto id : { Settings::Id::ColorizationColorBalance, Settings::Id::ColorizationAfterglowBalance, Settings::Id::ColorizationBlurBalance })
+			{
+				const auto name = wxString(Settings::Get(id).name.data()).ToStdString(wxConvUTF8);
+				Check(!modern["settings"].contains(name));
+				modern["settings"][name] = 123u;
+				modern["settings"][name + "Override"] = { { "state", "default" } };
+			}
+			modern["settings"]["ColorizationBlurBalanceOverride"] = 77u;
+			const auto path = directory / (L"ignored-base-balances-" + std::to_wstring(catalog) + L".zip");
+			writeRawZip(path, { { L"manifest.json", modern.dump() }, { L"LICENSE", request.licenseText } });
+			if (catalog < 2) { Check(rejectedArchive(path)); continue; } // Invalid schema/catalog pairing stays rejected.
+			const auto ignored = PresetPackages::LoadArchive(path);
+			Check(ignored.ignoredSettingCount == 3 && ignored.ignoredSettingNames.size() == 3);
+			for (const auto id : { Settings::Id::ColorizationColorBalance, Settings::Id::ColorizationAfterglowBalance, Settings::Id::ColorizationBlurBalance })
+				Check(!ignored.settings.contains(id));
+			Check(std::holds_alternative<std::monostate>(ignored.settings.at(Settings::Id::ColorizationColorBalanceOverride)));
+			Check(std::holds_alternative<std::monostate>(ignored.settings.at(Settings::Id::ColorizationAfterglowBalanceOverride)));
+			Check(std::get<DWORD>(ignored.settings.at(Settings::Id::ColorizationBlurBalanceOverride)) == 77);
+			modern["settings"]["ColorizationColorBalance"] = 456u;
+			writeRawZip(path, { { L"manifest.json", modern.dump() }, { L"LICENSE", request.licenseText } });
+			Check(PresetPackages::LoadArchive(path).digest != ignored.digest);
+		}
+		for (const unsigned schema : { 1u, 2u })
+		{
+			auto legacy = nlohmann::ordered_json::parse(loaded.manifestText);
+			legacy["schema_version"] = schema;
+			legacy.erase("rights");
+			for (auto& value : legacy["settings"]) if (value.is_object() && value.value("state", std::string{}) == "default") value = nullptr;
+			legacy["catalog_version"] = 1;
+			legacy.erase("accent_color");
+			if (schema == 1) legacy["license"] = { { "name", "MIT" }, { "file", "LICENSE" } };
+			for (const auto& spec : Settings::Catalog) if (Settings::IsWindowsColorBase(spec.id))
+				legacy["settings"][wxString(spec.name.data(), spec.name.size()).ToStdString(wxConvUTF8)] = nullptr;
+			legacy["settings"]["ColorizationColor"] = 0x8074B8FCu;
+			legacy["settings"]["ColorizationAfterglow"] = 0x80553311u;
+			legacy["settings"]["ColorizationColorBalance"] = 42u;
+			legacy["settings"]["ColorizationBlurBalance"] = 60u;
+			legacy["settings"]["ColorizationBlurBalanceOverride"] = 77u;
+			legacy["settings"]["GlassType"] = 1u;
+			const auto path = directory / (L"legacy-" + std::to_wstring(schema) + L".zip");
+			const auto text = legacy.dump();
+			writeRawZip(path, { { L"manifest.json", text }, { L"LICENSE", request.licenseText } });
+			const auto converted = PresetPackages::LoadArchive(path);
+			Check(converted.manifestText == text);
+			Check(converted.legacyLicense);
+			Check(converted.accentColor == 0x74B8FCu);
+			Check(!converted.settings.contains(Settings::Id::ColorizationColor));
+			Check(!converted.settings.contains(Settings::Id::ColorizationAfterglowOverride) && converted.ignoredSettingCount > 0);
+			Check(std::get<DWORD>(converted.settings.at(Settings::Id::ColorizationColorBalanceOverride)) == 42);
+			Check(std::get<DWORD>(converted.settings.at(Settings::Id::ColorizationBlurBalanceOverride)) == 77);
+			Check(std::get<DWORD>(converted.settings.at(Settings::Id::GlassOpacity)) == ColorizationPresets::CalculateVistaOpacity(0x8074B8FC));
+			Check(!converted.conversions.empty());
+			legacy["settings"]["GlassOpacity"] = 37u;
+			legacy["settings"]["ColorizationColorOverride"] = 0xAA112233u;
+			legacy["settings"]["ColorizationAfterglowOverride"] = 0xBB445566u;
+			const auto explicitPath = directory / (L"legacy-explicit-" + std::to_wstring(schema) + L".zip");
+			writeRawZip(explicitPath, { { L"manifest.json", legacy.dump() }, { L"LICENSE", request.licenseText } });
+			const auto explicitColors = PresetPackages::LoadArchive(explicitPath);
+			Check(std::get<DWORD>(explicitColors.settings.at(Settings::Id::GlassOpacity)) == 37);
+			Check(!explicitColors.settings.contains(Settings::Id::ColorizationColorOverride));
+			Check(!explicitColors.settings.contains(Settings::Id::ColorizationAfterglowOverride));
+			Check(explicitColors.accentColor == 0x74B8FCu && explicitColors.ignoredSettingCount >= 3);
+			legacy["settings"]["GlassOpacity"] = nullptr;
+			writeRawZip(explicitPath, { { L"manifest.json", legacy.dump() }, { L"LICENSE", request.licenseText } });
+			Check(std::get<DWORD>(PresetPackages::LoadArchive(explicitPath).settings.at(Settings::Id::GlassOpacity)) == ColorizationPresets::CalculateVistaOpacity(0x8074B8FC));
+			for (const auto& spec : Settings::Catalog) if (Settings::IsWindowsColorBase(spec.id))
+				legacy["settings"][wxString(spec.name.data(), spec.name.size()).ToStdString(wxConvUTF8)] = nullptr;
+			const auto emptyPath = directory / (L"legacy-no-base-" + std::to_wstring(schema) + L".zip");
+			writeRawZip(emptyPath, { { L"manifest.json", legacy.dump() }, { L"LICENSE", request.licenseText } });
+			const auto empty = PresetPackages::LoadArchive(emptyPath);
+			Check(!empty.accentColor && std::holds_alternative<std::monostate>(empty.settings.at(Settings::Id::GlassOpacity)));
+		}
+		{
+			auto legacy = nlohmann::ordered_json::parse(loaded.manifestText);
+			legacy["schema_version"] = 2; legacy.erase("rights");
+			legacy.erase("accent_color");
+			legacy["catalog_version"] = 1;
+			for (auto& value : legacy["settings"]) if (value.is_object() && value.value("state", std::string{}) == "default") value = nullptr;
+			for (const auto& spec : Settings::Catalog) if (Settings::IsWindowsColorBase(spec.id))
+				legacy["settings"][wxString(spec.name.data(), spec.name.size()).ToStdString(wxConvUTF8)] = nullptr;
+			const auto path = directory / L"legacy-rights.zip";
+			writeRawZip(path, { { L"manifest.json", legacy.dump() }, { L"LICENSE", request.licenseText } });
+			const auto old = PresetPackages::LoadArchive(path);
+			Check(old.legacyLicense && !old.conversions.empty());
+			auto derived = request; derived.legacyLicense = true;
+			derived.attribution = { L"Original author: https://example.com/author" };
+			const auto saved = PresetPackages::CreateSnapshot(derived);
+			Check(saved.legacyLicense && saved.licenseText == old.licenseText && saved.attribution == derived.attribution);
+			const auto legacyLibrary = directory / L"legacy-library";
+			const auto entry = PresetPackages::Publish(saved, "local-copy", {}, legacyLibrary);
+			derived.metadata.uuid = PresetPackages::GeneratePackageUuid(); derived.legacyLicense = false;
+			bool refusedRelicense{};
+			try { (void)PresetPackages::Publish(PresetPackages::CreateSnapshot(derived), "local-copy", entry.libraryId, legacyLibrary, entry.digest); }
+			catch (...) { refusedRelicense = true; }
+			Check(refusedRelicense && PresetPackages::EnumerateInstalled(legacyLibrary).front().legacyLicense);
+
+		}
+
+
+		auto noColor = request;
+		noColor.accentColor.reset();
+		PresetPackages::CreateArchive(directory / L"no-color.zip", noColor);
+		Check(!PresetPackages::LoadArchive(directory / L"no-color.zip").accentColor);
+		auto missingColor = nlohmann::ordered_json::parse(loaded.manifestText);
+		missingColor.erase("accent_color");
+		writeRawZip(directory / L"automatic-color.zip", { { L"manifest.json", missingColor.dump() }, { L"LICENSE", request.licenseText } });
+		Check(!PresetPackages::LoadArchive(directory / L"automatic-color.zip").accentColor);
+		auto blackColor = request;
+		blackColor.accentColor = 0; // Black is manual RGB, not the automatic sentinel.
+		PresetPackages::CreateArchive(directory / L"black-color.zip", blackColor);
+		Check(PresetPackages::LoadArchive(directory / L"black-color.zip").accentColor == std::optional<DWORD>{ 0 });
+		for (const auto rgb : { "#GG1122", "#12345", "112233", "#11223344" })
+		{
+			auto malformed = nlohmann::ordered_json::parse(loaded.manifestText);
+			malformed["accent_color"] = { { "rgb", rgb } };
+			const auto path = directory / (L"invalid-rgb-" + std::to_wstring(std::hash<std::string_view>{}(rgb)) + L".zip");
+			writeRawZip(path, { { L"manifest.json", malformed.dump() }, { L"LICENSE", request.licenseText } });
+			Check(rejectedArchive(path));
+		}
+		auto extra = nlohmann::ordered_json::parse(loaded.manifestText);
+		extra["future_metadata"] = "retained in digest";
+		const auto extraPath = directory / L"future-metadata.zip";
+		writeRawZip(extraPath, { { L"manifest.json", extra.dump() }, { L"LICENSE", request.licenseText } });
+		const auto extraLoaded = PresetPackages::LoadArchive(extraPath);
+		Check(extraLoaded.digest != loaded.digest && extraLoaded.settings == loaded.settings);
 
 		auto earlierManifest = nlohmann::ordered_json::parse(loaded.manifestText);
 		earlierManifest["catalog_version"] = Settings::CatalogVersion + 1;
@@ -1543,6 +2505,19 @@ int OpenGlassTests::Replacement2(int value)
 
 int main()
 {
+	using OpenGlass::Settings::ParseEditorScope;
+	using OpenGlass::Settings::Scope;
+	Check(ParseEditorScope({}) == Scope::Machine);
+	const std::wstring_view userArgs[]{ L"--scope=HKCU" };
+	const std::wstring_view conflictArgs[]{ L"--scope=hklm", L"--scope=hkcu" };
+	const std::wstring_view badArgs[]{ L"--scope=invalid" };
+	const std::wstring_view missingArgs[]{ L"--scope" };
+	const std::wstring_view repeatArgs[]{ L"--scope", L"HKLM", L"--scope=hklm" };
+	Check(ParseEditorScope(userArgs) == Scope::User);
+	Check(!ParseEditorScope(conflictArgs));
+	Check(!ParseEditorScope(badArgs));
+	Check(!ParseEditorScope(missingArgs));
+	Check(ParseEditorScope(repeatArgs) == Scope::Machine);
 	TestPixelAlign();
 	TestTransform2DBounds();
 	TestHookRundown();
@@ -1560,6 +2535,16 @@ int main()
 	TestBlurSettings();
 	TestSettingsCatalog();
 	TestConfigurationMigrationPolicy();
-	TestPresetPackageRoundTrip();
+	TestPreviewJournal();
+	TestNetPreviewJournal();
+	TestShellColorRefresh();
+	TestAutomaticColorPreview();
+	TestEffectiveConfiguration();
+	TestConfigurationReset();
+	g_failures += TestWrappingTextLayout();
+	TestPresetProvenance();
+	try { TestPresetPackageRoundTrip(); }
+	catch (const std::exception& error) { fprintf(stderr, "Preset test exception: %s\n", error.what()); ++g_failures; }
+	catch (...) { fprintf(stderr, "Preset test failure: 0x%08lX\n", wil::ResultFromCaughtException()); ++g_failures; }
 	return g_failures;
 }

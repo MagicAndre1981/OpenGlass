@@ -149,7 +149,7 @@ namespace OpenGlass::Elevation
 			return { true, std::move(sid) };
 		}
 
-		bool LaunchElevated(const std::wstring& userSid)
+		bool LaunchElevated(const std::wstring& userSid, Settings::Scope scope)
 		{
 			const auto pipeName = CreatePipeName();
 			const auto sddl = std::wstring(L"D:P(A;;GA;;;SY)(A;;GA;;;BA)(A;;GA;;;") + userSid + L")";
@@ -171,7 +171,7 @@ namespace OpenGlass::Elevation
 			) };
 			THROW_LAST_ERROR_IF(!pipe);
 
-			const auto parameters = std::wstring(L"--elevated-pipe ") + QuoteArgument(pipeName);
+			const auto parameters = std::wstring(scope == Settings::Scope::User ? L"--scope=hkcu --elevated-pipe " : L"--scope=hklm --elevated-pipe ") + QuoteArgument(pipeName);
 			SHELLEXECUTEINFOW info{ sizeof(info) };
 			info.fMask = SEE_MASK_NOCLOSEPROCESS | SEE_MASK_NOASYNC;
 			info.lpVerb = L"runas";
@@ -285,7 +285,7 @@ namespace OpenGlass::Elevation
 			&& elevation.TokenIsElevated;
 	}
 
-	StartupResult PrepareElevatedStartup()
+	StartupResult PrepareElevatedStartup(Settings::Scope scope)
 	{
 		try
 		{
@@ -302,7 +302,7 @@ namespace OpenGlass::Elevation
 			{
 				return { true, userSid };
 			}
-			LaunchElevated(userSid);
+			LaunchElevated(userSid, scope);
 			return {};
 		}
 		catch (...)

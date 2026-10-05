@@ -1,11 +1,12 @@
 #include "pch.h"
+#include "ManagedFiles.hpp"
 #include "ApplicationPaths.hpp"
 #include "PngAssetValidation.hpp"
 #include "PresetPackage.hpp"
+#include "ColorizationPresets.hpp"
 #include "ThemeAtlasLayout.hpp"
 
 #include <bcrypt.h>
-#include <sddl.h>
 
 #pragma comment(lib, "bcrypt.lib")
 
@@ -294,28 +295,10 @@ namespace OpenGlass::PresetPackages
 			));
 		}
 
-		void ValidateImageWithWic(const std::filesystem::path& path)
-		{
-			std::ifstream stream(path, std::ios::binary);
-			THROW_HR_IF(HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND), !stream);
-			std::vector<char> chars((std::istreambuf_iterator<char>(stream)), {});
-			THROW_HR_IF(HRESULT_FROM_WIN32(ERROR_FILE_TOO_LARGE), chars.size() > PngAssetValidation::MaximumFileSize);
-			ValidateImageWithWic({ reinterpret_cast<const std::byte*>(chars.data()), chars.size() });
-		}
-
 		void ValidateThemeAtlasLayout(std::span<const std::byte> bytes)
 		{
 			ThemeAtlasLayout::Document document;
 			THROW_IF_FAILED(ThemeAtlasLayout::Parse(bytes, document));
-		}
-
-		void ValidateThemeAtlasLayout(const std::filesystem::path& path)
-		{
-			std::ifstream stream(path, std::ios::binary);
-			THROW_HR_IF(HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND), !stream);
-			std::vector<char> chars((std::istreambuf_iterator<char>(stream)), {});
-			THROW_HR_IF(HRESULT_FROM_WIN32(ERROR_FILE_TOO_LARGE), chars.size() > ThemeAtlasLayout::MaximumFileSize);
-			ValidateThemeAtlasLayout({ reinterpret_cast<const std::byte*>(chars.data()), chars.size() });
 		}
 
 		std::string CalculateContentDigest(const std::string& manifest, const std::string& license, const std::map<std::string, std::vector<std::byte>>& assets)
@@ -340,6 +323,45 @@ namespace OpenGlass::PresetPackages
 			return Sha256(content);
 		}
 
+		void NormalizeLegacyColors(Package& package)
+		{
+			using enum Settings::Id;
+			auto dword = [&](Settings::Id id) -> std::optional<DWORD>
+			{
+				const auto it = package.settings.find(id);
+				if (it != package.settings.end()) if (const auto value = std::get_if<DWORD>(&it->second)) return *value;
+				return {};
+			};
+			const auto color = dword(ColorizationColor);
+			const auto afterglow = dword(ColorizationAfterglow);
+			if (color && !package.accentColor)
+			{
+				package.accentColor = *color & 0xFFFFFF;
+				package.conversions.push_back(L"ColorizationColor RGB -> accent color");
+			}
+			if (afterglow && (!color || (*afterglow & 0xFFFFFF) != (*color & 0xFFFFFF)))
+			{
+				++package.ignoredSettingCount;
+				if (package.ignoredSettingNames.size() < MaximumReportedIgnoredSettings) package.ignoredSettingNames.push_back(L"ColorizationAfterglow (independent RGB is no longer applied)");
+			}
+			for (const auto base : { ColorizationColorBalance, ColorizationAfterglowBalance, ColorizationBlurBalance })
+			{
+				const auto overrideId = Settings::Find(std::wstring(Settings::Get(base).name) + L"Override")->id;
+				if (const auto value = dword(base); value && !dword(overrideId))
+				{
+					package.settings[overrideId] = *value;
+					package.conversions.push_back(std::wstring(Settings::Get(base).name) + L" -> Override");
+				}
+			}
+			if (!dword(GlassOpacity) && dword(GlassType).value_or(0) == 1 && color)
+			{
+				package.settings[GlassOpacity] = ColorizationPresets::CalculateVistaOpacity(*color);
+				package.conversions.push_back(L"Legacy color alpha -> missing GlassOpacity");
+			}
+			for (const auto& spec : Settings::Catalog)
+				if (Settings::IsWindowsColorBase(spec.id)) package.settings.erase(spec.id);
+		}
+
 		Package ParsePackage(EntryMap entries, const std::filesystem::path& source, bool deployed)
 		{
 			const auto manifestIt = entries.find("manifest.json");
@@ -362,11 +384,12 @@ namespace OpenGlass::PresetPackages
 				else if (event == nlohmann::json::parse_event_t::object_end && !objectKeys.empty()) objectKeys.pop_back();
 				return true;
 			});
-			THROW_HR_IF(E_INVALIDARG, duplicateJsonKey || !manifest.is_object() || manifest.size() != 9);
+			THROW_HR_IF(E_INVALIDARG, duplicateJsonKey || !manifest.is_object());
 			const auto schemaVersion = manifest.value("schema_version", 0u);
-			THROW_HR_IF(E_INVALIDARG, schemaVersion != 1 && schemaVersion != 2);
+			THROW_HR_IF(E_INVALIDARG, schemaVersion != 1 && schemaVersion != 2 && schemaVersion != 3);
+			package.schemaVersion = schemaVersion;
 			package.catalogVersion = manifest.value("catalog_version", 0u);
-			THROW_HR_IF(E_INVALIDARG, package.catalogVersion == 0);
+			THROW_HR_IF(E_INVALIDARG, package.catalogVersion == 0 || (schemaVersion >= 3 && package.catalogVersion < 2));
 			package.metadata.uuid = manifest.at("uuid").get<std::string>();
 			THROW_HR_IF(E_INVALIDARG, !IsCanonicalUuid(package.metadata.uuid));
 			package.metadata.name = FromUtf8(manifest.at("name").get<std::string>());
@@ -400,6 +423,37 @@ namespace OpenGlass::PresetPackages
 				ValidateLicense(package.licenseText);
 				package.metadata.licenseName = InferLicenseName(package.licenseText);
 			}
+			package.legacyLicense = schemaVersion < 3;
+			if (schemaVersion == 3)
+			{
+				const auto& rights = manifest.at("rights");
+				THROW_HR_IF(E_INVALIDARG, !rights.is_object() || (rights.size() != 3 && !(rights.size() == 4 && rights.contains("inherited_licenses"))));
+				const auto policy = rights.at("configuration").get<std::string>();
+				THROW_HR_IF(E_INVALIDARG, policy != "openglass-attribution-v1" && policy != "legacy-package");
+				package.legacyLicense = policy == "legacy-package";
+				THROW_HR_IF(E_INVALIDARG, rights.at("license_scope") != (package.legacyLicense ? "package" : "image-assets"));
+				const auto& sources = rights.at("sources");
+				THROW_HR_IF(E_INVALIDARG, !sources.is_array() || sources.size() > 256);
+				for (const auto& attribution : sources)
+				{
+					auto text = FromUtf8(attribution.get<std::string>());
+					THROW_HR_IF(E_INVALIDARG, text.empty() || text.size() > 4096 || HasInvalidMetadataCharacters(text, false));
+					package.attribution.push_back(std::move(text));
+				}
+				if (rights.contains("inherited_licenses"))
+				{
+					const auto& licenses = rights.at("inherited_licenses");
+					THROW_HR_IF(E_INVALIDARG, !licenses.is_array() || licenses.size() > 256);
+					for (const auto& item : licenses)
+					{
+						auto text = item.get<std::string>();
+						ValidateLicense(text);
+						THROW_HR_IF(E_INVALIDARG, package.licenseText.find(text) == std::string::npos);
+						package.inheritedLicenses.push_back(std::move(text));
+					}
+				}
+			}
+
 			THROW_HR_IF(E_INVALIDARG,
 				package.metadata.name.empty()
 				|| package.metadata.name.size() > 128
@@ -411,16 +465,36 @@ namespace OpenGlass::PresetPackages
 				|| HasInvalidMetadataCharacters(package.metadata.authorName, false)
 				|| package.metadata.licenseName.size() > 256
 				|| (!package.metadata.licenseName.empty() && HasInvalidMetadataCharacters(package.metadata.licenseName, false))
-				|| !IsValidHomepageUrl(package.metadata.authorHomepage)
+				|| (!(schemaVersion >= 3 && package.metadata.authorHomepage.empty()) && !IsValidHomepageUrl(package.metadata.authorHomepage))
 			);
 
+			if (schemaVersion >= 3 && manifest.contains("accent_color") && !manifest.at("accent_color").is_null())
+			{
+				const auto& color = manifest.at("accent_color");
+				THROW_HR_IF(E_INVALIDARG, !color.is_object() || color.size() != 1);
+				const auto rgb = color.at("rgb").get<std::string>();
+				THROW_HR_IF(E_INVALIDARG, rgb.size() != 7 || rgb.front() != '#');
+				DWORD value{};
+				for (const auto c : std::string_view(rgb).substr(1))
+				{
+					const int digit = c >= '0' && c <= '9' ? c - '0' : c >= 'a' && c <= 'f' ? c - 'a' + 10 : c >= 'A' && c <= 'F' ? c - 'A' + 10 : -1;
+					THROW_HR_IF(E_INVALIDARG, digit < 0);
+					value = (value << 4) | digit;
+				}
+				package.accentColor = value;
+			}
+			auto inputSetting = [&](const Settings::Spec& spec)
+			{
+				return schemaVersion < 3 ? spec.includeInPresetPacks && spec.introducedIn <= package.catalogVersion
+					: Settings::IsPresetPackSetting(spec, package.catalogVersion) && !Settings::IsWindowsColorBase(spec.id);
+			};
 			const auto& settings = manifest.at("settings");
 			THROW_HR_IF(E_INVALIDARG, !settings.is_object());
 			for (const auto& [name, _] : settings.items())
 			{
 				const auto decodedName = FromUtf8(name);
 				const auto spec = Settings::Find(decodedName);
-				if (spec && Settings::IsPresetPackSetting(*spec, package.catalogVersion)) continue;
+				if (spec && inputSetting(*spec)) continue;
 				++package.ignoredSettingCount;
 				if (package.ignoredSettingNames.size() < MaximumReportedIgnoredSettings)
 				{
@@ -429,11 +503,11 @@ namespace OpenGlass::PresetPackages
 			}
 			for (const auto& spec : Settings::Catalog)
 			{
-				if (!Settings::IsPresetPackSetting(spec, package.catalogVersion)) continue;
+				if (!inputSetting(spec)) continue;
 				const auto name = ToUtf8(spec.name);
 				THROW_HR_IF(E_INVALIDARG, !settings.contains(name));
 				const auto& value = settings.at(name);
-				if (value.is_null())
+				if ((schemaVersion < 3 && value.is_null()) || (schemaVersion == 3 && value.is_object() && value.size() == 1 && value.value("state", std::string{}) == "default"))
 				{
 					package.settings.emplace(spec.id, std::monostate{});
 				}
@@ -485,6 +559,9 @@ namespace OpenGlass::PresetPackages
 			THROW_HR_IF(E_INVALIDARG, package.assets.contains("assets/theme-atlas.png.layout") && !package.assets.contains("assets/theme-atlas.png"));
 			THROW_HR_IF(E_INVALIDARG, entries.size() != package.assets.size() + 1 + (package.licenseText.empty() ? 0 : 1));
 			package.digest = CalculateContentDigest(manifest.dump(), package.licenseText, package.assets);
+			if (schemaVersion < 3) NormalizeLegacyColors(package);
+			if (schemaVersion < 3 && std::ranges::any_of(package.settings, [](const auto& item) { return std::holds_alternative<std::monostate>(item.second); }))
+				package.conversions.push_back(L"Legacy null values mean no customization in the target scope; inherited values in other scopes remain effective.");
 			return package;
 		}
 
@@ -500,6 +577,7 @@ namespace OpenGlass::PresetPackages
 				if (path.is_directory()) continue;
 				THROW_HR_IF(E_INVALIDARG, !path.is_regular_file() || entries.size() >= MaximumEntryCount);
 				const auto relative = ToUtf8(std::filesystem::relative(path.path(), directory).generic_wstring());
+				if (relative == ".accepted.json") continue;
 				THROW_HR_IF(E_INVALIDARG, !IsSafeEntryPath(relative));
 				std::string folded = relative;
 				std::ranges::transform(folded, folded.begin(), [](unsigned char value) { return static_cast<char>(std::tolower(value)); });
@@ -518,41 +596,18 @@ namespace OpenGlass::PresetPackages
 			return entries;
 		}
 
-		void WriteFileBytes(const std::filesystem::path& path, std::span<const std::byte> bytes)
-		{
-			std::filesystem::create_directories(path.parent_path());
-			std::ofstream stream(path, std::ios::binary | std::ios::trunc);
-			THROW_HR_IF(HRESULT_FROM_WIN32(ERROR_WRITE_FAULT), !stream);
-			stream.write(reinterpret_cast<const char*>(bytes.data()), static_cast<std::streamsize>(bytes.size()));
-			THROW_HR_IF(HRESULT_FROM_WIN32(ERROR_WRITE_FAULT), !stream.good());
-		}
-
-		void ApplyPresetAcl(const std::filesystem::path& directory)
-		{
-			PSECURITY_DESCRIPTOR descriptor{};
-			THROW_IF_WIN32_BOOL_FALSE(ConvertStringSecurityDescriptorToSecurityDescriptorW(
-				L"D:P(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)(A;OICI;GRGX;;;BU)(A;OICI;GRGX;;;S-1-5-90-0)",
-				SDDL_REVISION_1,
-				&descriptor,
-				nullptr
-			));
-			wil::unique_hlocal securityDescriptor{ descriptor };
-			THROW_IF_WIN32_BOOL_FALSE(SetFileSecurityW(directory.c_str(), DACL_SECURITY_INFORMATION | PROTECTED_DACL_SECURITY_INFORMATION, descriptor));
-		}
-
-		void HardenDirectory(const std::filesystem::path& directory)
-		{
-			ApplyPresetAcl(directory);
-			for (const auto& item : std::filesystem::recursive_directory_iterator(directory))
-			{
-				THROW_IF_WIN32_BOOL_FALSE(SetFileAttributesW(item.path().c_str(), item.is_directory() ? FILE_ATTRIBUTE_DIRECTORY : FILE_ATTRIBUTE_READONLY));
-			}
-		}
-
 		std::string BuildManifest(CreateRequest& request, const std::map<std::string, std::vector<std::byte>>& assets)
 		{
 			nlohmann::ordered_json manifest;
-			manifest["schema_version"] = 2;
+			manifest["schema_version"] = 3;
+			manifest["rights"] = { { "configuration", request.legacyLicense ? "legacy-package" : "openglass-attribution-v1" },
+				{ "license_scope", request.legacyLicense ? "package" : "image-assets" }, { "sources", nlohmann::ordered_json::array() } };
+			for (const auto& source : request.attribution) manifest["rights"]["sources"].push_back(ToUtf8(source));
+			if (!request.inheritedLicenses.empty()) manifest["rights"]["inherited_licenses"] = request.inheritedLicenses;
+			THROW_HR_IF(E_INVALIDARG, request.accentColor && *request.accentColor > 0xFFFFFF);
+			manifest["accent_color"] = request.accentColor
+				? nlohmann::ordered_json{ { "rgb", std::format("#{:06X}", *request.accentColor) } }
+				: nlohmann::ordered_json(nullptr);
 			manifest["catalog_version"] = Settings::CatalogVersion;
 			manifest["uuid"] = request.metadata.uuid;
 			manifest["name"] = ToUtf8(request.metadata.name);
@@ -567,7 +622,7 @@ namespace OpenGlass::PresetPackages
 				const auto value = request.settings.find(spec.id);
 				THROW_HR_IF(E_INVALIDARG, value == request.settings.end());
 				auto& output = manifest["settings"][ToUtf8(spec.name)];
-				if (std::holds_alternative<std::monostate>(value->second)) output = nullptr;
+				if (std::holds_alternative<std::monostate>(value->second)) output = { { "state", "default" } };
 				else if (const auto dword = std::get_if<DWORD>(&value->second)) output = *dword;
 				else if (const auto asset = std::get_if<AssetReference>(&value->second))
 				{
@@ -671,12 +726,18 @@ namespace OpenGlass::PresetPackages
 
 	Package LoadDeployed(const std::filesystem::path& directory)
 	{
-		return ParsePackage(ReadDeployedEntries(directory), directory, true);
+		auto package = ParsePackage(ReadDeployedEntries(directory), directory, true);
+		for (const auto& [name, bytes] : package.assets) package.assetSources.emplace(name, directory / PathFromUtf8(name));
+		return package;
 	}
 
 	std::filesystem::path GetPresetRoot()
 	{
+#ifdef OPENGLASS_PRESET_TEST_STORAGE
+		THROW_HR(E_ACCESSDENIED); // Tests must supply their isolated fixture library explicitly.
+#else
 		return ApplicationPaths::GetProgramDataSubdirectory(L"Presets");
+#endif
 	}
 
 	std::string GeneratePackageUuid()
@@ -692,68 +753,311 @@ namespace OpenGlass::PresetPackages
 		return (scheme == L"http" || scheme == L"https") && !uri.GetServer().empty();
 	}
 
-	std::vector<Package> EnumerateInstalled()
+
+	namespace
 	{
-		std::vector<Package> result;
-		const auto root = GetPresetRoot();
-		if (!std::filesystem::exists(root))
+		struct LibraryRecord
 		{
-			return result;
-		}
-		for (const auto& item : std::filesystem::directory_iterator(root))
+			std::string id, revision, digest, sourceType, sourceDigest;
+
+		};
+		using LibraryIndex = std::vector<LibraryRecord>;
+
+		LibraryIndex ReadLibraryIndex(const std::filesystem::path& root)
 		{
-			if (!item.is_directory()) continue;
-			try
+			LibraryIndex records;
+			if (!std::filesystem::exists(root)) return records;
+			THROW_HR_IF(E_INVALIDARG, IsReparsePoint(root));
+			const auto indexPath = root / L"library.json";
+			if (!std::filesystem::exists(indexPath))
 			{
-				auto package = LoadDeployed(item.path());
-				if (item.path().filename().string() == package.metadata.uuid)
+				// Adopt existing immutable packages only before the first index exists.
+				// Once indexed, unreferenced revision directories stay unreferenced.
+				for (const auto& item : std::filesystem::directory_iterator(root))
 				{
-					package.assets.clear();
-					result.push_back(std::move(package));
+					const auto revision = item.path().filename().string();
+					if (!item.is_directory() || !IsCanonicalUuid(revision)) continue;
+					try
+					{
+						const auto package = LoadDeployed(item.path());
+						THROW_HR_IF(E_INVALIDARG, package.metadata.uuid != revision);
+						records.push_back({ revision, revision, package.digest, "imported", package.digest });
+					}
+					catch (...) { records.push_back({ revision, revision, {}, "imported", {} }); }
+				}
+				return records;
+			}
+			THROW_HR_IF(E_INVALIDARG, IsReparsePoint(indexPath) || std::filesystem::file_size(indexPath) > 4 * 1024 * 1024);
+			std::ifstream file(indexPath, std::ios::binary);
+			THROW_HR_IF(HRESULT_FROM_WIN32(ERROR_READ_FAULT), !file);
+			bool duplicate{};
+			std::vector<std::set<std::string>> keys;
+			const auto index = nlohmann::json::parse(file, [&](int, nlohmann::json::parse_event_t event, nlohmann::json& value)
+			{
+				if (event == nlohmann::json::parse_event_t::object_start) keys.emplace_back();
+				else if (event == nlohmann::json::parse_event_t::key) duplicate |= !keys.back().insert(value.get<std::string>()).second;
+				else if (event == nlohmann::json::parse_event_t::object_end) keys.pop_back();
+				return true;
+			});
+			THROW_HR_IF(E_INVALIDARG, duplicate || index.at("version") != 1 || !index.at("entries").is_array() || index.at("entries").size() > 4096);
+			std::set<std::string> ids;
+			for (const auto& item : index.at("entries"))
+			{
+				LibraryRecord record{ item.at("id"), item.at("revision"), item.at("digest"), item.at("source_type"), item.at("source_digest") };
+				THROW_HR_IF(E_INVALIDARG, !IsCanonicalUuid(record.id) || !IsCanonicalUuid(record.revision)
+					|| !ids.insert(record.id).second || record.digest.size() != 64
+					|| (!record.sourceDigest.empty() && record.sourceDigest.size() != 64)
+					|| (record.sourceType != "local" && record.sourceType != "local-copy" && record.sourceType != "imported" && record.sourceType != "draft"));
+
+				records.push_back(std::move(record));
+			}
+			THROW_HR_IF(E_INVALIDARG, std::ranges::count(records, std::string("draft"), &LibraryRecord::sourceType) > 1);
+			return records;
+		}
+
+		wil::unique_handle LockLibrary(const std::filesystem::path& root)
+		{
+			ManagedFiles::Directory(root);
+			ManagedFiles::Protect(root);
+			const auto path = root / L"library.lock";
+			if (std::filesystem::exists(path)) THROW_HR_IF(E_INVALIDARG, IsReparsePoint(path));
+			wil::unique_handle lock(CreateFileW(path.c_str(), GENERIC_READ | GENERIC_WRITE, 0, nullptr,
+				OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OPEN_REPARSE_POINT, nullptr));
+			THROW_LAST_ERROR_IF(!lock);
+			return lock;
+		}
+
+		void TextFile(const std::filesystem::path& path, const std::string& text)
+		{
+			ManagedFiles::Write(path, { reinterpret_cast<const std::byte*>(text.data()), text.size() });
+		}
+		Package ReadEntry(const std::filesystem::path& path)
+		{
+			auto package = LoadDeployed(path);
+			package.libraryId = path.filename().string();
+			const auto recordPath = path / L".accepted.json";
+			if (std::filesystem::exists(recordPath))
+			{
+				const auto bytes = ManagedFiles::Read(recordPath);
+				THROW_HR_IF(E_INVALIDARG, bytes.size() > 4096);
+				const auto record = nlohmann::json::parse(reinterpret_cast<const char*>(bytes.data()), reinterpret_cast<const char*>(bytes.data()) + bytes.size());
+				package.trusted = record.at("version") == 1 && record.at("digest") == package.digest;
+				package.sourceType = record.value("source_type", "imported");
+			}
+			return package;
+		}
+		void WriteContent(const Package& package, const std::filesystem::path& path, const std::filesystem::path& root, std::string_view sourceType)
+		{
+			ManagedFiles::Directory(path);
+			TextFile(path / L"manifest.json", package.manifestText);
+			if (!package.licenseText.empty()) TextFile(path / L"LICENSE", package.licenseText);
+			for (const auto& [name, bytes] : package.assets)
+			{
+				const auto target = path / PathFromUtf8(name);
+				const auto found = package.assetSources.find(name);
+				if (found != package.assetSources.end() && ManagedFiles::Matches(found->second, bytes))
+				{
+					ManagedFiles::LinkOrCopy(found->second, target, root.parent_path());
+					THROW_HR_IF(HRESULT_FROM_WIN32(ERROR_RETRY), ManagedFiles::Read(target) != bytes);
+				}
+				else ManagedFiles::Write(target, bytes);
+			}
+			THROW_HR_IF(HRESULT_FROM_WIN32(ERROR_FILE_INVALID), LoadDeployed(path).digest != package.digest);
+			TextFile(path / L".accepted.json", nlohmann::json{ { "version", 1 }, { "digest", package.digest }, { "source_type", sourceType } }.dump());
+		}
+		void RecoverLibrary(const std::filesystem::path& root, std::vector<std::wstring>* maintenance = nullptr)
+		{
+			const auto library = root / L"Library";
+			ManagedFiles::Directory(library);
+			for (const auto& item : std::filesystem::directory_iterator(library))
+			{
+				const auto name = item.path().filename().string();
+				if (name.ends_with(".previous"))
+				{
+					const auto id = name.substr(0, name.size() - 9);
+					if (!IsCanonicalUuid(id)) continue;
+					const auto target = library / PathFromUtf8(id);
+					try
+					{
+						if (!std::filesystem::exists(target)) std::filesystem::rename(item.path(), target);
+						else { THROW_HR_IF(E_INVALIDARG, !ReadEntry(target).trusted); ManagedFiles::RemoveTree(item.path(), library); }
+					}
+					catch (...) { if (maintenance) maintenance->push_back(L"Recovery or cleanup pending: " + item.path().filename().wstring()); LOG_CAUGHT_EXCEPTION(); }
+				}
+				else if (name.ends_with(".staging") || name.ends_with(".deleted"))
+				{
+					try { ManagedFiles::RemoveTree(item.path(), library); } catch (...) { if (maintenance) maintenance->push_back(L"Cleanup pending: " + item.path().filename().wstring()); LOG_CAUGHT_EXCEPTION(); }
 				}
 			}
-			catch (...) {}
+			const auto marker = library / L".legacy-migrated";
+			if (!std::filesystem::exists(marker))
+			{
+				for (const auto& record : ReadLibraryIndex(root))
+				{
+					if (record.sourceType == "draft") continue;
+					const auto target = library / PathFromUtf8(record.id);
+					if (std::filesystem::exists(target)) continue;
+					try
+					{
+						const auto package = LoadDeployed(root / PathFromUtf8(record.revision));
+						THROW_HR_IF(HRESULT_FROM_WIN32(ERROR_FILE_INVALID), package.digest != record.digest);
+						const auto staging = library / PathFromUtf8(record.id + ".staging");
+						WriteContent(package, staging, root, record.sourceType);
+						std::filesystem::rename(staging, target);
+					}
+					catch (...)
+					{
+						const auto error = wil::ResultFromCaughtException();
+						ManagedFiles::Directory(target);
+						TextFile(target / L".migration-error.txt", std::format("Legacy entry could not be migrated (0x{:08X}). Original content remains at {}.", static_cast<unsigned long>(error), record.revision));
+					}
+				}
+				TextFile(marker, "1");
+			}
 		}
-		std::ranges::sort(result, {}, [](const Package& package) { return package.metadata.name; });
+	}
+
+	std::vector<Package> EnumerateInstalled(const std::filesystem::path& root, std::vector<std::wstring>* maintenance)
+	{
+		auto lock = LockLibrary(root); RecoverLibrary(root, maintenance);
+		std::vector<Package> packages;
+		for (const auto& item : std::filesystem::directory_iterator(root / L"Library"))
+		{
+			const auto id = item.path().filename().string();
+			if (!IsCanonicalUuid(id)) continue;
+			try { auto package = ReadEntry(item.path()); package.assets.clear(); packages.push_back(std::move(package)); }
+			catch (...)
+			{
+				Package invalid; invalid.libraryId = id; invalid.source = item.path(); invalid.deployed = true;
+				invalid.metadata.name = item.path().filename().wstring();
+				invalid.loadError = std::format(L"Invalid preset (0x{:08X})", static_cast<unsigned long>(wil::ResultFromCaughtException()));
+				if (std::filesystem::exists(item.path() / L".migration-error.txt"))
+				{
+					const auto error = ManagedFiles::Read(item.path() / L".migration-error.txt");
+					invalid.loadError = wxString::FromUTF8(reinterpret_cast<const char*>(error.data()), error.size()).ToStdWstring();
+				}
+				packages.push_back(std::move(invalid));
+			}
+		}
+		std::ranges::sort(packages, {}, [](const Package& package) { return package.metadata.name; });
+		return packages;
+	}
+
+	Package LoadLibraryEntry(const Package& entry, const std::filesystem::path& root)
+	{
+		auto lock = LockLibrary(root); RecoverLibrary(root);
+		THROW_HR_IF(E_INVALIDARG, !IsCanonicalUuid(entry.libraryId));
+		auto result = ReadEntry(root / L"Library" / PathFromUtf8(entry.libraryId));
+		THROW_HR_IF(HRESULT_FROM_WIN32(ERROR_FILE_INVALID), result.digest != entry.digest);
 		return result;
 	}
 
-	DeploymentResult Deploy(const Package& package)
+	Package LoadTrusted(const Package& entry, const std::filesystem::path& root)
 	{
-		const auto root = GetPresetRoot();
-		std::filesystem::create_directories(root);
-		THROW_HR_IF(E_INVALIDARG, IsReparsePoint(root));
-		ApplyPresetAcl(root);
-		const auto destination = root / PathFromUtf8(package.metadata.uuid);
-		if (std::filesystem::exists(destination))
-		{
-			const auto installed = LoadDeployed(destination);
-			THROW_HR_IF(HRESULT_FROM_WIN32(ERROR_DUP_NAME), installed.digest != package.digest);
-			HardenDirectory(destination);
-			return { destination, false };
-		}
-		const auto staging = root / PathFromUtf8(package.metadata.uuid + ".staging-" + CreateUuid());
-		auto cleanup = wil::scope_exit([&] { std::error_code error; std::filesystem::remove_all(staging, error); });
-		std::filesystem::create_directories(staging);
-		WriteFileBytes(staging / L"manifest.json", { reinterpret_cast<const std::byte*>(package.manifestText.data()), package.manifestText.size() });
-		if (!package.licenseText.empty())
-		{
-			WriteFileBytes(staging / L"LICENSE", { reinterpret_cast<const std::byte*>(package.licenseText.data()), package.licenseText.size() });
-		}
-		for (const auto& [name, bytes] : package.assets)
-		{
-			const auto path = staging / PathFromUtf8(name);
-			WriteFileBytes(path, bytes);
-			if (path.wstring().ends_with(L".layout")) ValidateThemeAtlasLayout(path);
-			else ValidateImageWithWic(path);
-		}
-		HardenDirectory(staging);
-		THROW_IF_WIN32_BOOL_FALSE(MoveFileExW(staging.c_str(), destination.c_str(), MOVEFILE_WRITE_THROUGH));
-		cleanup.release();
-		return { destination, true };
+		auto result = LoadLibraryEntry(entry, root);
+		THROW_HR_IF(HRESULT_FROM_WIN32(ERROR_FILE_INVALID), !result.trusted);
+		return result;
 	}
 
-	void CreateArchive(const std::filesystem::path& path, CreateRequest request)
+	Package Publish(const Package& input, std::string_view sourceType, std::string_view existingId, const std::filesystem::path& root, std::string_view expectedDigest)
+	{
+		auto lock = LockLibrary(root); RecoverLibrary(root);
+		const auto package = input.deployed ? LoadDeployed(input.source) : input;
+		THROW_HR_IF(HRESULT_FROM_WIN32(ERROR_FILE_INVALID), input.digest != package.digest);
+		const auto library = root / L"Library";
+		const auto id = existingId.empty() ? CreateUuid() : std::string(existingId);
+		THROW_HR_IF(E_INVALIDARG, !IsCanonicalUuid(std::string(id)));
+		for (const auto& item : std::filesystem::directory_iterator(library))
+		{
+			if (!IsCanonicalUuid(item.path().filename().string())) continue;
+			Package candidate;
+			try { candidate = ReadEntry(item.path()); } catch (...) { continue; }
+			if (candidate.metadata.uuid == package.metadata.uuid)
+			{
+				THROW_HR_IF(HRESULT_FROM_WIN32(ERROR_DUP_NAME), candidate.digest != package.digest);
+				if (existingId.empty() && candidate.trusted) return candidate;
+			}
+		}
+		const auto target = library / PathFromUtf8(id);
+		if (!existingId.empty())
+		{
+			const auto previous = ReadEntry(target);
+			THROW_HR_IF(HRESULT_FROM_WIN32(ERROR_RETRY), expectedDigest.empty() || previous.digest != expectedDigest);
+			THROW_HR_IF(E_INVALIDARG, previous.legacyLicense && !package.legacyLicense);
+			for (const auto& source : previous.attribution)
+				THROW_HR_IF(E_INVALIDARG, std::ranges::find(package.attribution, source) == package.attribution.end());
+			for (const auto& license : previous.inheritedLicenses)
+				THROW_HR_IF(E_INVALIDARG, package.licenseText.find(license) == std::string::npos || std::ranges::find(package.inheritedLicenses, license) == package.inheritedLicenses.end());
+		}
+		const auto staging = library / PathFromUtf8(id + ".staging");
+		const auto previous = library / PathFromUtf8(id + ".previous");
+		auto cleanup = wil::scope_exit([&] { try { ManagedFiles::RemoveTree(staging, library); } catch (...) { LOG_CAUGHT_EXCEPTION(); } });
+		WriteContent(package, staging, root, sourceType);
+		if (std::filesystem::exists(target)) std::filesystem::rename(target, previous);
+		try { std::filesystem::rename(staging, target); }
+		catch (...) { if (std::filesystem::exists(previous)) std::filesystem::rename(previous, target); throw; }
+		try { ManagedFiles::RemoveTree(previous, library); } catch (...) { LOG_CAUGHT_EXCEPTION(); } // Published; enumeration reports pending cleanup.
+		return ReadEntry(target);
+	}
+
+	void RemoveLibraryEntry(std::string_view id, const std::filesystem::path& root)
+	{
+		auto lock = LockLibrary(root); RecoverLibrary(root);
+		THROW_HR_IF(E_INVALIDARG, !IsCanonicalUuid(std::string(id)));
+		const auto library = root / L"Library";
+		const auto target = library / PathFromUtf8(id);
+		const auto deleted = library / PathFromUtf8(std::string(id) + ".deleted");
+		ManagedFiles::CheckPath(target);
+		std::filesystem::rename(target, deleted);
+		ManagedFiles::RemoveTree(deleted, library);
+	}
+
+	namespace
+	{
+		void RetainLicense(CreateRequest& request, const std::string& text)
+		{
+			if (text.empty()) return;
+			if (std::ranges::find(request.inheritedLicenses, text) == request.inheritedLicenses.end())
+				request.inheritedLicenses.push_back(text);
+			if (request.licenseText.find(text) == std::string::npos)
+			{
+				if (!request.licenseText.empty()) request.licenseText += "\n\n";
+				request.licenseText += text;
+			}
+		}
+	}
+
+	void PreserveSource(CreateRequest& request, const Package& source, bool imageAssets)
+	{
+		for (const auto& attribution : source.attribution)
+			if (std::ranges::find(request.attribution, attribution) == request.attribution.end()) request.attribution.push_back(attribution);
+		const auto attribution = source.metadata.authorName + L" — " + source.metadata.authorHomepage;
+		if (std::ranges::find(request.attribution, attribution) == request.attribution.end()) request.attribution.push_back(attribution);
+		request.legacyLicense |= source.legacyLicense;
+		if (imageAssets || source.legacyLicense)
+		{
+			for (const auto& license : source.inheritedLicenses) RetainLicense(request, license);
+			RetainLicense(request, source.licenseText);
+		}
+	}
+
+	void PreserveRevisionProvenance(CreateRequest& request, const Package* target, const Package* origin)
+	{
+		if (target)
+		{
+			for (const auto& notice : target->attribution)
+				if (std::ranges::find(request.attribution, notice) == request.attribution.end()) request.attribution.push_back(notice);
+			request.legacyLicense |= target->legacyLicense;
+			for (const auto& license : target->inheritedLicenses) RetainLicense(request, license);
+			if (HasInheritedMetadata(*target)) PreserveSource(request, *target, true);
+			else if (request.metadata.authorName != target->metadata.authorName || request.metadata.authorHomepage != target->metadata.authorHomepage)
+				PreserveSource(request, *target, false);
+		}
+		// Selection chooses the destination, not the provenance of the effective configuration.
+		if (origin && (!target || !SameRevision(*target, *origin))) PreserveSource(request, *origin, false);
+	}
+
+	Package CreateSnapshot(CreateRequest request)
 	{
 		if (!request.licenseText.empty())
 		{
@@ -763,26 +1067,60 @@ namespace OpenGlass::PresetPackages
 		THROW_HR_IF(E_INVALIDARG,
 			request.metadata.name.empty()
 			|| request.metadata.authorName.empty()
-			|| !IsValidHomepageUrl(request.metadata.authorHomepage)
+			|| (!request.metadata.authorHomepage.empty() && !IsValidHomepageUrl(request.metadata.authorHomepage))
 		);
 		if (request.metadata.uuid.empty()) request.metadata.uuid = CreateUuid();
 		THROW_HR_IF(E_INVALIDARG, !IsCanonicalUuid(request.metadata.uuid));
 		THROW_HR_IF(E_INVALIDARG, request.settings.size() != Settings::PresetPackSettingCount());
 		std::map<std::string, std::vector<std::byte>> assets;
+		THROW_HR_IF(HRESULT_FROM_WIN32(ERROR_FILE_TOO_LARGE), request.assetSources.size() > MaximumEntryCount - 2);
+		std::uint64_t assetSize{};
 		for (const auto& [name, source] : request.assetSources)
 		{
 			THROW_HR_IF(E_INVALIDARG, !name.starts_with("assets/") || !IsSafeEntryPath(name));
-			if (!name.ends_with(".layout")) ValidateImageWithWic(source);
+			THROW_HR_IF(E_INVALIDARG, IsReparsePoint(source));
+			const auto size = std::filesystem::file_size(source);
+			const auto limit = name.ends_with(".layout") ? ThemeAtlasLayout::MaximumFileSize : MaximumEntrySize;
+			THROW_HR_IF(HRESULT_FROM_WIN32(ERROR_FILE_TOO_LARGE), size > limit || assetSize + size > MaximumTotalSize);
 			std::ifstream stream(source, std::ios::binary);
 			THROW_HR_IF(HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND), !stream);
-			std::vector<char> chars((std::istreambuf_iterator<char>(stream)), {});
-			THROW_HR_IF(HRESULT_FROM_WIN32(ERROR_FILE_TOO_LARGE), chars.size() > (name.ends_with(".layout") ? ThemeAtlasLayout::MaximumFileSize : MaximumEntrySize));
-			std::vector<std::byte> bytes(chars.size());
-			if (!chars.empty()) std::memcpy(bytes.data(), chars.data(), chars.size());
-			if (name.ends_with(".layout")) ValidateThemeAtlasLayout(bytes);
+			std::vector<std::byte> bytes(static_cast<std::size_t>(size));
+			stream.read(reinterpret_cast<char*>(bytes.data()), static_cast<std::streamsize>(bytes.size()));
+			THROW_HR_IF(HRESULT_FROM_WIN32(ERROR_FILE_INVALID), stream.gcount() != static_cast<std::streamsize>(size) || stream.peek() != std::char_traits<char>::eof());
+			// Validate this captured content in ParsePackage, never reopen mutable sources.
+			assetSize += size;
 			assets.emplace(name, std::move(bytes));
 		}
 		const auto manifest = BuildManifest(request, assets);
+		EntryMap entries(assets.begin(), assets.end());
+		auto addText = [&](const std::string& name, const std::string& text)
+		{
+			std::vector<std::byte> bytes(text.size());
+			std::memcpy(bytes.data(), text.data(), text.size());
+			entries.emplace(name, std::move(bytes));
+		};
+		addText("manifest.json", manifest);
+		if (!request.licenseText.empty()) addText("LICENSE", request.licenseText);
+		std::size_t total{};
+		for (const auto& [_, bytes] : entries) total += bytes.size();
+		THROW_HR_IF(HRESULT_FROM_WIN32(ERROR_FILE_TOO_LARGE), total > MaximumTotalSize || entries.size() > MaximumEntryCount);
+		auto package = ParsePackage(std::move(entries), {}, false);
+		package.assetSources = std::move(request.assetSources);
+		return package;
+	}
+
+	void CreateArchive(const std::filesystem::path& path, CreateRequest request)
+	{
+		ExportArchive(path, CreateSnapshot(std::move(request)));
+	}
+
+	void ExportArchive(const std::filesystem::path& path, const Package& input)
+	{
+		const auto package = !input.libraryId.empty() ? LoadTrusted(input, input.source.parent_path().parent_path())
+			: input.deployed ? LoadDeployed(input.source) : input;
+		THROW_HR_IF(HRESULT_FROM_WIN32(ERROR_FILE_INVALID), package.digest != input.digest);
+		const auto& manifest = package.manifestText;
+		const auto& assets = package.assets;
 		THROW_HR_IF(HRESULT_FROM_WIN32(ERROR_FILE_EXISTS), std::filesystem::exists(path));
 		const auto temporary = path.wstring() + L".tmp-" + FromUtf8(CreateUuid());
 		auto cleanup = wil::scope_exit([&]
@@ -801,9 +1139,9 @@ namespace OpenGlass::PresetPackages
 			THROW_HR_IF(HRESULT_FROM_WIN32(ERROR_WRITE_FAULT), !zip.IsOk());
 		};
 		writeEntry(L"manifest.json", { reinterpret_cast<const std::byte*>(manifest.data()), manifest.size() });
-		if (!request.licenseText.empty())
+		if (!package.licenseText.empty())
 		{
-			writeEntry(L"LICENSE", { reinterpret_cast<const std::byte*>(request.licenseText.data()), request.licenseText.size() });
+			writeEntry(L"LICENSE", { reinterpret_cast<const std::byte*>(package.licenseText.data()), package.licenseText.size() });
 		}
 		for (const auto& [name, bytes] : assets)
 		{
@@ -813,33 +1151,10 @@ namespace OpenGlass::PresetPackages
 		output.Close();
 		// The creator and importer deliberately share one validation path. Never publish
 		// an archive that the importer would reject.
-		[[maybe_unused]] const auto validated = LoadArchive(temporary);
+		const auto validated = LoadArchive(temporary);
+		THROW_HR_IF(HRESULT_FROM_WIN32(ERROR_FILE_INVALID), validated.digest != package.digest);
 		THROW_HR_IF(HRESULT_FROM_WIN32(ERROR_WRITE_FAULT), !MoveFileExW(temporary.c_str(), path.c_str(), MOVEFILE_WRITE_THROUGH));
 		cleanup.release();
 		THROW_IF_WIN32_BOOL_FALSE(SetFileAttributesW(path.c_str(), FILE_ATTRIBUTE_READONLY));
-	}
-
-	void Remove(const Package& package)
-	{
-		THROW_HR_IF(E_INVALIDARG,
-			!package.deployed
-			|| std::filesystem::weakly_canonical(package.source.parent_path()) != std::filesystem::weakly_canonical(GetPresetRoot())
-			|| IsReparsePoint(package.source)
-		);
-		for (const auto& item : std::filesystem::recursive_directory_iterator(package.source))
-		{
-			THROW_IF_WIN32_BOOL_FALSE(SetFileAttributesW(item.path().c_str(), item.is_directory() ? FILE_ATTRIBUTE_DIRECTORY : FILE_ATTRIBUTE_NORMAL));
-		}
-		std::error_code error;
-		std::filesystem::remove_all(package.source, error);
-		THROW_HR_IF(HRESULT_FROM_WIN32(error.value()), error);
-	}
-
-	std::wstring ResolveAssetPath(const Package& package, const AssetReference& asset)
-	{
-		const auto root = package.deployed ? package.source : GetPresetRoot() / PathFromUtf8(package.metadata.uuid);
-		const auto result = std::filesystem::weakly_canonical(root / PathFromUtf8(asset.path));
-		THROW_HR_IF(E_INVALIDARG, result.wstring().size() >= MAX_PATH);
-		return result.wstring();
 	}
 }

@@ -2,7 +2,7 @@
 #include "OpenGlassGUI.hpp"
 #include "MainFrame.hpp"
 #include "Elevation.hpp"
-#include "ConfigurationMigration.hpp"
+#include "EditorScope.hpp"
 #include <wx/cmdline.h>
 
 // IMPLEMENT_APP must be in global scope
@@ -13,6 +13,7 @@ namespace OpenGlass
 	void OpenGlassApp::OnInitCmdLine(wxCmdLineParser& parser)
 	{
 		wxApp::OnInitCmdLine(parser);
+		parser.AddLongOption(L"scope", L"Configuration target: hkcu or hklm", wxCMD_LINE_VAL_STRING);
 		parser.AddLongOption(
 			L"elevated-pipe",
 			L"internal elevation handshake pipe",
@@ -27,27 +28,31 @@ namespace OpenGlass
 		if (!wxApp::OnInit())
 			return false;
 
-		const auto startup = Elevation::PrepareElevatedStartup();
+		std::vector<std::wstring> argumentStorage;
+		for (int index = 1; index < argc; ++index) argumentStorage.emplace_back(argv[index]);
+		std::vector<std::wstring_view> arguments(argumentStorage.begin(), argumentStorage.end());
+		const auto scope = Settings::ParseEditorScope(arguments);
+		if (!scope)
+		{
+			wxMessageBox(L"Use --scope=hkcu or --scope=hklm. Conflicting scopes are not allowed.", L"Invalid scope", wxOK | wxICON_ERROR);
+			return false;
+		}
+		const auto startup = Elevation::PrepareElevatedStartup(*scope);
 		if (!startup.continueStartup)
 		{
 			return false;
 		}
 
-		// Machine settings and the schema migration are shared; do not allow two
-		// target-user editors to race in the same interactive session.
-		m_singleInstanceChecker.Create(L"OpenGlassGUI.SingleInstance");
+		// Accent color previews are shared by both editor scopes in this session.
+		if (!m_singleInstanceChecker.Create(L"OpenGlassGUI.SingleInstance"))
+		{
+			wxMessageBox(L"Unable to establish the session editor lock. Close the other editor or retry.", L"OpenGlass", wxOK | wxICON_ERROR);
+			return false;
+		}
 		if (m_singleInstanceChecker.IsAnotherRunning())
 			return false;
 
-		if (!ConfigurationMigration::EnsureCanonicalConfiguration(startup.userSid))
-			return false;
-
-		MainFrame* frame = new MainFrame(L"Aero Glass for Win10+", startup.userSid);
-		if (frame->IsInitializationCanceled())
-		{
-			frame->Destroy();
-			return false;
-		}
+		MainFrame* frame = new MainFrame(L"Aero Glass for Win10+", startup.userSid, *scope);
 		frame->Show(true);
 		return true;
 	}

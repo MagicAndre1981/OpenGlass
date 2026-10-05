@@ -2,29 +2,23 @@
 #include "pch.h"
 #include "Diagnostics.hpp"
 #include "ColorizationPresets.hpp"
+#include "ColorPreference.hpp"
 #include "RegistryValueResolver.hpp"
 #include "RegistryConfig.hpp"
+#include "PreviewJournal.hpp"
 #include "Symbols.hpp"
 #include "PresetPackage.hpp"
+#include "ConfigurationResources.hpp"
 
 namespace OpenGlass
 {
 	class ColorSwatchButton;
 
-	enum class ChangeType {
-		Colorization,
-		Theme,
-		Both
-	};
 
 	class MainFrame : public wxFrame
 	{
 	public:
-		MainFrame(const wxString& title, std::wstring userSid);
-		[[nodiscard]] bool IsInitializationCanceled() const
-		{
-			return m_initCanceled;
-		}
+		MainFrame(const wxString& title, std::wstring userSid, Settings::Scope scope);
 
 	private:
 		void CreateControls();
@@ -36,48 +30,43 @@ namespace OpenGlass
 		void CreateGlassColorsTab();
 		// void CreateAccentTab();
 		void CreateBottomControls(wxSizer* parentSizer);
-		
+
 		void BindEvents();
-		void LoadSettings(bool saveBackup = false);
+		void LoadSettings();
 		bool RevertSettings();
 		void SaveSettings();
-		
+
 		// Helpers
 		void AddProperty(
 			wxWindow* parent,
 			wxSizer* sizer,
 			const wxString& label,
 			wxWindow* control,
-			std::optional<Settings::Id> setting = std::nullopt,
-			std::optional<Settings::Id> overrideSetting = std::nullopt
+			std::optional<Settings::Id> setting = std::nullopt
 		);
 		void AddOptionStatus(
 			wxWindow* parent,
 			wxBoxSizer* row,
-			Settings::Id setting,
-			std::optional<Settings::Id> overrideSetting = std::nullopt
+			Settings::Id setting
 		);
 		void UpdateOptionStatusIcons();
 		void AddPathWarningIcon(wxWindow* parent, wxBoxSizer* row, wxFilePickerCtrl* picker, wxCheckBox* checkbox, const wxString& title);
 		void UpdatePathWarningIcons();
-		void ApplyColorizationColor(DWORD argb, ColorizationPresets::Family family);
+		void ApplyColorizationBalances(DWORD intensity);
+		void ApplyColorizationColor(std::optional<DWORD> argb, ColorizationPresets::Family family);
 		void ApplyColorizationPreset(const ColorizationPresets::Preset& preset);
 		[[nodiscard]] const ColorizationPresets::Preset* FindMatchingWindows7Preset(bool opaque) const;
 		void UpdateColorizationPresetSelection();
-		bool NotifySettingsChange(ChangeType type = ChangeType::Both);
+		void QueueColorizationRefresh();
+		WXLRESULT MSWWindowProc(WXUINT message, WXWPARAM wParam, WXLPARAM lParam) override;
+		bool m_colorizationRefreshPending{};
+		bool NotifySettingsChange(Settings::UpdateImpact impact = Settings::UpdateImpact::Colorization | Settings::UpdateImpact::Theme);
 		void UpdateUIVisibility();
 		void OnClose(wxCloseEvent& event);
-		[[nodiscard]] RegistryConfig* GetConfigForSetting(Settings::Id id) const;
 		[[nodiscard]] RegistryConfig* GetConfigForScope(Settings::Scope scope) const;
-		[[nodiscard]] ResolvedRegistryValue<DWORD> ResolveOverridableDword(
-			Settings::Id setting,
-			Settings::Id overrideSetting,
-			DWORD defaultValue
-		) const;
-		void ResetOverridableDword(Settings::Id setting, Settings::Id overrideSetting);
 		void SetDirty(bool dirty);
+		void ReconcilePreview();
 		void UpdateWindowTitle();
-		void UpdateStatusBar();
 		void ApplyChoiceColor(wxChoice* ch, wxColourPickerCtrl* cp, DWORD value, DWORD themeSentinel, DWORD autoSentinel) const;
 		void ApplyChoiceColorEx(wxChoice* ch, wxColourPickerCtrl* cp, DWORD value, DWORD themeSentinel, DWORD autoSentinel, DWORD systemSentinel) const;
 		void ApplyChoiceSlider(wxChoice* ch, wxSlider* sl, DWORD value, DWORD themeSentinel, DWORD autoSentinel, int disabledValue) const;
@@ -93,8 +82,10 @@ namespace OpenGlass
 		void RefreshDwmCrashDumpConfiguration();
 		void SetDwmCrashDumpsEnabled(bool enabled);
 		void RefreshPresetPackages();
+		PresetPackages::PreviewProvenance m_presetProvenance;
+
 		void RebuildPresetPackageList(std::string_view selectedUuid = {});
-		void ResizePresetPackageColumn();
+		void ShowPresetContextMenu(wxPoint screenPosition);
 		void SelectPresetPackageRow(std::size_t row);
 		void UpdatePresetPackageDetails();
 		void ImportPresetPackage();
@@ -102,25 +93,34 @@ namespace OpenGlass
 		void ImportPresetPackages(std::span<const std::filesystem::path> paths);
 		void ImportDroppedPresetPackages(const wxDropFilesEvent& event);
 		void ApplySelectedPresetPackage();
-		void CreatePresetPackage();
-		void ResetPresetPackSettings();
+		void CreatePresetPackage(bool update);
+		void CaptureEffectivePreset(PresetPackages::CreateRequest& request, bool accentColor, const PresetPackages::Package* localSource = nullptr);
+		void ExportSelectedPresetPackage();
 		void RemoveSelectedPresetPackage();
-		bool ApplyPresetPackage(const PresetPackages::Package& package, bool previewAccepted = false);
-		
-		// Save/Revert identity includes the canonical registry scope and stable catalog ID.
+		bool ApplyPresetPackage(const PresetPackages::Package& package);
+
+		// Save/Revert identity includes the editing or Windows-state registry scope and stable catalog ID.
 		struct TrackedSetting
 		{
 			Settings::Scope scope;
 			Settings::Id id;
+			std::wstring Name() const { return std::wstring(Settings::Get(id).name); }
 			auto operator<=>(const TrackedSetting&) const = default;
 		};
-		std::map<TrackedSetting, std::variant<std::monostate, DWORD, std::wstring>> m_backupSettings;
-		std::set<TrackedSetting> m_dirtyKeys;
-		void BackupCurrentSetting(TrackedSetting setting);
+		PreviewJournal<TrackedSetting, RegistryConfig::RawValue> m_preview;
+		bool RunPreview(const std::function<void()>& operation, bool accentColor = false,
+			Settings::UpdateImpact impact = Settings::UpdateImpact::Colorization | Settings::UpdateImpact::Theme);
+		ColorPreference m_colorPreference;
+		ConfigurationResources m_resources;
+		wil::unique_hfile m_previewWriter;
+		void EnsurePreviewWriter();
+		Settings::Scope m_editScope{ Settings::Scope::Machine };
+		void MergeConfiguration();
+		void RestoreDefaults();
 
 		// UI Elements
 		wxNotebook* m_notebook{ nullptr };
-		
+
 		// Buttons
 		wxButton* m_btnSave{ nullptr };
 		wxButton* m_btnRevert{ nullptr };
@@ -156,19 +156,14 @@ namespace OpenGlass
 
 		// Presets Tab
 		wxListView* m_lstPresetPackages{ nullptr };
-		wxTextCtrl* m_txtPresetDetails{ nullptr };
-		wxButton* m_btnImportPreset{ nullptr };
-		wxButton* m_btnApplyPreset{ nullptr };
-		wxButton* m_btnCreatePreset{ nullptr };
-		wxButton* m_btnResetPresetSettings{ nullptr };
-		wxButton* m_btnRemovePreset{ nullptr };
-		wxButton* m_btnPresetInformation{ nullptr };
+		wxStaticText* m_lblPresetEmpty{};
+		int m_presetSortColumn{};
+		bool m_presetSortAscending{ true };
 		std::vector<PresetPackages::Package> m_presetPackages;
 		std::wstring m_lastPresetAuthorName;
 		std::wstring m_lastPresetAuthorHomepage;
 		std::string m_lastPresetLicenseText;
-		bool m_lastPresetIncludeLicense{ true };
-		bool m_lastPresetInstallAfterCreate{ true };
+		bool m_lastPresetIncludeLicense{ false };
 
 		// Theme Tab
 		wxCheckBox* m_chkCustomThemeAtlas{ nullptr };
@@ -176,17 +171,17 @@ namespace OpenGlass
 		wxCheckBox* m_chkCustomThemeReflection{ nullptr };
 		wxFilePickerCtrl* m_fpCustomThemeReflection{ nullptr };
 		wxSlider* m_slReflectionIntensity{ nullptr };
-		
+
 		// Reflection Opacity & Variants
 		wxChoice* m_chModeReflectionOpacity{ nullptr };
 		wxSlider* m_slReflectionOpacity{ nullptr };
-		
+
 		wxChoice* m_chModeReflectionOpacityInactive{ nullptr };
 		wxSlider* m_slReflectionOpacityInactive{ nullptr };
-		
+
 		wxChoice* m_chModeReflectionOpacityMaximized{ nullptr };
 		wxSlider* m_slReflectionOpacityMaximized{ nullptr };
-		
+
 		wxChoice* m_chModeReflectionOpacityInactiveMaximized{ nullptr };
 		wxSlider* m_slReflectionOpacityInactiveMaximized{ nullptr };
 
@@ -203,13 +198,13 @@ namespace OpenGlass
 		wxChoice* m_chBlurOptimization{ nullptr };
 		wxCheckBox* m_chkUseD3D{ nullptr };
 		wxCheckBox* m_chkGlassSafetyZone{ nullptr };
-		
+
 		wxChoice* m_chRoundRectProfile{ nullptr }; // Added
 		wxSpinCtrl* m_scRoundRectRadius{ nullptr };
-		
+
 		wxChoice* m_chTextGlowMode{ nullptr };
 		wxSpinCtrl* m_scTextGlowSize{ nullptr }; // Added
-		
+
 		wxChoice* m_chCaptionButtons{ nullptr };
 		wxChoice* m_chCenterCaption{ nullptr };
 		wxCheckBox* m_chkDisableModernBorders{ nullptr };
@@ -217,91 +212,64 @@ namespace OpenGlass
 
 		// Glass Colors Tab
 		wxScrolledWindow* m_glassColorsPanel{ nullptr };
-		wxSizer* m_glassColorsRootSizer{ nullptr };
 		wxRadioBox* m_rbGlassType{ nullptr };
 		wxStaticBoxSizer* m_colorPresetsGroupSizer{ nullptr };
 		wxWrapSizer* m_vistaPresetSizer{ nullptr };
 		wxWrapSizer* m_windows7PresetSizer{ nullptr };
 		std::vector<std::pair<const ColorizationPresets::Preset*, ColorSwatchButton*>> m_presetButtons;
 		std::vector<ColorSwatchButton*> m_customColorButtons;
+		std::vector<ColorSwatchButton*> m_automaticColorButtons;
 		bool m_customColorsInitialized{ false };
 		wxCheckBox* m_chkEnableTransparency{ nullptr };
 		wxSlider* m_slColorIntensity{ nullptr };
-		wxSizer* m_detailedColorizationSizer{ nullptr };
-		wxColourPickerCtrl* m_cpColorizationColor{ nullptr };
-		
-		wxCheckBox* m_chkEnableInactiveColor{ nullptr }; // Added
-		wxColourPickerCtrl* m_cpColorizationColorInactive{ nullptr };
-		
-		wxCheckBox* m_chkEnableInactiveOpacity{ nullptr };
-		wxSlider* m_slGlassOpacityInactive{ nullptr };
-		
+
 		wxChoice* m_chModeColorCaption{ nullptr };
 		wxColourPickerCtrl* m_cpColorCaption{ nullptr };
-		
-		// Sizers for dynamic visibility
-		wxSizer* m_win7GroupSizer{ nullptr };
-		wxSizer* m_inactiveColumnSizer{ nullptr };
-		wxSizer* m_afterglowColumnSizer{ nullptr }; // Added
-		wxSizer* m_vistaOpacitySizer{ nullptr };
-		wxSizer* m_colorsRowSizer{ nullptr };
-		wxSizer* m_glassColorsGroupSizer{ nullptr };
 
 		wxColourPickerCtrl* m_cpColorCaptionInactive{ nullptr };
 		wxChoice* m_chModeColorCaptionInactive{ nullptr };
-		
+
 		// Advanced Colors
 		wxColourPickerCtrl* m_cpColorCaptionMaximized{ nullptr };
 		wxChoice* m_chModeColorCaptionMaximized{ nullptr };
-		
+
 		wxColourPickerCtrl* m_cpColorCaptionInactiveMaximized{ nullptr };
 		wxChoice* m_chModeColorCaptionInactiveMaximized{ nullptr };
 
 		wxChoice* m_chOpaqueBlendPriority{ nullptr };
-		
+
 		wxChoice* m_chModeBaseTransparent{ nullptr };
 		wxColourPickerCtrl* m_cpBaseTransparent{ nullptr };
 		wxSpinCtrl* m_scBaseTransparentAlpha{ nullptr };
-		
+
 		wxChoice* m_chModeBaseMaximized{ nullptr };
 		wxColourPickerCtrl* m_cpBaseMaximized{ nullptr };
 		wxSpinCtrl* m_scBaseMaximizedAlpha{ nullptr };
-		
+
 		wxChoice* m_chModeBaseOpaque{ nullptr };
 		wxColourPickerCtrl* m_cpBaseOpaque{ nullptr };
 		wxSpinCtrl* m_scBaseOpaqueAlpha{ nullptr };
-		
+
 		wxSlider* m_slColorizationOpacity{ nullptr };
 		wxChoice* m_chModeColorizationOpacity{ nullptr };
-		
+
 		wxSlider* m_slColorizationOpacityInactive{ nullptr };
 		wxChoice* m_chModeColorizationOpacityInactive{ nullptr };
-		
+
 		wxSlider* m_slColorizationOpacityMaximized{ nullptr };
 		wxChoice* m_chModeColorizationOpacityMaximized{ nullptr };
 
 		wxSlider* m_slColorizationOpacityInactiveMaximized{ nullptr };
 		wxChoice* m_chModeColorizationOpacityInactiveMaximized{ nullptr };
 
-		// Composition Parameters
-		wxSlider* m_slBlurBalance{ nullptr };
-		wxSlider* m_slAfterglowBalance{ nullptr };
-		wxSlider* m_slColorBalance{ nullptr };
-		wxButton* m_btnPersistCompositionParameters{ nullptr };
-		wxColourPickerCtrl* m_cpAfterglow{ nullptr };
-		
 		// Accent Tab
 		wxCheckBox* m_chkGlassOverrideAccent{ nullptr };
 
 		// Registry state
 		struct OptionStatus
 		{
-			wxStaticBitmap* overrideIcon{};
-			wxButton* resetOverrideButton{};
+			wxStaticBitmap* icon{};
 			Settings::Id setting{};
-			std::optional<Settings::Id> overrideSetting;
-			bool vistaIrrelevant{ false };
-			bool win7Irrelevant{ false };
 		};
 		std::vector<OptionStatus> m_optionStatus;
 		struct PathWarningStatus
@@ -322,10 +290,8 @@ namespace OpenGlass
 		bool m_isAdmin{ false };
 		bool m_isDirty{ false };
 		wxString m_baseTitle;
-		wxString m_targetUserLabel;
 		wxString m_targetUserSid;
 		HWND m_dwmWindow{ nullptr };
-		bool m_initCanceled{ false };
 		bool m_symbolDownloadRunning{ false };
 		bool m_closeWhenSymbolDownloadStops{ false };
 		std::jthread m_symbolDownloadThread{};
