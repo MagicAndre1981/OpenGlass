@@ -54,6 +54,7 @@ namespace OpenGlass
 		void RemoveUnused(Settings::Scope scope, Settings::Id id, const std::wstring& configuredPath);
 		void Reconcile();
 		bool IsDirty() const { return m_journal.IsDirty(); }
+		bool HasAttemptChanges() const { return m_journal.HasAttemptChanges(); }
 		void CommitAttempt();
 		bool RollbackAttempt(bool externalRestored);
 		bool RevertAttemptFiles();

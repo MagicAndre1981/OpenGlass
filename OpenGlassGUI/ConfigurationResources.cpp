@@ -13,6 +13,8 @@ namespace OpenGlass
 			return { { "automatic", value.automatic }, { "rgb", value.rgb ? Json(*value.rgb) : Json(nullptr) },
 				{ "apply_choice", value.applyChoice }, { "accent", value.accent
 					? Json{ { "present", value.accent->present }, { "type", value.accent->type }, { "bytes", value.accent->bytes } }
+					: Json(nullptr) }, { "dwm_accent", value.dwmAccent
+					? Json{ { "present", value.dwmAccent->present }, { "type", value.dwmAccent->type }, { "bytes", value.dwmAccent->bytes } }
 					: Json(nullptr) } };
 		}
 		ColorPreference::Snapshot ReadChoice(const Json& value)
@@ -25,6 +27,8 @@ namespace OpenGlass
 				const auto& accent = value.at("accent");
 				result.accent = RegistryConfig::RawValue{ accent.at("present"), accent.at("type"), accent.at("bytes").get<std::vector<BYTE>>() };
 			}
+			if (const auto accent = value.find("dwm_accent"); accent != value.end() && !accent->is_null())
+				result.dwmAccent = RegistryConfig::RawValue{ accent->at("present"), accent->at("type"), accent->at("bytes").get<std::vector<BYTE>>() };
 			if (!value.at("rgb").is_null()) result.rgb = value.at("rgb").get<DWORD>();
 			return result;
 		}
@@ -315,7 +319,8 @@ namespace OpenGlass
 	}
 	bool ConfigurationResources::Revert() { return m_journal.Revert([&](const auto& path, const auto& value) { return Restore(path, value); }, true, false); }
 	void ConfigurationResources::Accept() { FinishOperation(); m_journal.Accept(); }
-	bool ConfigurationResources::Recover(const std::function<bool(Settings::Scope, Settings::Id, const RegistryConfig::RawValue&)>& registry, const std::function<bool(const ColorPreference::Snapshot&)>& color)
+	bool ConfigurationResources::Recover(const std::function<bool(Settings::Scope, Settings::Id, const RegistryConfig::RawValue&)>& registry,
+		const std::function<bool(const ColorPreference::Snapshot&)>& color)
 	{
 		if (!HasRecovery()) return true;
 		const auto directory = m_root / (L".operation-" + m_sid);

@@ -62,7 +62,7 @@ namespace OpenGlass
 		void QueueColorizationRefresh();
 		WXLRESULT MSWWindowProc(WXUINT message, WXWPARAM wParam, WXLPARAM lParam) override;
 		bool m_colorizationRefreshPending{};
-		bool NotifySettingsChange(Settings::UpdateImpact impact = Settings::UpdateImpact::Colorization | Settings::UpdateImpact::Theme);
+		void NotifySettingsChange(Settings::UpdateImpact impact = Settings::UpdateImpact::Colorization | Settings::UpdateImpact::Theme);
 		void UpdateUIVisibility();
 		void OnClose(wxCloseEvent& event);
 		[[nodiscard]] RegistryConfig* GetConfigForScope(Settings::Scope scope) const;

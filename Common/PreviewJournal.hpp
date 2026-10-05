@@ -17,6 +17,8 @@ namespace OpenGlass
 	public:
 		bool IsDirty() const noexcept { return !m_baseline.empty(); }
 		bool IsAttemptActive() const noexcept { return m_previousBaseline.has_value(); }
+		// Reconcile removes unchanged writes; session dirtiness is independent.
+		bool HasAttemptChanges() const noexcept { return !m_attempt.empty(); }
 		void Begin()
 		{
 			if (IsAttemptActive()) throw std::logic_error("Nested preview attempt");

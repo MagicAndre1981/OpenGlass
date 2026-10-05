@@ -102,12 +102,6 @@ namespace OpenGlass::Util
 		return std::wstring{ GetResourceStringView<id>() };
 	}
 
-	inline void ClearMessageQueue(HWND hWnd, UINT uMsg)
-	{
-		MSG msg{};
-		while (PeekMessageW(&msg, hWnd, uMsg, uMsg, PM_REMOVE)) {}
-	}
-
 	inline HRESULT GetResDataView(std::span<const UCHAR>& resourceView, UINT id, HMODULE moduleHandle = wil::GetModuleInstanceHandle(), LPCWSTR type = RT_RCDATA)
 	{
 		const auto resourceHandle = FindResourceW(moduleHandle, MAKEINTRESOURCE(id), type);

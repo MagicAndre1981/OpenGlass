@@ -97,16 +97,21 @@ LRESULT CALLBACK OpenGlass::DwmNotificationWndProc(HWND hWnd, UINT uMsg, WPARAM 
 			GlassEngine::SetDwmNotificationWindow(nullptr);
 			break;
 		}
-		case WM_WININICHANGE:
+		case WM_SETTINGCHANGE:
+		{
+			if (wParam == 0 && lParam && lstrcmpW(reinterpret_cast<LPCWSTR>(lParam), L"ImmersiveColorSet") == 0)
+			{
+				GlassEngine::Update(GlassEngine::UpdateType::Backdrop);
+			}
+			break;
+		}
 		case WM_DWMCOLORIZATIONCOLORCHANGED: // accent color changed
 		{
-			Util::ClearMessageQueue(hWnd, uMsg);
 			GlassEngine::Update(GlassEngine::UpdateType::Backdrop);
 			break;
 		}
 		case WM_THEMECHANGED: // theme switched, we can handle this to load our custom theme atlas
 		{
-			Util::ClearMessageQueue(hWnd, uMsg);
 			GlassEngine::Update(GlassEngine::UpdateType::Theme);
 			break;
 		}

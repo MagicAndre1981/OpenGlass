@@ -19,8 +19,9 @@ namespace OpenGlass
 		{
 			DWORD automatic{};
 			std::optional<DWORD> rgb; // Manual RGB only; Automatic never captures derived RGB.
-			bool applyChoice{ true }; // Accent-only recovery must not change the coloring mode.
+			bool applyChoice{ true }; // Raw-value recovery must not change the coloring mode.
 			std::optional<RegistryConfig::RawValue> accent; // Engaged only when AccentColorMenu participates.
+			std::optional<RegistryConfig::RawValue> dwmAccent; // Independent DWM AccentColor, not an editor setting.
 			bool IsAutomatic() const noexcept { return automatic != 0; }
 			bool RestoresAutomatic() const noexcept { return applyChoice && IsAutomatic(); }
 			bool operator==(const Snapshot&) const = default;
@@ -31,7 +32,8 @@ namespace OpenGlass
 			virtual ~Backend() = default;
 			virtual HRESULT Capture(const std::wstring& userSid, Snapshot& snapshot) noexcept = 0;
 			virtual HRESULT Prepare(const Snapshot& choice) noexcept = 0;
-			virtual HRESULT Apply(const Snapshot& choice) noexcept = 0;
+			// Automatic resolves its Accent targets only after the synchronous shell request.
+			virtual HRESULT Apply(const Snapshot& choice, Snapshot* applied = nullptr) noexcept = 0;
 		};
 		ColorPreference();
 		explicit ColorPreference(std::unique_ptr<Backend> backend);
@@ -48,5 +50,6 @@ namespace OpenGlass
 		HRESULT Revert() noexcept;
 		void Accept() noexcept;
 		bool IsDirty() const noexcept;
+		bool IsAttemptActive() const noexcept;
 	};
 }

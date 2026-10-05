@@ -196,23 +196,30 @@ namespace OpenGlass
 		replacement->Show();
 	}
 
-	bool MainFrame::NotifySettingsChange(Settings::UpdateImpact impact)
+	void MainFrame::NotifySettingsChange(Settings::UpdateImpact impact)
 	{
 		const auto flags = static_cast<unsigned>(impact);
-		if (!(flags & static_cast<unsigned>(Settings::UpdateImpact::Colorization | Settings::UpdateImpact::Theme))) return true;
+		if (!(flags & static_cast<unsigned>(Settings::UpdateImpact::Colorization | Settings::UpdateImpact::Theme))) return;
 		if (!m_dwmWindow || !IsWindow(m_dwmWindow))
 		{
 			m_dwmWindow = FindWindowW(L"Dwm", nullptr);
 		}
 		HWND notificationWindow = m_dwmWindow;
-		if (!notificationWindow) return false;
-		bool succeeded = true;
+		if (!notificationWindow) return;
+		// Configuration editing and recovery also work without OpenGlass loaded;
+		// notification delivery is best-effort.
 		if (flags & static_cast<unsigned>(Settings::UpdateImpact::Colorization))
-			succeeded = SendNotifyMessage(notificationWindow, WM_DWMCOLORIZATIONCOLORCHANGED, 0, 0) != FALSE;
+		{
+			// DWM reloads its Accent cache only for the ImmersiveColorSet category.
+			SetLastError(ERROR_SUCCESS);
+			LOG_IF_WIN32_BOOL_FALSE(static_cast<BOOL>(SendMessageTimeoutW(
+				notificationWindow, WM_SETTINGCHANGE, 0, reinterpret_cast<LPARAM>(L"ImmersiveColorSet"),
+				SMTO_ABORTIFHUNG | SMTO_ERRORONEXIT, 1000, nullptr
+			) != 0));
+		}
 
 		if (flags & static_cast<unsigned>(Settings::UpdateImpact::Theme))
-			succeeded = SendNotifyMessage(notificationWindow, WM_THEMECHANGED, 0, 0) != FALSE && succeeded;
-		return succeeded;
+			LOG_IF_WIN32_BOOL_FALSE(SendNotifyMessageW(notificationWindow, WM_THEMECHANGED, 0, 0));
 	}
 
 	void MainFrame::SetDirty(bool dirty)
@@ -792,7 +799,15 @@ namespace OpenGlass
 
 	bool MainFrame::RunPreview(const std::function<void()>& operation, Settings::UpdateImpact impact)
 	{
+		const bool wasDirty = m_isDirty;
 		const bool colorWasDirty = m_colorPreference.IsDirty();
+		const auto needsRefresh = [this]
+		{
+			// Explicit color operations can refresh Windows-derived values without
+			// changing the selected mode or RGB (for example, reselecting Automatic).
+			return m_preview.HasAttemptChanges() || m_colorPreference.IsAttemptActive() || m_resources.HasAttemptChanges();
+		};
+		bool refreshRequired{};
 		try
 		{
 			EnsurePreviewWriter();
@@ -805,7 +820,12 @@ namespace OpenGlass
 					m_resources.RemoveUnused(key.scope, key.id, GetConfigForScope(key.scope)->GetString(key.Name(), L""));
 			});
 			ReconcilePreview();
-			THROW_HR_IF(HRESULT_FROM_WIN32(ERROR_NOT_READY), !NotifySettingsChange(impact));
+			// An empty reset or unchanged write needs no DWM delivery. Returning to
+			// the session baseline still does, even though the preview is now clean.
+			refreshRequired = needsRefresh();
+			// A no-op cannot accept an earlier failed recovery.
+			if (!refreshRequired && wasDirty) SetDirty(true);
+			if (refreshRequired) NotifySettingsChange(impact);
 			// Preserve the control being edited (for example an empty file picker or
 			// a newly selected Custom mode). Whole-configuration operations reload explicitly.
 			UpdateOptionStatusIcons();
@@ -822,9 +842,9 @@ namespace OpenGlass
 		catch (...)
 		{
 			const auto failure = wil::ResultFromCaughtException();
-			const bool attempted = m_preview.IsAttemptActive();
 			try { m_preview.Reconcile([this](const auto& key) { return GetConfigForScope(key.scope)->ReadRaw(key.Name()); }); }
 			catch (...) { LOG_CAUGHT_EXCEPTION(); }
+			refreshRequired |= needsRefresh();
 			const auto colorBefore = m_colorPreference.Baseline(true);
 			bool restored = SUCCEEDED(m_colorPreference.RollbackAttempt());
 			restored = m_resources.RevertAttemptFiles() && restored;
@@ -837,11 +857,9 @@ namespace OpenGlass
 				}, restored);
 			try { restored = m_resources.RollbackAttempt(restored) && restored; }
 			catch (...) { LOG_CAUGHT_EXCEPTION(); restored = false; }
-			// Restored registry/files still need a refresh. Keep failed delivery pending
-			// for Revert, just as the explicit recovery path does.
-			if (attempted) restored = NotifySettingsChange() && restored;
+			if (refreshRequired) NotifySettingsChange();
 			if (restored && !colorWasDirty) m_colorPreference.Accept();
-			SetDirty(!restored || m_preview.IsDirty() || m_colorPreference.IsDirty() || m_resources.IsDirty());
+			SetDirty(wasDirty || !restored || m_preview.IsDirty() || m_colorPreference.IsDirty() || m_resources.IsDirty());
 			if (!m_isDirty && !m_resources.HasRecovery()) m_previewWriter.reset();
 			LoadSettings();
 			wxMessageBox(wxString::Format(L"Preview failed (0x%08lX). %s", failure,
@@ -899,12 +917,7 @@ namespace OpenGlass
 			wxMessageBox(L"Recovery is incomplete. The preview remains pending; use Revert to retry.", L"Revert", wxOK | wxICON_ERROR, this);
 			return false;
 		}
-		if (!NotifySettingsChange())
-		{
-			SetDirty(true);
-			wxMessageBox(L"The values were restored, but the refresh could not be delivered. Use Revert to retry.", L"Revert", wxOK | wxICON_ERROR, this);
-			return false;
-		}
+		NotifySettingsChange();
 		LoadSettings();
 		try { m_resources.Accept(); }
 		catch (...) { wxMessageBox(L"The recovery record could not be completed. Retry Save or Revert.", L"Configuration recovery", wxOK | wxICON_ERROR, this); return false; }

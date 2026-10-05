@@ -11,24 +11,32 @@ namespace OpenGlass
 		constexpr auto AccentKey = LR"(Software\Microsoft\Windows\CurrentVersion\Explorer\Accent)";
 		constexpr auto DesktopKey = LR"(Control Panel\Desktop)";
 		constexpr auto DwmKey = LR"(Software\Microsoft\Windows\DWM)";
-		RegistryConfig::RawValue ReadAccent(HKEY user)
+		RegistryConfig::RawValue ReadRaw(HKEY user, const wchar_t* path, const wchar_t* name)
 		{
 			wil::unique_hkey key;
-			THROW_IF_WIN32_ERROR(RegOpenKeyExW(user, AccentKey, 0, KEY_QUERY_VALUE, key.put()));
+			THROW_IF_WIN32_ERROR(RegOpenKeyExW(user, path, 0, KEY_QUERY_VALUE, key.put()));
 			RegistryConfig::RawValue value;
 			DWORD size{};
-			auto status = RegQueryValueExW(key.get(), L"AccentColorMenu", nullptr, &value.type, nullptr, &size);
+			auto status = RegQueryValueExW(key.get(), name, nullptr, &value.type, nullptr, &size);
 			if (status == ERROR_FILE_NOT_FOUND) return {};
 			THROW_IF_WIN32_ERROR(status);
 			THROW_HR_IF(HRESULT_FROM_WIN32(ERROR_INVALID_DATA), size > 4096);
 			value.bytes.resize(std::max<DWORD>(size, 1));
-			THROW_IF_WIN32_ERROR(RegQueryValueExW(key.get(), L"AccentColorMenu", nullptr, &value.type, value.bytes.data(), &size));
+			THROW_IF_WIN32_ERROR(RegQueryValueExW(key.get(), name, nullptr, &value.type, value.bytes.data(), &size));
 			value.bytes.resize(size);
 			value.present = true;
 			return value;
 		}
+		void WriteRaw(HKEY key, const wchar_t* name, const RegistryConfig::RawValue& value)
+		{
+			const auto status = value.present
+				? RegSetValueExW(key, name, 0, value.type, value.bytes.data(), static_cast<DWORD>(value.bytes.size()))
+				: RegDeleteValueW(key, name);
+			if (value.present || status != ERROR_FILE_NOT_FOUND) THROW_IF_WIN32_ERROR(status);
+		}
 		RegistryConfig::RawValue EncodeAccent(DWORD rgb)
 		{
+			// Both Windows Accent values use opaque COLORREF, unlike DWM Colorization ARGB.
 			const DWORD color = RGB((rgb >> 16) & 255, (rgb >> 8) & 255, rgb & 255) | 0xFF000000;
 			RegistryConfig::RawValue value{ true, REG_DWORD, std::vector<BYTE>(sizeof(color)) };
 			memcpy(value.bytes.data(), &color, sizeof(color));
@@ -37,6 +45,7 @@ namespace OpenGlass
 		ColorPreference::Snapshot ChoiceOnly(ColorPreference::Snapshot value)
 		{
 			value.accent.reset();
+			value.dwmAccent.reset();
 			return value;
 		}
 		ColorPreference::Snapshot AccentOnly(const ColorPreference::Snapshot& value)
@@ -44,6 +53,13 @@ namespace OpenGlass
 			ColorPreference::Snapshot result;
 			result.applyChoice = false;
 			result.accent = value.accent;
+			return result;
+		}
+		ColorPreference::Snapshot DwmAccentOnly(const ColorPreference::Snapshot& value)
+		{
+			ColorPreference::Snapshot result;
+			result.applyChoice = false;
+			result.dwmAccent = value.dwmAccent;
 			return result;
 		}
 		std::optional<DWORD> ReadDword(HKEY user, const wchar_t* path, const wchar_t* name)
@@ -120,6 +136,7 @@ namespace OpenGlass
 			wil::unique_handle token;
 			std::wstring userSid;
 			HWND shellWindow{};
+			bool synchronizeAutomaticAccent{};
 		public:
 			HRESULT Capture(const std::wstring& sid, ColorPreference::Snapshot& snapshot) noexcept override
 			try
@@ -133,7 +150,9 @@ namespace OpenGlass
 				RETURN_HR_IF(E_ACCESSDENIED, userSid != sid);
 				if (!userKey) RETURN_IF_WIN32_ERROR(RegOpenKeyExW(HKEY_USERS, sid.c_str(), 0, KEY_READ, userKey.put()));
 				ColorPreference::Snapshot captured;
-				if (!ColorPolicy::IsSelectionDisabled(RegGetValueW)) captured.accent = ReadAccent(userKey.get());
+				if (!ColorPolicy::IsAccentSyncBlocked(RegGetValueW))
+					captured.accent = ReadRaw(userKey.get(), AccentKey, L"AccentColorMenu");
+				captured.dwmAccent = ReadRaw(userKey.get(), DwmKey, L"AccentColor");
 				captured.automatic = ReadDword(userKey.get(), DesktopKey, L"AutoColorization").value_or(0);
 				if (!captured.IsAutomatic()) captured.rgb = ReadColor(userKey.get());
 				snapshot = captured;
@@ -145,16 +164,20 @@ namespace OpenGlass
 			try
 			{
 				RETURN_HR_IF(E_UNEXPECTED, !token || !userKey);
+				synchronizeAutomaticAccent = choice.RestoresAutomatic() && !ColorPolicy::IsAccentSyncBlocked(RegGetValueW);
 				// Recovery uses recorded write targets, independent of current policy.
-				if (choice.accent)
+				if (choice.accent || synchronizeAutomaticAccent)
 					RETURN_IF_WIN32_ERROR(RegOpenKeyExW(userKey.get(), AccentKey, 0, KEY_SET_VALUE, accentKey.put()));
+				if (choice.dwmAccent || choice.applyChoice)
+				{
+					RETURN_IF_WIN32_ERROR(RegOpenKeyExW(userKey.get(), DwmKey, 0, KEY_QUERY_VALUE | KEY_SET_VALUE, dwmKey.put()));
+				}
 				if (!choice.applyChoice) return S_OK;
 				// Existing Desktop key and access are required before any state mutation.
 				RETURN_IF_WIN32_ERROR(RegOpenKeyExW(userKey.get(), DesktopKey, 0, KEY_QUERY_VALUE | KEY_SET_VALUE, desktopKey.put()));
 				if (!choice.IsAutomatic())
 				{
 					RETURN_HR_IF(E_INVALIDARG, !choice.rgb || *choice.rgb > 0xFFFFFF);
-					RETURN_IF_WIN32_ERROR(RegOpenKeyExW(userKey.get(), DwmKey, 0, KEY_QUERY_VALUE | KEY_SET_VALUE, dwmKey.put()));
 					RETURN_HR_IF(HRESULT_FROM_WIN32(ERROR_INVALID_DATA),
 						!ReadDword(dwmKey.get(), nullptr, L"ColorizationColor") || !ReadDword(dwmKey.get(), nullptr, L"ColorizationAfterglow"));
 					return S_OK;
@@ -179,37 +202,46 @@ namespace OpenGlass
 			}
 			CATCH_RETURN()
 
-			HRESULT Apply(const ColorPreference::Snapshot& choice) noexcept override
+			HRESULT Apply(const ColorPreference::Snapshot& choice, ColorPreference::Snapshot* applied) noexcept override
 			try
 			{
 				RETURN_IF_FAILED(Prepare(choice));
 				UserScope scope(token.get());
+				auto result = choice;
 				if (choice.applyChoice)
 				{
 					const DWORD mode = choice.automatic;
 					RETURN_IF_WIN32_ERROR(RegSetValueExW(desktopKey.get(), L"AutoColorization", 0, REG_DWORD,
 						reinterpret_cast<const BYTE*>(&mode), sizeof(mode)));
 				}
-				if (choice.accent && ReadAccent(userKey.get()) != *choice.accent)
+				if (choice.RestoresAutomatic())
 				{
-					const auto& value = *choice.accent;
-					const auto status = value.present
-						? RegSetValueExW(accentKey.get(), L"AccentColorMenu", 0, value.type, value.bytes.data(), static_cast<DWORD>(value.bytes.size()))
-						: RegDeleteValueW(accentKey.get(), L"AccentColorMenu");
-					if (value.present || status != ERROR_FILE_NOT_FOUND) RETURN_IF_WIN32_ERROR(status);
+					RETURN_IF_FAILED(ShellColorRefresh::Request(shellWindow));
+					// The shell may update glass RGB while its same-preference shortcut
+					// leaves both Accent values stale. Use the completed result, not old RGB.
+					const auto accent = EncodeAccent(ReadColor(userKey.get()));
+					result = ChoiceOnly(choice);
+					if (synchronizeAutomaticAccent) result.accent = accent;
+					result.dwmAccent = accent;
 				}
-				if (!choice.applyChoice) return S_OK;
-				if (choice.IsAutomatic()) return ShellColorRefresh::Request(shellWindow);
-				// Publish the accent first, then the persistent RGB consumed by OpenGlass.
+				if (result.accent && ReadRaw(userKey.get(), AccentKey, L"AccentColorMenu") != *result.accent)
+					WriteRaw(accentKey.get(), L"AccentColorMenu", *result.accent);
+				// Publish AccentColorMenu first, then the persistent colors consumed by DWM/OpenGlass.
 				// The caller journals both base values independently before this operation.
-				for (const auto name : { L"ColorizationColor", L"ColorizationAfterglow" })
+				if (choice.applyChoice && !choice.IsAutomatic())
 				{
-					const auto before = ReadDword(dwmKey.get(), nullptr, name);
-					RETURN_HR_IF(HRESULT_FROM_WIN32(ERROR_INVALID_DATA), !before);
-					const DWORD color = (*before & 0xFF000000) | *choice.rgb;
-					if (color != *before) RETURN_IF_WIN32_ERROR(RegSetValueExW(dwmKey.get(), name, 0, REG_DWORD,
-						reinterpret_cast<const BYTE*>(&color), sizeof(color)));
+					for (const auto name : { L"ColorizationColor", L"ColorizationAfterglow" })
+					{
+						const auto before = ReadDword(dwmKey.get(), nullptr, name);
+						RETURN_HR_IF(HRESULT_FROM_WIN32(ERROR_INVALID_DATA), !before);
+						const DWORD color = (*before & 0xFF000000) | *choice.rgb;
+						if (color != *before) RETURN_IF_WIN32_ERROR(RegSetValueExW(dwmKey.get(), name, 0, REG_DWORD,
+							reinterpret_cast<const BYTE*>(&color), sizeof(color)));
+					}
 				}
+				if (result.dwmAccent && ReadRaw(userKey.get(), DwmKey, L"AccentColor") != *result.dwmAccent)
+					WriteRaw(dwmKey.get(), L"AccentColor", *result.dwmAccent);
+				if (applied) *applied = std::move(result);
 				return S_OK;
 			}
 			CATCH_RETURN()
@@ -259,18 +291,48 @@ namespace OpenGlass
 		RETURN_IF_FAILED(Capture(userSid, before));
 		Snapshot desired{ argb ? 0u : 1u, argb ? std::optional<DWORD>(*argb & 0xFFFFFF) : std::nullopt };
 		if (argb && before.accent && *before.accent != EncodeAccent(*argb)) desired.accent = EncodeAccent(*argb);
-		if (!desired.accent) before.accent.reset();
+		if (argb && !desired.accent) before.accent.reset();
+		if (argb && before.dwmAccent && *before.dwmAccent != EncodeAccent(*argb)) desired.dwmAccent = EncodeAccent(*argb);
+		// Automatic may replace a Manual AccentColor through the shell. An existing
+		// Automatic value is derived state and is recovered by recomputation instead.
+		if (argb ? !desired.dwmAccent : before.IsAutomatic()) before.dwmAccent.reset();
 		// Check both forward and recovery capabilities before any mutation.
 		RETURN_IF_FAILED(m_state->backend->Prepare(desired));
 		RETURN_IF_FAILED(m_state->backend->Prepare(before));
-		if (beforeWrite) beforeWrite(before);
+		if (beforeWrite)
+		{
+			auto recovery = before;
+			if (recovery.RestoresAutomatic()) recovery.dwmAccent.reset();
+			beforeWrite(recovery);
+		}
 		auto& journal = m_state->journal;
 		journal.Begin();
 		journal.Touch(0, [&](int) { return ChoiceOnly(before); });
-		if (desired.accent) journal.Touch(1, [&](int) { return AccentOnly(before); });
-		RETURN_IF_FAILED(m_state->backend->Apply(desired));
-		// Track the choice, never Explorer's asynchronous palette/DWM output.
-		journal.Reconcile([&](int key) { return key == 0 ? ChoiceOnly(desired) : AccentOnly(desired); });
+		// The shell request may change Accent before its final RGB is known. Keep
+		// operation backups first; reconciliation removes unchanged targets.
+		if (before.accent) journal.Touch(1, [&](int) { return AccentOnly(before); });
+		if (before.dwmAccent) journal.Touch(2, [&](int) { return DwmAccentOnly(before); });
+		Snapshot applied;
+		RETURN_IF_FAILED(m_state->backend->Apply(desired, &applied));
+		// Track our choice and write targets, never subsequent asynchronous output.
+		journal.Reconcile([&](int key)
+		{
+			return key == 0 ? ChoiceOnly(applied) : key == 1
+				? AccentOnly(applied.accent ? applied : before) : DwmAccentOnly(applied);
+		});
+		const auto baseline = Baseline();
+		if (!argb && before.IsAutomatic())
+		{
+			// Even an unchanged Automatic choice has shell side effects. A later
+			// failure in this attempt must recompute them, without making Save dirty.
+			journal.Touch(0, [&](int) { return ChoiceOnly(before); });
+			if (!baseline || !baseline->applyChoice) journal.DiscardBaseline(0);
+		}
+		if (!argb && (!baseline || !baseline->applyChoice || baseline->RestoresAutomatic()))
+		{
+			journal.DiscardBaseline(1);
+			journal.DiscardBaseline(2);
+		}
 		return S_OK;
 	}
 	CATCH_RETURN()
@@ -284,7 +346,15 @@ namespace OpenGlass
 	}
 	HRESULT ColorPreference::RecoverSnapshot(const Snapshot& snapshot) noexcept
 	{
+		// Check the complete recovery before restoring its independent raw values.
 		RETURN_IF_FAILED(m_state->backend->Prepare(snapshot));
+		if (snapshot.RestoresAutomatic() && snapshot.accent)
+		{
+			// Match in-session Revert: restore the recorded preference before asking
+			// the shell to recompute Automatic. It is not a new color selection.
+			RETURN_IF_FAILED(m_state->backend->Apply(AccentOnly(snapshot)));
+			return m_state->backend->Apply(ChoiceOnly(snapshot));
+		}
 		return m_state->backend->Apply(snapshot);
 	}
 	std::optional<ColorPreference::Snapshot> ColorPreference::Baseline(bool attempt) const
@@ -294,16 +364,24 @@ namespace OpenGlass
 		{
 			if (!result) result = value;
 			else if (key == 1) result->accent = value.accent;
+			else if (key == 2) result->dwmAccent = value.dwmAccent;
 		});
+		if (result && result->RestoresAutomatic()) result->dwmAccent.reset();
 		return result;
 	}
 	HRESULT ColorPreference::RestoreChanges(bool attempt) noexcept
 	{
 		HRESULT result = S_OK;
-		// Restore Accent before requesting automatic recomputation or restoring manual RGB.
-		for (const auto target : { 1, 0 }) m_state->journal.VisitRestore(attempt, [&](int key, const Snapshot& value)
+		bool restoreAutomatic{};
+		m_state->journal.VisitRestore(attempt, [&](int key, const Snapshot& value)
+		{
+			if (key == 0) restoreAutomatic = value.RestoresAutomatic();
+		});
+		// Restore the Windows preference first; raw DWM Accent follows Manual RGB.
+		for (const auto target : { 1, 0, 2 }) m_state->journal.VisitRestore(attempt, [&](int key, const Snapshot& value)
 		{
 			if (key != target) return;
+			if (key == 2 && restoreAutomatic) return;
 			const auto status = m_state->backend->Apply(value);
 			if (FAILED(status)) result = status;
 		});
@@ -313,4 +391,5 @@ namespace OpenGlass
 	HRESULT ColorPreference::Revert() noexcept { return RestoreChanges(false); }
 	void ColorPreference::Accept() noexcept { m_state->journal.Accept(); }
 	bool ColorPreference::IsDirty() const noexcept { return m_state->journal.IsDirty(); }
+	bool ColorPreference::IsAttemptActive() const noexcept { return m_state->journal.IsAttemptActive(); }
 }
