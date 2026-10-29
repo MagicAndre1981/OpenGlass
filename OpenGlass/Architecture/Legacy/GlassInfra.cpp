@@ -48,7 +48,7 @@ namespace OpenGlass::GlassInfra
 
 	UINT g_drawGeometryCommandType{};
 
-	void RedrawTopLevelWindow(uDWM::CTopLevelWindow* window, bool deepRedraw)
+	void RedrawTopLevelWindow(uDWM::CTopLevelWindow* window, bool deepRedraw, bool notifySizeChange)
 	{
 		if (uDWM::g_versionInfo.build >= os::build_w11_22h2)
 		{
@@ -85,6 +85,16 @@ namespace OpenGlass::GlassInfra
 		if (uDWM::g_versionInfo.build >= os::build_w11_21h2)
 		{
 			window->SetDirtyFlags(0x4000u);
+		}
+		// Only the final unload redraw restores native recording/thumbnail bounds.
+		if (notifySizeChange)
+		{
+			const auto data = window->GetData();
+			LOG_IF_FAILED(data->OnWindowSizeUpdated());
+			if (const auto border = data->GetProjectionBorder(); border)
+			{
+				LOG_IF_FAILED(border->RenderRecursive());
+			}
 		}
 	}
 

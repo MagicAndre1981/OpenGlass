@@ -20,6 +20,7 @@ namespace
 	using namespace OpenGlassTests;
 	constexpr TestCase g_tests[]
 	{
+		{ "WindowFrameBounds", "WindowFrameBounds.AtlasShadow", &TestAtlasFrameBounds },
 		{ "CaptionText", "CaptionText.DWriteGeometry", &TestDWriteGeometry },
 		{ "EditorScope", "EditorScope.EditorScope", &TestEditorScope },
 		{ "RectF", "RectF.PixelAlign", &TestPixelAlign },

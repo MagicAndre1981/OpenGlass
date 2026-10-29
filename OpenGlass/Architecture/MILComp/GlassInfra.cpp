@@ -28,7 +28,7 @@ namespace OpenGlass::GlassInfra
 	Projection::Detour<dwmcore::Symbol_CD2DContext_DestroyDeviceResources, &MyCD2DContext_DestroyDeviceResources> g_CD2DContext_DestroyDeviceResources_Org{};
 	Projection::Detour<uDWM::Symbol_CGraphicsDeviceManager_ReleaseGraphicsDevice, &MyCGraphicsDeviceManager_ReleaseGraphicsDevice> g_CGraphicsDeviceManager_ReleaseGraphicsDevice_Org{};
 
-	void RedrawTopLevelWindow(uDWM::CTopLevelWindow* window, bool deepRedraw)
+	void RedrawTopLevelWindow(uDWM::CTopLevelWindow* window, bool deepRedraw, bool notifySizeChange)
 	{
 		if (const auto dwriteTextVisual = window->GetDWriteTextVisual(); dwriteTextVisual)
 		{
@@ -54,6 +54,16 @@ namespace OpenGlass::GlassInfra
 		window->OnBlurBehindUpdated();
 		// update system backdrop
 		window->OnSystemBackdropUpdated();
+		// Only the final unload redraw restores native recording/thumbnail bounds.
+		if (notifySizeChange)
+		{
+			const auto data = window->GetData();
+			LOG_IF_FAILED(data->OnWindowSizeUpdated());
+			if (const auto border = data->GetProjectionBorder(); border)
+			{
+				border->RenderRecursive();
+			}
+		}
 	}
 
 	winrt::com_ptr<abi::ICompositionSurface> g_reflectionSurface{ nullptr };

@@ -71,6 +71,9 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="WindowFrameBounds.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="WindowState.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -253,6 +256,9 @@
       <Filter>Projection Schemas</Filter>
     </None>
     <None Include="ProjectionSchemas\legacy\udwm\layouts\CText.json">
+      <Filter>Projection Schemas</Filter>
+    </None>
+    <None Include="ProjectionSchemas\legacy\udwm\layouts\CSecondaryWindowRepresentation.json">
       <Filter>Projection Schemas</Filter>
     </None>
     <None Include="ProjectionSchemas\legacy\udwm\layouts\CTopLevelWindow.json">

@@ -49,6 +49,7 @@
     "udwm/layouts/CRenderDataVisual.json",
     "udwm/layouts/CResource.json",
     "udwm/layouts/CResourceProxy.json",
+    "udwm/layouts/CSecondaryWindowRepresentation.json",
     "udwm/layouts/CText.json",
     "udwm/layouts/CTopLevelWindow.json",
     "udwm/layouts/CVisual.json",

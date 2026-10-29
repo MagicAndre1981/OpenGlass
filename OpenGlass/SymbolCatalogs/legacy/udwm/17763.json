@@ -90,6 +90,14 @@
           "name": "private: long __cdecl CLivePreview::_UpdateInstructions(void) __ptr64",
           "rva": "0x777AC"
         },
+        "CProjectionBorderVisual::UpdateRect": {
+          "name": "public: void __cdecl CProjectionBorderVisual::UpdateRect(struct tagRECT const & __ptr64) __ptr64",
+          "rva": "0x84930"
+        },
+        "CProjectionBorderVisual::UpdateRectFromWindow": {
+          "name": "public: void __cdecl CProjectionBorderVisual::UpdateRectFromWindow(class CWindowData * __ptr64) __ptr64",
+          "rva": "0x84990"
+        },
         "CRenderDataVisual::AddInstruction": {
           "name": "public: long __cdecl CRenderDataVisual::AddInstruction(class CRenderDataInstruction * __ptr64) __ptr64",
           "rva": "0x24DE0"
@@ -170,6 +178,10 @@
           "name": "private: long __cdecl CTopLevelWindow::UpdateNCAreaPositionsAndSizes(void) __ptr64",
           "rva": "0x235B0"
         },
+        "CTopLevelWindow::UpdatePinnedParts": {
+          "name": "private: long __cdecl CTopLevelWindow::UpdatePinnedParts(void) __ptr64",
+          "rva": "0x23D70"
+        },
         "CTopLevelWindow::ValidateVisual": {
           "name": "public: virtual long __cdecl CTopLevelWindow::ValidateVisual(void) __ptr64",
           "rva": "0x1E060"
@@ -210,6 +222,10 @@
           "name": "public: virtual long __cdecl CVisual::SetSize(struct tagSIZE const * __ptr64) __ptr64",
           "rva": "0x35B90"
         },
+        "CWindowData::OnWindowSizeUpdated": {
+          "name": "public: long __cdecl CWindowData::OnWindowSizeUpdated(void) __ptr64",
+          "rva": "0x24580"
+        },
         "CWindowList::GetWindowListForDesktop": {
           "name": "public: struct _LIST_ENTRY * __ptr64 __cdecl CWindowList::GetWindowListForDesktop(unsigned __int64) __ptr64",
           "rva": "0x2F81C"
@@ -229,14 +245,6 @@
         "VisualCollection::Remove": {
           "name": "public: long __cdecl VisualCollection::Remove(class CVisual * __ptr64) __ptr64",
           "rva": "0x33D10"
-        },
-        "CTopLevelWindow::GetBorderMargins": {
-          "name": "public: void __cdecl CTopLevelWindow::GetBorderMargins(struct _MARGINS * __ptr64) __ptr64",
-          "rva": "0x87CBC"
-        },
-        "CWindowData::OnWindowSizeUpdated": {
-          "name": "public: long __cdecl CWindowData::OnWindowSizeUpdated(void) __ptr64",
-          "rva": "0x24580"
         }
       }
     },
@@ -329,6 +337,14 @@
           "name": "private: long __cdecl CLivePreview::_UpdateInstructions(void) __ptr64",
           "rva": "0x7761C"
         },
+        "CProjectionBorderVisual::UpdateRect": {
+          "name": "public: void __cdecl CProjectionBorderVisual::UpdateRect(struct tagRECT const & __ptr64) __ptr64",
+          "rva": "0x847A0"
+        },
+        "CProjectionBorderVisual::UpdateRectFromWindow": {
+          "name": "public: void __cdecl CProjectionBorderVisual::UpdateRectFromWindow(class CWindowData * __ptr64) __ptr64",
+          "rva": "0x84800"
+        },
         "CRenderDataVisual::AddInstruction": {
           "name": "public: long __cdecl CRenderDataVisual::AddInstruction(class CRenderDataInstruction * __ptr64) __ptr64",
           "rva": "0x18510"
@@ -409,6 +425,10 @@
           "name": "private: long __cdecl CTopLevelWindow::UpdateNCAreaPositionsAndSizes(void) __ptr64",
           "rva": "0x18EF0"
         },
+        "CTopLevelWindow::UpdatePinnedParts": {
+          "name": "private: long __cdecl CTopLevelWindow::UpdatePinnedParts(void) __ptr64",
+          "rva": "0x196B0"
+        },
         "CTopLevelWindow::ValidateVisual": {
           "name": "public: virtual long __cdecl CTopLevelWindow::ValidateVisual(void) __ptr64",
           "rva": "0x1B1B0"
@@ -449,6 +469,10 @@
           "name": "public: virtual long __cdecl CVisual::SetSize(struct tagSIZE const * __ptr64) __ptr64",
           "rva": "0x370A0"
         },
+        "CWindowData::OnWindowSizeUpdated": {
+          "name": "public: long __cdecl CWindowData::OnWindowSizeUpdated(void) __ptr64",
+          "rva": "0x18D80"
+        },
         "CWindowList::GetWindowListForDesktop": {
           "name": "public: struct _LIST_ENTRY * __ptr64 __cdecl CWindowList::GetWindowListForDesktop(unsigned __int64) __ptr64",
           "rva": "0x10AAC"
@@ -468,14 +492,6 @@
         "VisualCollection::Remove": {
           "name": "public: long __cdecl VisualCollection::Remove(class CVisual * __ptr64) __ptr64",
           "rva": "0x34FA0"
-        },
-        "CTopLevelWindow::GetBorderMargins": {
-          "name": "public: void __cdecl CTopLevelWindow::GetBorderMargins(struct _MARGINS * __ptr64) __ptr64",
-          "rva": "0x87B2C"
-        },
-        "CWindowData::OnWindowSizeUpdated": {
-          "name": "public: long __cdecl CWindowData::OnWindowSizeUpdated(void) __ptr64",
-          "rva": "0x18D80"
         }
       }
     },
@@ -568,6 +584,14 @@
           "name": "private: long __cdecl CLivePreview::_UpdateInstructions(void) __ptr64",
           "rva": "0x777CC"
         },
+        "CProjectionBorderVisual::UpdateRect": {
+          "name": "public: void __cdecl CProjectionBorderVisual::UpdateRect(struct tagRECT const & __ptr64) __ptr64",
+          "rva": "0x84950"
+        },
+        "CProjectionBorderVisual::UpdateRectFromWindow": {
+          "name": "public: void __cdecl CProjectionBorderVisual::UpdateRectFromWindow(class CWindowData * __ptr64) __ptr64",
+          "rva": "0x849B0"
+        },
         "CRenderDataVisual::AddInstruction": {
           "name": "public: long __cdecl CRenderDataVisual::AddInstruction(class CRenderDataInstruction * __ptr64) __ptr64",
           "rva": "0x18510"
@@ -648,6 +672,10 @@
           "name": "private: long __cdecl CTopLevelWindow::UpdateNCAreaPositionsAndSizes(void) __ptr64",
           "rva": "0x18EF0"
         },
+        "CTopLevelWindow::UpdatePinnedParts": {
+          "name": "private: long __cdecl CTopLevelWindow::UpdatePinnedParts(void) __ptr64",
+          "rva": "0x196B0"
+        },
         "CTopLevelWindow::ValidateVisual": {
           "name": "public: virtual long __cdecl CTopLevelWindow::ValidateVisual(void) __ptr64",
           "rva": "0x1B1B0"
@@ -688,6 +716,10 @@
           "name": "public: virtual long __cdecl CVisual::SetSize(struct tagSIZE const * __ptr64) __ptr64",
           "rva": "0x37150"
         },
+        "CWindowData::OnWindowSizeUpdated": {
+          "name": "public: long __cdecl CWindowData::OnWindowSizeUpdated(void) __ptr64",
+          "rva": "0x18D80"
+        },
         "CWindowList::GetWindowListForDesktop": {
           "name": "public: struct _LIST_ENTRY * __ptr64 __cdecl CWindowList::GetWindowListForDesktop(unsigned __int64) __ptr64",
           "rva": "0x10AAC"
@@ -707,14 +739,6 @@
         "VisualCollection::Remove": {
           "name": "public: long __cdecl VisualCollection::Remove(class CVisual * __ptr64) __ptr64",
           "rva": "0x35050"
-        },
-        "CTopLevelWindow::GetBorderMargins": {
-          "name": "public: void __cdecl CTopLevelWindow::GetBorderMargins(struct _MARGINS * __ptr64) __ptr64",
-          "rva": "0x87D00"
-        },
-        "CWindowData::OnWindowSizeUpdated": {
-          "name": "public: long __cdecl CWindowData::OnWindowSizeUpdated(void) __ptr64",
-          "rva": "0x18D80"
         }
       }
     },
@@ -807,6 +831,14 @@
           "name": "private: long __cdecl CLivePreview::_UpdateInstructions(void) __ptr64",
           "rva": "0x777EC"
         },
+        "CProjectionBorderVisual::UpdateRect": {
+          "name": "public: void __cdecl CProjectionBorderVisual::UpdateRect(struct tagRECT const & __ptr64) __ptr64",
+          "rva": "0x84970"
+        },
+        "CProjectionBorderVisual::UpdateRectFromWindow": {
+          "name": "public: void __cdecl CProjectionBorderVisual::UpdateRectFromWindow(class CWindowData * __ptr64) __ptr64",
+          "rva": "0x849D0"
+        },
         "CRenderDataVisual::AddInstruction": {
           "name": "public: long __cdecl CRenderDataVisual::AddInstruction(class CRenderDataInstruction * __ptr64) __ptr64",
           "rva": "0x13E70"
@@ -887,6 +919,10 @@
           "name": "private: long __cdecl CTopLevelWindow::UpdateNCAreaPositionsAndSizes(void) __ptr64",
           "rva": "0x14850"
         },
+        "CTopLevelWindow::UpdatePinnedParts": {
+          "name": "private: long __cdecl CTopLevelWindow::UpdatePinnedParts(void) __ptr64",
+          "rva": "0x15010"
+        },
         "CTopLevelWindow::ValidateVisual": {
           "name": "public: virtual long __cdecl CTopLevelWindow::ValidateVisual(void) __ptr64",
           "rva": "0x16B10"
@@ -927,6 +963,10 @@
           "name": "public: virtual long __cdecl CVisual::SetSize(struct tagSIZE const * __ptr64) __ptr64",
           "rva": "0x35FE0"
         },
+        "CWindowData::OnWindowSizeUpdated": {
+          "name": "public: long __cdecl CWindowData::OnWindowSizeUpdated(void) __ptr64",
+          "rva": "0x146E0"
+        },
         "CWindowList::GetWindowListForDesktop": {
           "name": "public: struct _LIST_ENTRY * __ptr64 __cdecl CWindowList::GetWindowListForDesktop(unsigned __int64) __ptr64",
           "rva": "0x2D98C"
@@ -946,14 +986,6 @@
         "VisualCollection::Remove": {
           "name": "public: long __cdecl VisualCollection::Remove(class CVisual * __ptr64) __ptr64",
           "rva": "0x33D40"
-        },
-        "CTopLevelWindow::GetBorderMargins": {
-          "name": "public: void __cdecl CTopLevelWindow::GetBorderMargins(struct _MARGINS * __ptr64) __ptr64",
-          "rva": "0x87D20"
-        },
-        "CWindowData::OnWindowSizeUpdated": {
-          "name": "public: long __cdecl CWindowData::OnWindowSizeUpdated(void) __ptr64",
-          "rva": "0x146E0"
         }
       }
     },
@@ -1046,6 +1078,14 @@
           "name": "private: long __cdecl CLivePreview::_UpdateInstructions(void) __ptr64",
           "rva": "0x777BC"
         },
+        "CProjectionBorderVisual::UpdateRect": {
+          "name": "public: void __cdecl CProjectionBorderVisual::UpdateRect(struct tagRECT const & __ptr64) __ptr64",
+          "rva": "0x84940"
+        },
+        "CProjectionBorderVisual::UpdateRectFromWindow": {
+          "name": "public: void __cdecl CProjectionBorderVisual::UpdateRectFromWindow(class CWindowData * __ptr64) __ptr64",
+          "rva": "0x849A0"
+        },
         "CRenderDataVisual::AddInstruction": {
           "name": "public: long __cdecl CRenderDataVisual::AddInstruction(class CRenderDataInstruction * __ptr64) __ptr64",
           "rva": "0x18B70"
@@ -1126,6 +1166,10 @@
           "name": "private: long __cdecl CTopLevelWindow::UpdateNCAreaPositionsAndSizes(void) __ptr64",
           "rva": "0x19550"
         },
+        "CTopLevelWindow::UpdatePinnedParts": {
+          "name": "private: long __cdecl CTopLevelWindow::UpdatePinnedParts(void) __ptr64",
+          "rva": "0x19D10"
+        },
         "CTopLevelWindow::ValidateVisual": {
           "name": "public: virtual long __cdecl CTopLevelWindow::ValidateVisual(void) __ptr64",
           "rva": "0x1B810"
@@ -1166,6 +1210,10 @@
           "name": "public: virtual long __cdecl CVisual::SetSize(struct tagSIZE const * __ptr64) __ptr64",
           "rva": "0x36C30"
         },
+        "CWindowData::OnWindowSizeUpdated": {
+          "name": "public: long __cdecl CWindowData::OnWindowSizeUpdated(void) __ptr64",
+          "rva": "0x193E0"
+        },
         "CWindowList::GetWindowListForDesktop": {
           "name": "public: struct _LIST_ENTRY * __ptr64 __cdecl CWindowList::GetWindowListForDesktop(unsigned __int64) __ptr64",
           "rva": "0x124AC"
@@ -1185,14 +1233,6 @@
         "VisualCollection::Remove": {
           "name": "public: long __cdecl VisualCollection::Remove(class CVisual * __ptr64) __ptr64",
           "rva": "0x34990"
-        },
-        "CTopLevelWindow::GetBorderMargins": {
-          "name": "public: void __cdecl CTopLevelWindow::GetBorderMargins(struct _MARGINS * __ptr64) __ptr64",
-          "rva": "0x87CF0"
-        },
-        "CWindowData::OnWindowSizeUpdated": {
-          "name": "public: long __cdecl CWindowData::OnWindowSizeUpdated(void) __ptr64",
-          "rva": "0x193E0"
         }
       }
     },
@@ -1285,6 +1325,14 @@
           "name": "private: long __cdecl CLivePreview::_UpdateInstructions(void) __ptr64",
           "rva": "0x7783C"
         },
+        "CProjectionBorderVisual::UpdateRect": {
+          "name": "public: void __cdecl CProjectionBorderVisual::UpdateRect(struct tagRECT const & __ptr64) __ptr64",
+          "rva": "0x849C0"
+        },
+        "CProjectionBorderVisual::UpdateRectFromWindow": {
+          "name": "public: void __cdecl CProjectionBorderVisual::UpdateRectFromWindow(class CWindowData * __ptr64) __ptr64",
+          "rva": "0x84A20"
+        },
         "CRenderDataVisual::AddInstruction": {
           "name": "public: long __cdecl CRenderDataVisual::AddInstruction(class CRenderDataInstruction * __ptr64) __ptr64",
           "rva": "0x18C38"
@@ -1365,6 +1413,10 @@
           "name": "private: long __cdecl CTopLevelWindow::UpdateNCAreaPositionsAndSizes(void) __ptr64",
           "rva": "0x198D0"
         },
+        "CTopLevelWindow::UpdatePinnedParts": {
+          "name": "private: long __cdecl CTopLevelWindow::UpdatePinnedParts(void) __ptr64",
+          "rva": "0x1A090"
+        },
         "CTopLevelWindow::ValidateVisual": {
           "name": "public: virtual long __cdecl CTopLevelWindow::ValidateVisual(void) __ptr64",
           "rva": "0x1C950"
@@ -1405,6 +1457,10 @@
           "name": "public: virtual long __cdecl CVisual::SetSize(struct tagSIZE const * __ptr64) __ptr64",
           "rva": "0x36E20"
         },
+        "CWindowData::OnWindowSizeUpdated": {
+          "name": "public: long __cdecl CWindowData::OnWindowSizeUpdated(void) __ptr64",
+          "rva": "0x194B0"
+        },
         "CWindowList::GetWindowListForDesktop": {
           "name": "public: struct _LIST_ENTRY * __ptr64 __cdecl CWindowList::GetWindowListForDesktop(unsigned __int64) __ptr64",
           "rva": "0x2FD80"
@@ -1424,14 +1480,6 @@
         "VisualCollection::Remove": {
           "name": "public: long __cdecl VisualCollection::Remove(class CVisual * __ptr64) __ptr64",
           "rva": "0x34D20"
-        },
-        "CTopLevelWindow::GetBorderMargins": {
-          "name": "public: void __cdecl CTopLevelWindow::GetBorderMargins(struct _MARGINS * __ptr64) __ptr64",
-          "rva": "0x87D70"
-        },
-        "CWindowData::OnWindowSizeUpdated": {
-          "name": "public: long __cdecl CWindowData::OnWindowSizeUpdated(void) __ptr64",
-          "rva": "0x194B0"
         }
       }
     },
@@ -1524,6 +1572,14 @@
           "name": "private: long __cdecl CLivePreview::_UpdateInstructions(void) __ptr64",
           "rva": "0x775BC"
         },
+        "CProjectionBorderVisual::UpdateRect": {
+          "name": "public: void __cdecl CProjectionBorderVisual::UpdateRect(struct tagRECT const & __ptr64) __ptr64",
+          "rva": "0x84740"
+        },
+        "CProjectionBorderVisual::UpdateRectFromWindow": {
+          "name": "public: void __cdecl CProjectionBorderVisual::UpdateRectFromWindow(class CWindowData * __ptr64) __ptr64",
+          "rva": "0x847A0"
+        },
         "CRenderDataVisual::AddInstruction": {
           "name": "public: long __cdecl CRenderDataVisual::AddInstruction(class CRenderDataInstruction * __ptr64) __ptr64",
           "rva": "0x18C68"
@@ -1604,6 +1660,10 @@
           "name": "private: long __cdecl CTopLevelWindow::UpdateNCAreaPositionsAndSizes(void) __ptr64",
           "rva": "0x19900"
         },
+        "CTopLevelWindow::UpdatePinnedParts": {
+          "name": "private: long __cdecl CTopLevelWindow::UpdatePinnedParts(void) __ptr64",
+          "rva": "0x1A0C0"
+        },
         "CTopLevelWindow::ValidateVisual": {
           "name": "public: virtual long __cdecl CTopLevelWindow::ValidateVisual(void) __ptr64",
           "rva": "0x1C980"
@@ -1644,6 +1704,10 @@
           "name": "public: virtual long __cdecl CVisual::SetSize(struct tagSIZE const * __ptr64) __ptr64",
           "rva": "0x36E60"
         },
+        "CWindowData::OnWindowSizeUpdated": {
+          "name": "public: long __cdecl CWindowData::OnWindowSizeUpdated(void) __ptr64",
+          "rva": "0x194E0"
+        },
         "CWindowList::GetWindowListForDesktop": {
           "name": "public: struct _LIST_ENTRY * __ptr64 __cdecl CWindowList::GetWindowListForDesktop(unsigned __int64) __ptr64",
           "rva": "0x2FDC0"
@@ -1663,14 +1727,6 @@
         "VisualCollection::Remove": {
           "name": "public: long __cdecl VisualCollection::Remove(class CVisual * __ptr64) __ptr64",
           "rva": "0x34D60"
-        },
-        "CTopLevelWindow::GetBorderMargins": {
-          "name": "public: void __cdecl CTopLevelWindow::GetBorderMargins(struct _MARGINS * __ptr64) __ptr64",
-          "rva": "0x87B00"
-        },
-        "CWindowData::OnWindowSizeUpdated": {
-          "name": "public: long __cdecl CWindowData::OnWindowSizeUpdated(void) __ptr64",
-          "rva": "0x194E0"
         }
       }
     },
@@ -1763,6 +1819,14 @@
           "name": "private: long __cdecl CLivePreview::_UpdateInstructions(void) __ptr64",
           "rva": "0x775FC"
         },
+        "CProjectionBorderVisual::UpdateRect": {
+          "name": "public: void __cdecl CProjectionBorderVisual::UpdateRect(struct tagRECT const & __ptr64) __ptr64",
+          "rva": "0x84780"
+        },
+        "CProjectionBorderVisual::UpdateRectFromWindow": {
+          "name": "public: void __cdecl CProjectionBorderVisual::UpdateRectFromWindow(class CWindowData * __ptr64) __ptr64",
+          "rva": "0x847E0"
+        },
         "CRenderDataVisual::AddInstruction": {
           "name": "public: long __cdecl CRenderDataVisual::AddInstruction(class CRenderDataInstruction * __ptr64) __ptr64",
           "rva": "0x185B8"
@@ -1843,6 +1907,10 @@
           "name": "private: long __cdecl CTopLevelWindow::UpdateNCAreaPositionsAndSizes(void) __ptr64",
           "rva": "0x19250"
         },
+        "CTopLevelWindow::UpdatePinnedParts": {
+          "name": "private: long __cdecl CTopLevelWindow::UpdatePinnedParts(void) __ptr64",
+          "rva": "0x19A10"
+        },
         "CTopLevelWindow::ValidateVisual": {
           "name": "public: virtual long __cdecl CTopLevelWindow::ValidateVisual(void) __ptr64",
           "rva": "0x1C2D0"
@@ -1883,6 +1951,10 @@
           "name": "public: virtual long __cdecl CVisual::SetSize(struct tagSIZE const * __ptr64) __ptr64",
           "rva": "0x36F80"
         },
+        "CWindowData::OnWindowSizeUpdated": {
+          "name": "public: long __cdecl CWindowData::OnWindowSizeUpdated(void) __ptr64",
+          "rva": "0x18E30"
+        },
         "CWindowList::GetWindowListForDesktop": {
           "name": "public: struct _LIST_ENTRY * __ptr64 __cdecl CWindowList::GetWindowListForDesktop(unsigned __int64) __ptr64",
           "rva": "0x1070C"
@@ -1902,14 +1974,6 @@
         "VisualCollection::Remove": {
           "name": "public: long __cdecl VisualCollection::Remove(class CVisual * __ptr64) __ptr64",
           "rva": "0x34E80"
-        },
-        "CTopLevelWindow::GetBorderMargins": {
-          "name": "public: void __cdecl CTopLevelWindow::GetBorderMargins(struct _MARGINS * __ptr64) __ptr64",
-          "rva": "0x87B40"
-        },
-        "CWindowData::OnWindowSizeUpdated": {
-          "name": "public: long __cdecl CWindowData::OnWindowSizeUpdated(void) __ptr64",
-          "rva": "0x18E30"
         }
       }
     },
@@ -2002,6 +2066,14 @@
           "name": "private: long __cdecl CLivePreview::_UpdateInstructions(void) __ptr64",
           "rva": "0x7758C"
         },
+        "CProjectionBorderVisual::UpdateRect": {
+          "name": "public: void __cdecl CProjectionBorderVisual::UpdateRect(struct tagRECT const & __ptr64) __ptr64",
+          "rva": "0x84700"
+        },
+        "CProjectionBorderVisual::UpdateRectFromWindow": {
+          "name": "public: void __cdecl CProjectionBorderVisual::UpdateRectFromWindow(class CWindowData * __ptr64) __ptr64",
+          "rva": "0x84760"
+        },
         "CRenderDataVisual::AddInstruction": {
           "name": "public: long __cdecl CRenderDataVisual::AddInstruction(class CRenderDataInstruction * __ptr64) __ptr64",
           "rva": "0x1A828"
@@ -2082,6 +2154,10 @@
           "name": "private: long __cdecl CTopLevelWindow::UpdateNCAreaPositionsAndSizes(void) __ptr64",
           "rva": "0x1B4C0"
         },
+        "CTopLevelWindow::UpdatePinnedParts": {
+          "name": "private: long __cdecl CTopLevelWindow::UpdatePinnedParts(void) __ptr64",
+          "rva": "0x1BC80"
+        },
         "CTopLevelWindow::ValidateVisual": {
           "name": "public: virtual long __cdecl CTopLevelWindow::ValidateVisual(void) __ptr64",
           "rva": "0x1E540"
@@ -2122,6 +2198,10 @@
           "name": "public: virtual long __cdecl CVisual::SetSize(struct tagSIZE const * __ptr64) __ptr64",
           "rva": "0x371B0"
         },
+        "CWindowData::OnWindowSizeUpdated": {
+          "name": "public: long __cdecl CWindowData::OnWindowSizeUpdated(void) __ptr64",
+          "rva": "0x1B0A0"
+        },
         "CWindowList::GetWindowListForDesktop": {
           "name": "public: struct _LIST_ENTRY * __ptr64 __cdecl CWindowList::GetWindowListForDesktop(unsigned __int64) __ptr64",
           "rva": "0x1207C"
@@ -2141,14 +2221,6 @@
         "VisualCollection::Remove": {
           "name": "public: long __cdecl VisualCollection::Remove(class CVisual * __ptr64) __ptr64",
           "rva": "0x34F10"
-        },
-        "CTopLevelWindow::GetBorderMargins": {
-          "name": "public: void __cdecl CTopLevelWindow::GetBorderMargins(struct _MARGINS * __ptr64) __ptr64",
-          "rva": "0x87AC0"
-        },
-        "CWindowData::OnWindowSizeUpdated": {
-          "name": "public: long __cdecl CWindowData::OnWindowSizeUpdated(void) __ptr64",
-          "rva": "0x1B0A0"
         }
       }
     },
@@ -2241,6 +2313,14 @@
           "name": "private: long __cdecl CLivePreview::_UpdateInstructions(void) __ptr64",
           "rva": "0x7758C"
         },
+        "CProjectionBorderVisual::UpdateRect": {
+          "name": "public: void __cdecl CProjectionBorderVisual::UpdateRect(struct tagRECT const & __ptr64) __ptr64",
+          "rva": "0x84700"
+        },
+        "CProjectionBorderVisual::UpdateRectFromWindow": {
+          "name": "public: void __cdecl CProjectionBorderVisual::UpdateRectFromWindow(class CWindowData * __ptr64) __ptr64",
+          "rva": "0x84760"
+        },
         "CRenderDataVisual::AddInstruction": {
           "name": "public: long __cdecl CRenderDataVisual::AddInstruction(class CRenderDataInstruction * __ptr64) __ptr64",
           "rva": "0x1A828"
@@ -2321,6 +2401,10 @@
           "name": "private: long __cdecl CTopLevelWindow::UpdateNCAreaPositionsAndSizes(void) __ptr64",
           "rva": "0x1B4C0"
         },
+        "CTopLevelWindow::UpdatePinnedParts": {
+          "name": "private: long __cdecl CTopLevelWindow::UpdatePinnedParts(void) __ptr64",
+          "rva": "0x1BC80"
+        },
         "CTopLevelWindow::ValidateVisual": {
           "name": "public: virtual long __cdecl CTopLevelWindow::ValidateVisual(void) __ptr64",
           "rva": "0x1E540"
@@ -2361,6 +2445,10 @@
           "name": "public: virtual long __cdecl CVisual::SetSize(struct tagSIZE const * __ptr64) __ptr64",
           "rva": "0x371B0"
         },
+        "CWindowData::OnWindowSizeUpdated": {
+          "name": "public: long __cdecl CWindowData::OnWindowSizeUpdated(void) __ptr64",
+          "rva": "0x1B0A0"
+        },
         "CWindowList::GetWindowListForDesktop": {
           "name": "public: struct _LIST_ENTRY * __ptr64 __cdecl CWindowList::GetWindowListForDesktop(unsigned __int64) __ptr64",
           "rva": "0x1207C"
@@ -2380,14 +2468,6 @@
         "VisualCollection::Remove": {
           "name": "public: long __cdecl VisualCollection::Remove(class CVisual * __ptr64) __ptr64",
           "rva": "0x34F10"
-        },
-        "CTopLevelWindow::GetBorderMargins": {
-          "name": "public: void __cdecl CTopLevelWindow::GetBorderMargins(struct _MARGINS * __ptr64) __ptr64",
-          "rva": "0x87AC0"
-        },
-        "CWindowData::OnWindowSizeUpdated": {
-          "name": "public: long __cdecl CWindowData::OnWindowSizeUpdated(void) __ptr64",
-          "rva": "0x1B0A0"
         }
       }
     },
@@ -2480,6 +2560,14 @@
           "name": "private: long __cdecl CLivePreview::_UpdateInstructions(void) __ptr64",
           "rva": "0x7745C"
         },
+        "CProjectionBorderVisual::UpdateRect": {
+          "name": "public: void __cdecl CProjectionBorderVisual::UpdateRect(struct tagRECT const & __ptr64) __ptr64",
+          "rva": "0x84590"
+        },
+        "CProjectionBorderVisual::UpdateRectFromWindow": {
+          "name": "public: void __cdecl CProjectionBorderVisual::UpdateRectFromWindow(class CWindowData * __ptr64) __ptr64",
+          "rva": "0x845F0"
+        },
         "CRenderDataVisual::AddInstruction": {
           "name": "public: long __cdecl CRenderDataVisual::AddInstruction(class CRenderDataInstruction * __ptr64) __ptr64",
           "rva": "0x1A808"
@@ -2560,6 +2648,10 @@
           "name": "private: long __cdecl CTopLevelWindow::UpdateNCAreaPositionsAndSizes(void) __ptr64",
           "rva": "0x1B4A0"
         },
+        "CTopLevelWindow::UpdatePinnedParts": {
+          "name": "private: long __cdecl CTopLevelWindow::UpdatePinnedParts(void) __ptr64",
+          "rva": "0x1BC60"
+        },
         "CTopLevelWindow::ValidateVisual": {
           "name": "public: virtual long __cdecl CTopLevelWindow::ValidateVisual(void) __ptr64",
           "rva": "0x1E520"
@@ -2600,6 +2692,10 @@
           "name": "public: virtual long __cdecl CVisual::SetSize(struct tagSIZE const * __ptr64) __ptr64",
           "rva": "0x371C0"
         },
+        "CWindowData::OnWindowSizeUpdated": {
+          "name": "public: long __cdecl CWindowData::OnWindowSizeUpdated(void) __ptr64",
+          "rva": "0x1B080"
+        },
         "CWindowList::GetWindowListForDesktop": {
           "name": "public: struct _LIST_ENTRY * __ptr64 __cdecl CWindowList::GetWindowListForDesktop(unsigned __int64) __ptr64",
           "rva": "0x1205C"
@@ -2619,14 +2715,6 @@
         "VisualCollection::Remove": {
           "name": "public: long __cdecl VisualCollection::Remove(class CVisual * __ptr64) __ptr64",
           "rva": "0x34F20"
-        },
-        "CTopLevelWindow::GetBorderMargins": {
-          "name": "public: void __cdecl CTopLevelWindow::GetBorderMargins(struct _MARGINS * __ptr64) __ptr64",
-          "rva": "0x87950"
-        },
-        "CWindowData::OnWindowSizeUpdated": {
-          "name": "public: long __cdecl CWindowData::OnWindowSizeUpdated(void) __ptr64",
-          "rva": "0x1B080"
         }
       }
     },
@@ -2719,6 +2807,14 @@
           "name": "private: long __cdecl CLivePreview::_UpdateInstructions(void) __ptr64",
           "rva": "0x776CC"
         },
+        "CProjectionBorderVisual::UpdateRect": {
+          "name": "public: void __cdecl CProjectionBorderVisual::UpdateRect(struct tagRECT const & __ptr64) __ptr64",
+          "rva": "0x84800"
+        },
+        "CProjectionBorderVisual::UpdateRectFromWindow": {
+          "name": "public: void __cdecl CProjectionBorderVisual::UpdateRectFromWindow(class CWindowData * __ptr64) __ptr64",
+          "rva": "0x84860"
+        },
         "CRenderDataVisual::AddInstruction": {
           "name": "public: long __cdecl CRenderDataVisual::AddInstruction(class CRenderDataInstruction * __ptr64) __ptr64",
           "rva": "0x1A808"
@@ -2799,6 +2895,10 @@
           "name": "private: long __cdecl CTopLevelWindow::UpdateNCAreaPositionsAndSizes(void) __ptr64",
           "rva": "0x1B4A0"
         },
+        "CTopLevelWindow::UpdatePinnedParts": {
+          "name": "private: long __cdecl CTopLevelWindow::UpdatePinnedParts(void) __ptr64",
+          "rva": "0x1BC60"
+        },
         "CTopLevelWindow::ValidateVisual": {
           "name": "public: virtual long __cdecl CTopLevelWindow::ValidateVisual(void) __ptr64",
           "rva": "0x1E520"
@@ -2839,6 +2939,10 @@
           "name": "public: virtual long __cdecl CVisual::SetSize(struct tagSIZE const * __ptr64) __ptr64",
           "rva": "0x37350"
         },
+        "CWindowData::OnWindowSizeUpdated": {
+          "name": "public: long __cdecl CWindowData::OnWindowSizeUpdated(void) __ptr64",
+          "rva": "0x1B080"
+        },
         "CWindowList::GetWindowListForDesktop": {
           "name": "public: struct _LIST_ENTRY * __ptr64 __cdecl CWindowList::GetWindowListForDesktop(unsigned __int64) __ptr64",
           "rva": "0x1205C"
@@ -2858,14 +2962,6 @@
         "VisualCollection::Remove": {
           "name": "public: long __cdecl VisualCollection::Remove(class CVisual * __ptr64) __ptr64",
           "rva": "0x350B0"
-        },
-        "CTopLevelWindow::GetBorderMargins": {
-          "name": "public: void __cdecl CTopLevelWindow::GetBorderMargins(struct _MARGINS * __ptr64) __ptr64",
-          "rva": "0x87BC0"
-        },
-        "CWindowData::OnWindowSizeUpdated": {
-          "name": "public: long __cdecl CWindowData::OnWindowSizeUpdated(void) __ptr64",
-          "rva": "0x1B080"
         }
       }
     },
@@ -2958,6 +3054,14 @@
           "name": "private: long __cdecl CLivePreview::_UpdateInstructions(void) __ptr64",
           "rva": "0x7771C"
         },
+        "CProjectionBorderVisual::UpdateRect": {
+          "name": "public: void __cdecl CProjectionBorderVisual::UpdateRect(struct tagRECT const & __ptr64) __ptr64",
+          "rva": "0x84850"
+        },
+        "CProjectionBorderVisual::UpdateRectFromWindow": {
+          "name": "public: void __cdecl CProjectionBorderVisual::UpdateRectFromWindow(class CWindowData * __ptr64) __ptr64",
+          "rva": "0x848B0"
+        },
         "CRenderDataVisual::AddInstruction": {
           "name": "public: long __cdecl CRenderDataVisual::AddInstruction(class CRenderDataInstruction * __ptr64) __ptr64",
           "rva": "0x1A808"
@@ -3038,6 +3142,10 @@
           "name": "private: long __cdecl CTopLevelWindow::UpdateNCAreaPositionsAndSizes(void) __ptr64",
           "rva": "0x1B4A0"
         },
+        "CTopLevelWindow::UpdatePinnedParts": {
+          "name": "private: long __cdecl CTopLevelWindow::UpdatePinnedParts(void) __ptr64",
+          "rva": "0x1BC60"
+        },
         "CTopLevelWindow::ValidateVisual": {
           "name": "public: virtual long __cdecl CTopLevelWindow::ValidateVisual(void) __ptr64",
           "rva": "0x1E520"
@@ -3078,6 +3186,10 @@
           "name": "public: virtual long __cdecl CVisual::SetSize(struct tagSIZE const * __ptr64) __ptr64",
           "rva": "0x37350"
         },
+        "CWindowData::OnWindowSizeUpdated": {
+          "name": "public: long __cdecl CWindowData::OnWindowSizeUpdated(void) __ptr64",
+          "rva": "0x1B080"
+        },
         "CWindowList::GetWindowListForDesktop": {
           "name": "public: struct _LIST_ENTRY * __ptr64 __cdecl CWindowList::GetWindowListForDesktop(unsigned __int64) __ptr64",
           "rva": "0x1205C"
@@ -3097,14 +3209,6 @@
         "VisualCollection::Remove": {
           "name": "public: long __cdecl VisualCollection::Remove(class CVisual * __ptr64) __ptr64",
           "rva": "0x350B0"
-        },
-        "CTopLevelWindow::GetBorderMargins": {
-          "name": "public: void __cdecl CTopLevelWindow::GetBorderMargins(struct _MARGINS * __ptr64) __ptr64",
-          "rva": "0x87C10"
-        },
-        "CWindowData::OnWindowSizeUpdated": {
-          "name": "public: long __cdecl CWindowData::OnWindowSizeUpdated(void) __ptr64",
-          "rva": "0x1B080"
         }
       }
     },
@@ -3197,6 +3301,14 @@
           "name": "private: long __cdecl CLivePreview::_UpdateInstructions(void) __ptr64",
           "rva": "0x771DC"
         },
+        "CProjectionBorderVisual::UpdateRect": {
+          "name": "public: void __cdecl CProjectionBorderVisual::UpdateRect(struct tagRECT const & __ptr64) __ptr64",
+          "rva": "0x84310"
+        },
+        "CProjectionBorderVisual::UpdateRectFromWindow": {
+          "name": "public: void __cdecl CProjectionBorderVisual::UpdateRectFromWindow(class CWindowData * __ptr64) __ptr64",
+          "rva": "0x84370"
+        },
         "CRenderDataVisual::AddInstruction": {
           "name": "public: long __cdecl CRenderDataVisual::AddInstruction(class CRenderDataInstruction * __ptr64) __ptr64",
           "rva": "0x1A808"
@@ -3277,6 +3389,10 @@
           "name": "private: long __cdecl CTopLevelWindow::UpdateNCAreaPositionsAndSizes(void) __ptr64",
           "rva": "0x1B4A0"
         },
+        "CTopLevelWindow::UpdatePinnedParts": {
+          "name": "private: long __cdecl CTopLevelWindow::UpdatePinnedParts(void) __ptr64",
+          "rva": "0x1BC60"
+        },
         "CTopLevelWindow::ValidateVisual": {
           "name": "public: virtual long __cdecl CTopLevelWindow::ValidateVisual(void) __ptr64",
           "rva": "0x1E520"
@@ -3317,6 +3433,10 @@
           "name": "public: virtual long __cdecl CVisual::SetSize(struct tagSIZE const * __ptr64) __ptr64",
           "rva": "0x37120"
         },
+        "CWindowData::OnWindowSizeUpdated": {
+          "name": "public: long __cdecl CWindowData::OnWindowSizeUpdated(void) __ptr64",
+          "rva": "0x1B080"
+        },
         "CWindowList::GetWindowListForDesktop": {
           "name": "public: struct _LIST_ENTRY * __ptr64 __cdecl CWindowList::GetWindowListForDesktop(unsigned __int64) __ptr64",
           "rva": "0x1205C"
@@ -3336,14 +3456,6 @@
         "VisualCollection::Remove": {
           "name": "public: long __cdecl VisualCollection::Remove(class CVisual * __ptr64) __ptr64",
           "rva": "0x34E80"
-        },
-        "CTopLevelWindow::GetBorderMargins": {
-          "name": "public: void __cdecl CTopLevelWindow::GetBorderMargins(struct _MARGINS * __ptr64) __ptr64",
-          "rva": "0x876D0"
-        },
-        "CWindowData::OnWindowSizeUpdated": {
-          "name": "public: long __cdecl CWindowData::OnWindowSizeUpdated(void) __ptr64",
-          "rva": "0x1B080"
         }
       }
     },
@@ -3436,6 +3548,14 @@
           "name": "private: long __cdecl CLivePreview::_UpdateInstructions(void) __ptr64",
           "rva": "0x7698C"
         },
+        "CProjectionBorderVisual::UpdateRect": {
+          "name": "public: void __cdecl CProjectionBorderVisual::UpdateRect(struct tagRECT const & __ptr64) __ptr64",
+          "rva": "0x83AC0"
+        },
+        "CProjectionBorderVisual::UpdateRectFromWindow": {
+          "name": "public: void __cdecl CProjectionBorderVisual::UpdateRectFromWindow(class CWindowData * __ptr64) __ptr64",
+          "rva": "0x83B20"
+        },
         "CRenderDataVisual::AddInstruction": {
           "name": "public: long __cdecl CRenderDataVisual::AddInstruction(class CRenderDataInstruction * __ptr64) __ptr64",
           "rva": "0x13894"
@@ -3516,6 +3636,10 @@
           "name": "private: long __cdecl CTopLevelWindow::UpdateNCAreaPositionsAndSizes(void) __ptr64",
           "rva": "0x199F0"
         },
+        "CTopLevelWindow::UpdatePinnedParts": {
+          "name": "private: long __cdecl CTopLevelWindow::UpdatePinnedParts(void) __ptr64",
+          "rva": "0x1A1B0"
+        },
         "CTopLevelWindow::ValidateVisual": {
           "name": "public: virtual long __cdecl CTopLevelWindow::ValidateVisual(void) __ptr64",
           "rva": "0x166A0"
@@ -3556,6 +3680,10 @@
           "name": "public: virtual long __cdecl CVisual::SetSize(struct tagSIZE const * __ptr64) __ptr64",
           "rva": "0x35B40"
         },
+        "CWindowData::OnWindowSizeUpdated": {
+          "name": "public: long __cdecl CWindowData::OnWindowSizeUpdated(void) __ptr64",
+          "rva": "0x14110"
+        },
         "CWindowList::GetWindowListForDesktop": {
           "name": "public: struct _LIST_ENTRY * __ptr64 __cdecl CWindowList::GetWindowListForDesktop(unsigned __int64) __ptr64",
           "rva": "0x28780"
@@ -3575,14 +3703,6 @@
         "VisualCollection::Remove": {
           "name": "public: long __cdecl VisualCollection::Remove(class CVisual * __ptr64) __ptr64",
           "rva": "0x34100"
-        },
-        "CTopLevelWindow::GetBorderMargins": {
-          "name": "public: void __cdecl CTopLevelWindow::GetBorderMargins(struct _MARGINS * __ptr64) __ptr64",
-          "rva": "0x86E80"
-        },
-        "CWindowData::OnWindowSizeUpdated": {
-          "name": "public: long __cdecl CWindowData::OnWindowSizeUpdated(void) __ptr64",
-          "rva": "0x14110"
         }
       }
     },
@@ -3675,6 +3795,14 @@
           "name": "private: long __cdecl CLivePreview::_UpdateInstructions(void) __ptr64",
           "rva": "0x76CCC"
         },
+        "CProjectionBorderVisual::UpdateRect": {
+          "name": "public: void __cdecl CProjectionBorderVisual::UpdateRect(struct tagRECT const & __ptr64) __ptr64",
+          "rva": "0x83E00"
+        },
+        "CProjectionBorderVisual::UpdateRectFromWindow": {
+          "name": "public: void __cdecl CProjectionBorderVisual::UpdateRectFromWindow(class CWindowData * __ptr64) __ptr64",
+          "rva": "0x83E60"
+        },
         "CRenderDataVisual::AddInstruction": {
           "name": "public: long __cdecl CRenderDataVisual::AddInstruction(class CRenderDataInstruction * __ptr64) __ptr64",
           "rva": "0x13894"
@@ -3755,6 +3883,10 @@
           "name": "private: long __cdecl CTopLevelWindow::UpdateNCAreaPositionsAndSizes(void) __ptr64",
           "rva": "0x199F0"
         },
+        "CTopLevelWindow::UpdatePinnedParts": {
+          "name": "private: long __cdecl CTopLevelWindow::UpdatePinnedParts(void) __ptr64",
+          "rva": "0x1A1B0"
+        },
         "CTopLevelWindow::ValidateVisual": {
           "name": "public: virtual long __cdecl CTopLevelWindow::ValidateVisual(void) __ptr64",
           "rva": "0x166A0"
@@ -3795,6 +3927,10 @@
           "name": "public: virtual long __cdecl CVisual::SetSize(struct tagSIZE const * __ptr64) __ptr64",
           "rva": "0x35B40"
         },
+        "CWindowData::OnWindowSizeUpdated": {
+          "name": "public: long __cdecl CWindowData::OnWindowSizeUpdated(void) __ptr64",
+          "rva": "0x14110"
+        },
         "CWindowList::GetWindowListForDesktop": {
           "name": "public: struct _LIST_ENTRY * __ptr64 __cdecl CWindowList::GetWindowListForDesktop(unsigned __int64) __ptr64",
           "rva": "0x28780"
@@ -3814,14 +3950,6 @@
         "VisualCollection::Remove": {
           "name": "public: long __cdecl VisualCollection::Remove(class CVisual * __ptr64) __ptr64",
           "rva": "0x34100"
-        },
-        "CTopLevelWindow::GetBorderMargins": {
-          "name": "public: void __cdecl CTopLevelWindow::GetBorderMargins(struct _MARGINS * __ptr64) __ptr64",
-          "rva": "0x871C0"
-        },
-        "CWindowData::OnWindowSizeUpdated": {
-          "name": "public: long __cdecl CWindowData::OnWindowSizeUpdated(void) __ptr64",
-          "rva": "0x14110"
         }
       }
     },
@@ -3914,6 +4042,14 @@
           "name": "private: long __cdecl CLivePreview::_UpdateInstructions(void) __ptr64",
           "rva": "0x76CDC"
         },
+        "CProjectionBorderVisual::UpdateRect": {
+          "name": "public: void __cdecl CProjectionBorderVisual::UpdateRect(struct tagRECT const & __ptr64) __ptr64",
+          "rva": "0x83E10"
+        },
+        "CProjectionBorderVisual::UpdateRectFromWindow": {
+          "name": "public: void __cdecl CProjectionBorderVisual::UpdateRectFromWindow(class CWindowData * __ptr64) __ptr64",
+          "rva": "0x83E70"
+        },
         "CRenderDataVisual::AddInstruction": {
           "name": "public: long __cdecl CRenderDataVisual::AddInstruction(class CRenderDataInstruction * __ptr64) __ptr64",
           "rva": "0x13D04"
@@ -3994,6 +4130,10 @@
           "name": "private: long __cdecl CTopLevelWindow::UpdateNCAreaPositionsAndSizes(void) __ptr64",
           "rva": "0x19E60"
         },
+        "CTopLevelWindow::UpdatePinnedParts": {
+          "name": "private: long __cdecl CTopLevelWindow::UpdatePinnedParts(void) __ptr64",
+          "rva": "0x1A620"
+        },
         "CTopLevelWindow::ValidateVisual": {
           "name": "public: virtual long __cdecl CTopLevelWindow::ValidateVisual(void) __ptr64",
           "rva": "0x16B10"
@@ -4034,6 +4174,10 @@
           "name": "public: virtual long __cdecl CVisual::SetSize(struct tagSIZE const * __ptr64) __ptr64",
           "rva": "0x36220"
         },
+        "CWindowData::OnWindowSizeUpdated": {
+          "name": "public: long __cdecl CWindowData::OnWindowSizeUpdated(void) __ptr64",
+          "rva": "0x14580"
+        },
         "CWindowList::GetWindowListForDesktop": {
           "name": "public: struct _LIST_ENTRY * __ptr64 __cdecl CWindowList::GetWindowListForDesktop(unsigned __int64) __ptr64",
           "rva": "0x28BF0"
@@ -4053,14 +4197,6 @@
         "VisualCollection::Remove": {
           "name": "public: long __cdecl VisualCollection::Remove(class CVisual * __ptr64) __ptr64",
           "rva": "0x347E0"
-        },
-        "CTopLevelWindow::GetBorderMargins": {
-          "name": "public: void __cdecl CTopLevelWindow::GetBorderMargins(struct _MARGINS * __ptr64) __ptr64",
-          "rva": "0x871D0"
-        },
-        "CWindowData::OnWindowSizeUpdated": {
-          "name": "public: long __cdecl CWindowData::OnWindowSizeUpdated(void) __ptr64",
-          "rva": "0x14580"
         }
       }
     },
@@ -4153,6 +4289,14 @@
           "name": "private: long __cdecl CLivePreview::_UpdateInstructions(void) __ptr64",
           "rva": "0x76D1C"
         },
+        "CProjectionBorderVisual::UpdateRect": {
+          "name": "public: void __cdecl CProjectionBorderVisual::UpdateRect(struct tagRECT const & __ptr64) __ptr64",
+          "rva": "0x83E50"
+        },
+        "CProjectionBorderVisual::UpdateRectFromWindow": {
+          "name": "public: void __cdecl CProjectionBorderVisual::UpdateRectFromWindow(class CWindowData * __ptr64) __ptr64",
+          "rva": "0x83EB0"
+        },
         "CRenderDataVisual::AddInstruction": {
           "name": "public: long __cdecl CRenderDataVisual::AddInstruction(class CRenderDataInstruction * __ptr64) __ptr64",
           "rva": "0x13D04"
@@ -4233,6 +4377,10 @@
           "name": "private: long __cdecl CTopLevelWindow::UpdateNCAreaPositionsAndSizes(void) __ptr64",
           "rva": "0x19E60"
         },
+        "CTopLevelWindow::UpdatePinnedParts": {
+          "name": "private: long __cdecl CTopLevelWindow::UpdatePinnedParts(void) __ptr64",
+          "rva": "0x1A620"
+        },
         "CTopLevelWindow::ValidateVisual": {
           "name": "public: virtual long __cdecl CTopLevelWindow::ValidateVisual(void) __ptr64",
           "rva": "0x16B10"
@@ -4273,6 +4421,10 @@
           "name": "public: virtual long __cdecl CVisual::SetSize(struct tagSIZE const * __ptr64) __ptr64",
           "rva": "0x36220"
         },
+        "CWindowData::OnWindowSizeUpdated": {
+          "name": "public: long __cdecl CWindowData::OnWindowSizeUpdated(void) __ptr64",
+          "rva": "0x14580"
+        },
         "CWindowList::GetWindowListForDesktop": {
           "name": "public: struct _LIST_ENTRY * __ptr64 __cdecl CWindowList::GetWindowListForDesktop(unsigned __int64) __ptr64",
           "rva": "0x28BF0"
@@ -4292,14 +4444,6 @@
         "VisualCollection::Remove": {
           "name": "public: long __cdecl VisualCollection::Remove(class CVisual * __ptr64) __ptr64",
           "rva": "0x347E0"
-        },
-        "CTopLevelWindow::GetBorderMargins": {
-          "name": "public: void __cdecl CTopLevelWindow::GetBorderMargins(struct _MARGINS * __ptr64) __ptr64",
-          "rva": "0x87210"
-        },
-        "CWindowData::OnWindowSizeUpdated": {
-          "name": "public: long __cdecl CWindowData::OnWindowSizeUpdated(void) __ptr64",
-          "rva": "0x14580"
         }
       }
     },
@@ -4392,6 +4536,14 @@
           "name": "private: long __cdecl CLivePreview::_UpdateInstructions(void) __ptr64",
           "rva": "0x76D1C"
         },
+        "CProjectionBorderVisual::UpdateRect": {
+          "name": "public: void __cdecl CProjectionBorderVisual::UpdateRect(struct tagRECT const & __ptr64) __ptr64",
+          "rva": "0x83E50"
+        },
+        "CProjectionBorderVisual::UpdateRectFromWindow": {
+          "name": "public: void __cdecl CProjectionBorderVisual::UpdateRectFromWindow(class CWindowData * __ptr64) __ptr64",
+          "rva": "0x83EB0"
+        },
         "CRenderDataVisual::AddInstruction": {
           "name": "public: long __cdecl CRenderDataVisual::AddInstruction(class CRenderDataInstruction * __ptr64) __ptr64",
           "rva": "0x13D04"
@@ -4472,6 +4624,10 @@
           "name": "private: long __cdecl CTopLevelWindow::UpdateNCAreaPositionsAndSizes(void) __ptr64",
           "rva": "0x19E60"
         },
+        "CTopLevelWindow::UpdatePinnedParts": {
+          "name": "private: long __cdecl CTopLevelWindow::UpdatePinnedParts(void) __ptr64",
+          "rva": "0x1A620"
+        },
         "CTopLevelWindow::ValidateVisual": {
           "name": "public: virtual long __cdecl CTopLevelWindow::ValidateVisual(void) __ptr64",
           "rva": "0x16B10"
@@ -4512,6 +4668,10 @@
           "name": "public: virtual long __cdecl CVisual::SetSize(struct tagSIZE const * __ptr64) __ptr64",
           "rva": "0x36220"
         },
+        "CWindowData::OnWindowSizeUpdated": {
+          "name": "public: long __cdecl CWindowData::OnWindowSizeUpdated(void) __ptr64",
+          "rva": "0x14580"
+        },
         "CWindowList::GetWindowListForDesktop": {
           "name": "public: struct _LIST_ENTRY * __ptr64 __cdecl CWindowList::GetWindowListForDesktop(unsigned __int64) __ptr64",
           "rva": "0x28BF0"
@@ -4531,14 +4691,6 @@
         "VisualCollection::Remove": {
           "name": "public: long __cdecl VisualCollection::Remove(class CVisual * __ptr64) __ptr64",
           "rva": "0x347E0"
-        },
-        "CTopLevelWindow::GetBorderMargins": {
-          "name": "public: void __cdecl CTopLevelWindow::GetBorderMargins(struct _MARGINS * __ptr64) __ptr64",
-          "rva": "0x87210"
-        },
-        "CWindowData::OnWindowSizeUpdated": {
-          "name": "public: long __cdecl CWindowData::OnWindowSizeUpdated(void) __ptr64",
-          "rva": "0x14580"
         }
       }
     },
@@ -4631,6 +4783,14 @@
           "name": "private: long __cdecl CLivePreview::_UpdateInstructions(void) __ptr64",
           "rva": "0x76CAC"
         },
+        "CProjectionBorderVisual::UpdateRect": {
+          "name": "public: void __cdecl CProjectionBorderVisual::UpdateRect(struct tagRECT const & __ptr64) __ptr64",
+          "rva": "0x83DE0"
+        },
+        "CProjectionBorderVisual::UpdateRectFromWindow": {
+          "name": "public: void __cdecl CProjectionBorderVisual::UpdateRectFromWindow(class CWindowData * __ptr64) __ptr64",
+          "rva": "0x83E40"
+        },
         "CRenderDataVisual::AddInstruction": {
           "name": "public: long __cdecl CRenderDataVisual::AddInstruction(class CRenderDataInstruction * __ptr64) __ptr64",
           "rva": "0x13864"
@@ -4711,6 +4871,10 @@
           "name": "private: long __cdecl CTopLevelWindow::UpdateNCAreaPositionsAndSizes(void) __ptr64",
           "rva": "0x199C0"
         },
+        "CTopLevelWindow::UpdatePinnedParts": {
+          "name": "private: long __cdecl CTopLevelWindow::UpdatePinnedParts(void) __ptr64",
+          "rva": "0x1A180"
+        },
         "CTopLevelWindow::ValidateVisual": {
           "name": "public: virtual long __cdecl CTopLevelWindow::ValidateVisual(void) __ptr64",
           "rva": "0x16670"
@@ -4751,6 +4915,10 @@
           "name": "public: virtual long __cdecl CVisual::SetSize(struct tagSIZE const * __ptr64) __ptr64",
           "rva": "0x36330"
         },
+        "CWindowData::OnWindowSizeUpdated": {
+          "name": "public: long __cdecl CWindowData::OnWindowSizeUpdated(void) __ptr64",
+          "rva": "0x140E0"
+        },
         "CWindowList::GetWindowListForDesktop": {
           "name": "public: struct _LIST_ENTRY * __ptr64 __cdecl CWindowList::GetWindowListForDesktop(unsigned __int64) __ptr64",
           "rva": "0x28750"
@@ -4770,14 +4938,6 @@
         "VisualCollection::Remove": {
           "name": "public: long __cdecl VisualCollection::Remove(class CVisual * __ptr64) __ptr64",
           "rva": "0x348F0"
-        },
-        "CTopLevelWindow::GetBorderMargins": {
-          "name": "public: void __cdecl CTopLevelWindow::GetBorderMargins(struct _MARGINS * __ptr64) __ptr64",
-          "rva": "0x871A0"
-        },
-        "CWindowData::OnWindowSizeUpdated": {
-          "name": "public: long __cdecl CWindowData::OnWindowSizeUpdated(void) __ptr64",
-          "rva": "0x140E0"
         }
       }
     },
@@ -4870,6 +5030,14 @@
           "name": "private: long __cdecl CLivePreview::_UpdateInstructions(void) __ptr64",
           "rva": "0x76AFC"
         },
+        "CProjectionBorderVisual::UpdateRect": {
+          "name": "public: void __cdecl CProjectionBorderVisual::UpdateRect(struct tagRECT const & __ptr64) __ptr64",
+          "rva": "0x83C30"
+        },
+        "CProjectionBorderVisual::UpdateRectFromWindow": {
+          "name": "public: void __cdecl CProjectionBorderVisual::UpdateRectFromWindow(class CWindowData * __ptr64) __ptr64",
+          "rva": "0x83C90"
+        },
         "CRenderDataVisual::AddInstruction": {
           "name": "public: long __cdecl CRenderDataVisual::AddInstruction(class CRenderDataInstruction * __ptr64) __ptr64",
           "rva": "0x13864"
@@ -4950,6 +5118,10 @@
           "name": "private: long __cdecl CTopLevelWindow::UpdateNCAreaPositionsAndSizes(void) __ptr64",
           "rva": "0x199C0"
         },
+        "CTopLevelWindow::UpdatePinnedParts": {
+          "name": "private: long __cdecl CTopLevelWindow::UpdatePinnedParts(void) __ptr64",
+          "rva": "0x1A180"
+        },
         "CTopLevelWindow::ValidateVisual": {
           "name": "public: virtual long __cdecl CTopLevelWindow::ValidateVisual(void) __ptr64",
           "rva": "0x16670"
@@ -4990,6 +5162,10 @@
           "name": "public: virtual long __cdecl CVisual::SetSize(struct tagSIZE const * __ptr64) __ptr64",
           "rva": "0x36330"
         },
+        "CWindowData::OnWindowSizeUpdated": {
+          "name": "public: long __cdecl CWindowData::OnWindowSizeUpdated(void) __ptr64",
+          "rva": "0x140E0"
+        },
         "CWindowList::GetWindowListForDesktop": {
           "name": "public: struct _LIST_ENTRY * __ptr64 __cdecl CWindowList::GetWindowListForDesktop(unsigned __int64) __ptr64",
           "rva": "0x28750"
@@ -5009,14 +5185,6 @@
         "VisualCollection::Remove": {
           "name": "public: long __cdecl VisualCollection::Remove(class CVisual * __ptr64) __ptr64",
           "rva": "0x348F0"
-        },
-        "CTopLevelWindow::GetBorderMargins": {
-          "name": "public: void __cdecl CTopLevelWindow::GetBorderMargins(struct _MARGINS * __ptr64) __ptr64",
-          "rva": "0x86FF0"
-        },
-        "CWindowData::OnWindowSizeUpdated": {
-          "name": "public: long __cdecl CWindowData::OnWindowSizeUpdated(void) __ptr64",
-          "rva": "0x140E0"
         }
       }
     },
@@ -5109,6 +5277,14 @@
           "name": "private: long __cdecl CLivePreview::_UpdateInstructions(void) __ptr64",
           "rva": "0x76C9C"
         },
+        "CProjectionBorderVisual::UpdateRect": {
+          "name": "public: void __cdecl CProjectionBorderVisual::UpdateRect(struct tagRECT const & __ptr64) __ptr64",
+          "rva": "0x83DD0"
+        },
+        "CProjectionBorderVisual::UpdateRectFromWindow": {
+          "name": "public: void __cdecl CProjectionBorderVisual::UpdateRectFromWindow(class CWindowData * __ptr64) __ptr64",
+          "rva": "0x83E30"
+        },
         "CRenderDataVisual::AddInstruction": {
           "name": "public: long __cdecl CRenderDataVisual::AddInstruction(class CRenderDataInstruction * __ptr64) __ptr64",
           "rva": "0x13904"
@@ -5189,6 +5365,10 @@
           "name": "private: long __cdecl CTopLevelWindow::UpdateNCAreaPositionsAndSizes(void) __ptr64",
           "rva": "0x19A60"
         },
+        "CTopLevelWindow::UpdatePinnedParts": {
+          "name": "private: long __cdecl CTopLevelWindow::UpdatePinnedParts(void) __ptr64",
+          "rva": "0x1A220"
+        },
         "CTopLevelWindow::ValidateVisual": {
           "name": "public: virtual long __cdecl CTopLevelWindow::ValidateVisual(void) __ptr64",
           "rva": "0x16710"
@@ -5229,6 +5409,10 @@
           "name": "public: virtual long __cdecl CVisual::SetSize(struct tagSIZE const * __ptr64) __ptr64",
           "rva": "0x363D0"
         },
+        "CWindowData::OnWindowSizeUpdated": {
+          "name": "public: long __cdecl CWindowData::OnWindowSizeUpdated(void) __ptr64",
+          "rva": "0x14180"
+        },
         "CWindowList::GetWindowListForDesktop": {
           "name": "public: struct _LIST_ENTRY * __ptr64 __cdecl CWindowList::GetWindowListForDesktop(unsigned __int64) __ptr64",
           "rva": "0x287F0"
@@ -5248,14 +5432,6 @@
         "VisualCollection::Remove": {
           "name": "public: long __cdecl VisualCollection::Remove(class CVisual * __ptr64) __ptr64",
           "rva": "0x34990"
-        },
-        "CTopLevelWindow::GetBorderMargins": {
-          "name": "public: void __cdecl CTopLevelWindow::GetBorderMargins(struct _MARGINS * __ptr64) __ptr64",
-          "rva": "0x87190"
-        },
-        "CWindowData::OnWindowSizeUpdated": {
-          "name": "public: long __cdecl CWindowData::OnWindowSizeUpdated(void) __ptr64",
-          "rva": "0x14180"
         }
       }
     },
@@ -5348,6 +5524,14 @@
           "name": "private: long __cdecl CLivePreview::_UpdateInstructions(void) __ptr64",
           "rva": "0x76C9C"
         },
+        "CProjectionBorderVisual::UpdateRect": {
+          "name": "public: void __cdecl CProjectionBorderVisual::UpdateRect(struct tagRECT const & __ptr64) __ptr64",
+          "rva": "0x83DD0"
+        },
+        "CProjectionBorderVisual::UpdateRectFromWindow": {
+          "name": "public: void __cdecl CProjectionBorderVisual::UpdateRectFromWindow(class CWindowData * __ptr64) __ptr64",
+          "rva": "0x83E30"
+        },
         "CRenderDataVisual::AddInstruction": {
           "name": "public: long __cdecl CRenderDataVisual::AddInstruction(class CRenderDataInstruction * __ptr64) __ptr64",
           "rva": "0x13904"
@@ -5428,6 +5612,10 @@
           "name": "private: long __cdecl CTopLevelWindow::UpdateNCAreaPositionsAndSizes(void) __ptr64",
           "rva": "0x19A60"
         },
+        "CTopLevelWindow::UpdatePinnedParts": {
+          "name": "private: long __cdecl CTopLevelWindow::UpdatePinnedParts(void) __ptr64",
+          "rva": "0x1A220"
+        },
         "CTopLevelWindow::ValidateVisual": {
           "name": "public: virtual long __cdecl CTopLevelWindow::ValidateVisual(void) __ptr64",
           "rva": "0x16710"
@@ -5468,6 +5656,10 @@
           "name": "public: virtual long __cdecl CVisual::SetSize(struct tagSIZE const * __ptr64) __ptr64",
           "rva": "0x363D0"
         },
+        "CWindowData::OnWindowSizeUpdated": {
+          "name": "public: long __cdecl CWindowData::OnWindowSizeUpdated(void) __ptr64",
+          "rva": "0x14180"
+        },
         "CWindowList::GetWindowListForDesktop": {
           "name": "public: struct _LIST_ENTRY * __ptr64 __cdecl CWindowList::GetWindowListForDesktop(unsigned __int64) __ptr64",
           "rva": "0x287F0"
@@ -5487,14 +5679,6 @@
         "VisualCollection::Remove": {
           "name": "public: long __cdecl VisualCollection::Remove(class CVisual * __ptr64) __ptr64",
           "rva": "0x34990"
-        },
-        "CTopLevelWindow::GetBorderMargins": {
-          "name": "public: void __cdecl CTopLevelWindow::GetBorderMargins(struct _MARGINS * __ptr64) __ptr64",
-          "rva": "0x87190"
-        },
-        "CWindowData::OnWindowSizeUpdated": {
-          "name": "public: long __cdecl CWindowData::OnWindowSizeUpdated(void) __ptr64",
-          "rva": "0x14180"
         }
       }
     },
@@ -5587,6 +5771,14 @@
           "name": "private: long __cdecl CLivePreview::_UpdateInstructions(void) __ptr64",
           "rva": "0x76D9C"
         },
+        "CProjectionBorderVisual::UpdateRect": {
+          "name": "public: void __cdecl CProjectionBorderVisual::UpdateRect(struct tagRECT const & __ptr64) __ptr64",
+          "rva": "0x83ED0"
+        },
+        "CProjectionBorderVisual::UpdateRectFromWindow": {
+          "name": "public: void __cdecl CProjectionBorderVisual::UpdateRectFromWindow(class CWindowData * __ptr64) __ptr64",
+          "rva": "0x83F30"
+        },
         "CRenderDataVisual::AddInstruction": {
           "name": "public: long __cdecl CRenderDataVisual::AddInstruction(class CRenderDataInstruction * __ptr64) __ptr64",
           "rva": "0x13904"
@@ -5667,6 +5859,10 @@
           "name": "private: long __cdecl CTopLevelWindow::UpdateNCAreaPositionsAndSizes(void) __ptr64",
           "rva": "0x19A60"
         },
+        "CTopLevelWindow::UpdatePinnedParts": {
+          "name": "private: long __cdecl CTopLevelWindow::UpdatePinnedParts(void) __ptr64",
+          "rva": "0x1A220"
+        },
         "CTopLevelWindow::ValidateVisual": {
           "name": "public: virtual long __cdecl CTopLevelWindow::ValidateVisual(void) __ptr64",
           "rva": "0x16710"
@@ -5707,6 +5903,10 @@
           "name": "public: virtual long __cdecl CVisual::SetSize(struct tagSIZE const * __ptr64) __ptr64",
           "rva": "0x363D0"
         },
+        "CWindowData::OnWindowSizeUpdated": {
+          "name": "public: long __cdecl CWindowData::OnWindowSizeUpdated(void) __ptr64",
+          "rva": "0x14180"
+        },
         "CWindowList::GetWindowListForDesktop": {
           "name": "public: struct _LIST_ENTRY * __ptr64 __cdecl CWindowList::GetWindowListForDesktop(unsigned __int64) __ptr64",
           "rva": "0x287F0"
@@ -5726,14 +5926,6 @@
         "VisualCollection::Remove": {
           "name": "public: long __cdecl VisualCollection::Remove(class CVisual * __ptr64) __ptr64",
           "rva": "0x34990"
-        },
-        "CTopLevelWindow::GetBorderMargins": {
-          "name": "public: void __cdecl CTopLevelWindow::GetBorderMargins(struct _MARGINS * __ptr64) __ptr64",
-          "rva": "0x87290"
-        },
-        "CWindowData::OnWindowSizeUpdated": {
-          "name": "public: long __cdecl CWindowData::OnWindowSizeUpdated(void) __ptr64",
-          "rva": "0x14180"
         }
       }
     },
@@ -5826,6 +6018,14 @@
           "name": "private: long __cdecl CLivePreview::_UpdateInstructions(void) __ptr64",
           "rva": "0x76ADC"
         },
+        "CProjectionBorderVisual::UpdateRect": {
+          "name": "public: void __cdecl CProjectionBorderVisual::UpdateRect(struct tagRECT const & __ptr64) __ptr64",
+          "rva": "0x83C10"
+        },
+        "CProjectionBorderVisual::UpdateRectFromWindow": {
+          "name": "public: void __cdecl CProjectionBorderVisual::UpdateRectFromWindow(class CWindowData * __ptr64) __ptr64",
+          "rva": "0x83C70"
+        },
         "CRenderDataVisual::AddInstruction": {
           "name": "public: long __cdecl CRenderDataVisual::AddInstruction(class CRenderDataInstruction * __ptr64) __ptr64",
           "rva": "0x138F4"
@@ -5906,6 +6106,10 @@
           "name": "private: long __cdecl CTopLevelWindow::UpdateNCAreaPositionsAndSizes(void) __ptr64",
           "rva": "0x19A50"
         },
+        "CTopLevelWindow::UpdatePinnedParts": {
+          "name": "private: long __cdecl CTopLevelWindow::UpdatePinnedParts(void) __ptr64",
+          "rva": "0x1A210"
+        },
         "CTopLevelWindow::ValidateVisual": {
           "name": "public: virtual long __cdecl CTopLevelWindow::ValidateVisual(void) __ptr64",
           "rva": "0x16700"
@@ -5946,6 +6150,10 @@
           "name": "public: virtual long __cdecl CVisual::SetSize(struct tagSIZE const * __ptr64) __ptr64",
           "rva": "0x363C0"
         },
+        "CWindowData::OnWindowSizeUpdated": {
+          "name": "public: long __cdecl CWindowData::OnWindowSizeUpdated(void) __ptr64",
+          "rva": "0x14170"
+        },
         "CWindowList::GetWindowListForDesktop": {
           "name": "public: struct _LIST_ENTRY * __ptr64 __cdecl CWindowList::GetWindowListForDesktop(unsigned __int64) __ptr64",
           "rva": "0x287E0"
@@ -5965,14 +6173,6 @@
         "VisualCollection::Remove": {
           "name": "public: long __cdecl VisualCollection::Remove(class CVisual * __ptr64) __ptr64",
           "rva": "0x34980"
-        },
-        "CTopLevelWindow::GetBorderMargins": {
-          "name": "public: void __cdecl CTopLevelWindow::GetBorderMargins(struct _MARGINS * __ptr64) __ptr64",
-          "rva": "0x86FD0"
-        },
-        "CWindowData::OnWindowSizeUpdated": {
-          "name": "public: long __cdecl CWindowData::OnWindowSizeUpdated(void) __ptr64",
-          "rva": "0x14170"
         }
       }
     },
@@ -6065,6 +6265,14 @@
           "name": "private: long __cdecl CLivePreview::_UpdateInstructions(void) __ptr64",
           "rva": "0x76DFC"
         },
+        "CProjectionBorderVisual::UpdateRect": {
+          "name": "public: void __cdecl CProjectionBorderVisual::UpdateRect(struct tagRECT const & __ptr64) __ptr64",
+          "rva": "0x83F30"
+        },
+        "CProjectionBorderVisual::UpdateRectFromWindow": {
+          "name": "public: void __cdecl CProjectionBorderVisual::UpdateRectFromWindow(class CWindowData * __ptr64) __ptr64",
+          "rva": "0x83F90"
+        },
         "CRenderDataVisual::AddInstruction": {
           "name": "public: long __cdecl CRenderDataVisual::AddInstruction(class CRenderDataInstruction * __ptr64) __ptr64",
           "rva": "0x138F4"
@@ -6145,6 +6353,10 @@
           "name": "private: long __cdecl CTopLevelWindow::UpdateNCAreaPositionsAndSizes(void) __ptr64",
           "rva": "0x19A50"
         },
+        "CTopLevelWindow::UpdatePinnedParts": {
+          "name": "private: long __cdecl CTopLevelWindow::UpdatePinnedParts(void) __ptr64",
+          "rva": "0x1A210"
+        },
         "CTopLevelWindow::ValidateVisual": {
           "name": "public: virtual long __cdecl CTopLevelWindow::ValidateVisual(void) __ptr64",
           "rva": "0x16700"
@@ -6185,6 +6397,10 @@
           "name": "public: virtual long __cdecl CVisual::SetSize(struct tagSIZE const * __ptr64) __ptr64",
           "rva": "0x36410"
         },
+        "CWindowData::OnWindowSizeUpdated": {
+          "name": "public: long __cdecl CWindowData::OnWindowSizeUpdated(void) __ptr64",
+          "rva": "0x14170"
+        },
         "CWindowList::GetWindowListForDesktop": {
           "name": "public: struct _LIST_ENTRY * __ptr64 __cdecl CWindowList::GetWindowListForDesktop(unsigned __int64) __ptr64",
           "rva": "0x28830"
@@ -6204,14 +6420,6 @@
         "VisualCollection::Remove": {
           "name": "public: long __cdecl VisualCollection::Remove(class CVisual * __ptr64) __ptr64",
           "rva": "0x349D0"
-        },
-        "CTopLevelWindow::GetBorderMargins": {
-          "name": "public: void __cdecl CTopLevelWindow::GetBorderMargins(struct _MARGINS * __ptr64) __ptr64",
-          "rva": "0x872F0"
-        },
-        "CWindowData::OnWindowSizeUpdated": {
-          "name": "public: long __cdecl CWindowData::OnWindowSizeUpdated(void) __ptr64",
-          "rva": "0x14170"
         }
       }
     },
@@ -6304,6 +6512,14 @@
           "name": "private: long __cdecl CLivePreview::_UpdateInstructions(void) __ptr64",
           "rva": "0x76DFC"
         },
+        "CProjectionBorderVisual::UpdateRect": {
+          "name": "public: void __cdecl CProjectionBorderVisual::UpdateRect(struct tagRECT const & __ptr64) __ptr64",
+          "rva": "0x83F30"
+        },
+        "CProjectionBorderVisual::UpdateRectFromWindow": {
+          "name": "public: void __cdecl CProjectionBorderVisual::UpdateRectFromWindow(class CWindowData * __ptr64) __ptr64",
+          "rva": "0x83F90"
+        },
         "CRenderDataVisual::AddInstruction": {
           "name": "public: long __cdecl CRenderDataVisual::AddInstruction(class CRenderDataInstruction * __ptr64) __ptr64",
           "rva": "0x138F4"
@@ -6384,6 +6600,10 @@
           "name": "private: long __cdecl CTopLevelWindow::UpdateNCAreaPositionsAndSizes(void) __ptr64",
           "rva": "0x19A50"
         },
+        "CTopLevelWindow::UpdatePinnedParts": {
+          "name": "private: long __cdecl CTopLevelWindow::UpdatePinnedParts(void) __ptr64",
+          "rva": "0x1A210"
+        },
         "CTopLevelWindow::ValidateVisual": {
           "name": "public: virtual long __cdecl CTopLevelWindow::ValidateVisual(void) __ptr64",
           "rva": "0x16700"
@@ -6424,6 +6644,10 @@
           "name": "public: virtual long __cdecl CVisual::SetSize(struct tagSIZE const * __ptr64) __ptr64",
           "rva": "0x36410"
         },
+        "CWindowData::OnWindowSizeUpdated": {
+          "name": "public: long __cdecl CWindowData::OnWindowSizeUpdated(void) __ptr64",
+          "rva": "0x14170"
+        },
         "CWindowList::GetWindowListForDesktop": {
           "name": "public: struct _LIST_ENTRY * __ptr64 __cdecl CWindowList::GetWindowListForDesktop(unsigned __int64) __ptr64",
           "rva": "0x28830"
@@ -6443,14 +6667,6 @@
         "VisualCollection::Remove": {
           "name": "public: long __cdecl VisualCollection::Remove(class CVisual * __ptr64) __ptr64",
           "rva": "0x349D0"
-        },
-        "CTopLevelWindow::GetBorderMargins": {
-          "name": "public: void __cdecl CTopLevelWindow::GetBorderMargins(struct _MARGINS * __ptr64) __ptr64",
-          "rva": "0x872F0"
-        },
-        "CWindowData::OnWindowSizeUpdated": {
-          "name": "public: long __cdecl CWindowData::OnWindowSizeUpdated(void) __ptr64",
-          "rva": "0x14170"
         }
       }
     },
@@ -6543,6 +6759,14 @@
           "name": "private: long __cdecl CLivePreview::_UpdateInstructions(void) __ptr64",
           "rva": "0x76B3C"
         },
+        "CProjectionBorderVisual::UpdateRect": {
+          "name": "public: void __cdecl CProjectionBorderVisual::UpdateRect(struct tagRECT const & __ptr64) __ptr64",
+          "rva": "0x83C70"
+        },
+        "CProjectionBorderVisual::UpdateRectFromWindow": {
+          "name": "public: void __cdecl CProjectionBorderVisual::UpdateRectFromWindow(class CWindowData * __ptr64) __ptr64",
+          "rva": "0x83CD0"
+        },
         "CRenderDataVisual::AddInstruction": {
           "name": "public: long __cdecl CRenderDataVisual::AddInstruction(class CRenderDataInstruction * __ptr64) __ptr64",
           "rva": "0x138F4"
@@ -6623,6 +6847,10 @@
           "name": "private: long __cdecl CTopLevelWindow::UpdateNCAreaPositionsAndSizes(void) __ptr64",
           "rva": "0x19A50"
         },
+        "CTopLevelWindow::UpdatePinnedParts": {
+          "name": "private: long __cdecl CTopLevelWindow::UpdatePinnedParts(void) __ptr64",
+          "rva": "0x1A210"
+        },
         "CTopLevelWindow::ValidateVisual": {
           "name": "public: virtual long __cdecl CTopLevelWindow::ValidateVisual(void) __ptr64",
           "rva": "0x16700"
@@ -6663,6 +6891,10 @@
           "name": "public: virtual long __cdecl CVisual::SetSize(struct tagSIZE const * __ptr64) __ptr64",
           "rva": "0x36400"
         },
+        "CWindowData::OnWindowSizeUpdated": {
+          "name": "public: long __cdecl CWindowData::OnWindowSizeUpdated(void) __ptr64",
+          "rva": "0x14170"
+        },
         "CWindowList::GetWindowListForDesktop": {
           "name": "public: struct _LIST_ENTRY * __ptr64 __cdecl CWindowList::GetWindowListForDesktop(unsigned __int64) __ptr64",
           "rva": "0x28820"
@@ -6682,14 +6914,6 @@
         "VisualCollection::Remove": {
           "name": "public: long __cdecl VisualCollection::Remove(class CVisual * __ptr64) __ptr64",
           "rva": "0x349C0"
-        },
-        "CTopLevelWindow::GetBorderMargins": {
-          "name": "public: void __cdecl CTopLevelWindow::GetBorderMargins(struct _MARGINS * __ptr64) __ptr64",
-          "rva": "0x87030"
-        },
-        "CWindowData::OnWindowSizeUpdated": {
-          "name": "public: long __cdecl CWindowData::OnWindowSizeUpdated(void) __ptr64",
-          "rva": "0x14170"
         }
       }
     },
@@ -6782,6 +7006,14 @@
           "name": "private: long __cdecl CLivePreview::_UpdateInstructions(void) __ptr64",
           "rva": "0x76B3C"
         },
+        "CProjectionBorderVisual::UpdateRect": {
+          "name": "public: void __cdecl CProjectionBorderVisual::UpdateRect(struct tagRECT const & __ptr64) __ptr64",
+          "rva": "0x83C70"
+        },
+        "CProjectionBorderVisual::UpdateRectFromWindow": {
+          "name": "public: void __cdecl CProjectionBorderVisual::UpdateRectFromWindow(class CWindowData * __ptr64) __ptr64",
+          "rva": "0x83CD0"
+        },
         "CRenderDataVisual::AddInstruction": {
           "name": "public: long __cdecl CRenderDataVisual::AddInstruction(class CRenderDataInstruction * __ptr64) __ptr64",
           "rva": "0x138F4"
@@ -6862,6 +7094,10 @@
           "name": "private: long __cdecl CTopLevelWindow::UpdateNCAreaPositionsAndSizes(void) __ptr64",
           "rva": "0x19A50"
         },
+        "CTopLevelWindow::UpdatePinnedParts": {
+          "name": "private: long __cdecl CTopLevelWindow::UpdatePinnedParts(void) __ptr64",
+          "rva": "0x1A210"
+        },
         "CTopLevelWindow::ValidateVisual": {
           "name": "public: virtual long __cdecl CTopLevelWindow::ValidateVisual(void) __ptr64",
           "rva": "0x16700"
@@ -6902,6 +7138,10 @@
           "name": "public: virtual long __cdecl CVisual::SetSize(struct tagSIZE const * __ptr64) __ptr64",
           "rva": "0x36400"
         },
+        "CWindowData::OnWindowSizeUpdated": {
+          "name": "public: long __cdecl CWindowData::OnWindowSizeUpdated(void) __ptr64",
+          "rva": "0x14170"
+        },
         "CWindowList::GetWindowListForDesktop": {
           "name": "public: struct _LIST_ENTRY * __ptr64 __cdecl CWindowList::GetWindowListForDesktop(unsigned __int64) __ptr64",
           "rva": "0x28820"
@@ -6921,14 +7161,6 @@
         "VisualCollection::Remove": {
           "name": "public: long __cdecl VisualCollection::Remove(class CVisual * __ptr64) __ptr64",
           "rva": "0x349C0"
-        },
-        "CTopLevelWindow::GetBorderMargins": {
-          "name": "public: void __cdecl CTopLevelWindow::GetBorderMargins(struct _MARGINS * __ptr64) __ptr64",
-          "rva": "0x87030"
-        },
-        "CWindowData::OnWindowSizeUpdated": {
-          "name": "public: long __cdecl CWindowData::OnWindowSizeUpdated(void) __ptr64",
-          "rva": "0x14170"
         }
       }
     }

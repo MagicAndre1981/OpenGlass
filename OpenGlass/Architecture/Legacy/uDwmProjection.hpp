@@ -741,6 +741,25 @@ namespace OpenGlass::uDWM
 
 	struct IDwmWindow;
 	struct CTopLevelWindow;
+	struct CSolidRectangleVisual : CVisual {};
+	struct CProjectionBorderVisual : CVisual {};
+	struct CProjectionBorderVisualShim : CVisual {};
+	struct CSecondaryWindowRepresentation
+	{
+		CWindowData* GetData() const
+		{
+			return CSecondaryWindowRepresentation_Data.read(this);
+		}
+		UINT GetKind() const
+		{
+			return CSecondaryWindowRepresentation_Kind.read(this);
+		}
+		DWORD GetFlags() const
+		{
+			return CSecondaryWindowRepresentation_Flags.read(this);
+		}
+	};
+
 	struct CWindowData : CBaseObject
 	{
 		inline HRESULT OnWindowSizeUpdated()
@@ -1152,6 +1171,10 @@ namespace OpenGlass::uDWM
 		{
 			OPENGLASS_MUSTTAIL
 			return Projection::Invoke<&CTopLevelWindow::OnAccentPolicyUpdated>(this);
+		}
+		inline bool HasMaximizedClip() const
+		{
+			return (CTopLevelWindow_FrameClipFlags.read(this) & 4) != 0;
 		}
 		inline const MARGINS* GetCloneFrameMargins() const
 		{

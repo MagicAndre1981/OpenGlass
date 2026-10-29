@@ -5,7 +5,7 @@
 
 namespace OpenGlass::GlassInfra
 {
-	void RedrawTopLevelWindow(uDWM::CTopLevelWindow* window, bool deepRedraw);
+	void RedrawTopLevelWindow(uDWM::CTopLevelWindow* window, bool deepRedraw, bool notifySizeChange);
 	void Update(GlassEngine::UpdateType type);
 	void Startup();
 	void Shutdown();

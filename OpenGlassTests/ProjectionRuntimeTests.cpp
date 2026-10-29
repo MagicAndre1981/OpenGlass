@@ -37,6 +37,26 @@ namespace OpenGlassTests
 		storage.registry.ReportUnresolved(report, "test!");
 		Check(report.empty());
 
+		const Projection::SymbolHandle<FixtureModuleTag, 1, TestFunction> optional;
+		Check(optional.get() == &Replacement);
+		storage.registry.ResetSymbols();
+		storage.registry.Collect("public: int __cdecl Target(int)", Util::force_cast_from(&Target));
+		Check(storage.registry.ValidateSymbols());
+		storage.registry.CommitSymbols();
+		Check(!optional);
+		Check(optional.try_get() == nullptr);
+		// Optional affects resolution prerequisites; get() still requires an address.
+		bool rejected{};
+		try
+		{
+			(void)optional.get();
+		}
+		catch (...)
+		{
+			rejected = wil::ResultFromCaughtException() == E_UNEXPECTED;
+		}
+		Check(rejected);
+
 		storage.registry.ResetSymbols();
 		Check(g_symbol.try_get() == nullptr);
 		Check(published == Util::force_cast_from(&Replacement));

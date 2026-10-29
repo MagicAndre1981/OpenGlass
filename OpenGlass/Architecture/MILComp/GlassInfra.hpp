@@ -13,7 +13,7 @@ namespace OpenGlass::uDWM
 namespace OpenGlass::GlassInfra
 {
 	HRESULT UpdateGlassMarker(uDWM::CSolidRectangleVisual* visual, uDWM::CBaseGeometryProxy* geometry, std::bitset<2> status);
-	void RedrawTopLevelWindow(uDWM::CTopLevelWindow* window, bool deepRedraw);
+	void RedrawTopLevelWindow(uDWM::CTopLevelWindow* window, bool deepRedraw, bool notifySizeChange);
 	void Update(GlassEngine::UpdateType type);
 	void Startup();
 	void Shutdown();

@@ -32,6 +32,10 @@ namespace OpenGlass::uDWM
 	struct CVisual;
 	struct CVisualProxy;
 	struct CWindowBorder;
+	struct CSecondaryWindowRepresentation;
+	struct CProjectionBorderVisual;
+	struct CProjectionBorderVisualShim;
+	struct CSolidRectangleVisual;
 	struct CWindowData;
 	struct CWindowList;
 	struct IText;

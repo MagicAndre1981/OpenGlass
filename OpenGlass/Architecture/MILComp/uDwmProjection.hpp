@@ -438,6 +438,24 @@ namespace OpenGlass::uDWM
 	};
 
 	struct CTopLevelWindow;
+	struct CProjectionBorderVisual : CVisual {};
+	struct CProjectionBorderVisualShim : CVisual {};
+	struct CSecondaryWindowRepresentation
+	{
+		CWindowData* GetData() const
+		{
+			return CSecondaryWindowRepresentation_Data.read(this);
+		}
+		UINT GetKind() const
+		{
+			return CSecondaryWindowRepresentation_Kind.read(this);
+		}
+		DWORD GetFlags() const
+		{
+			return CSecondaryWindowRepresentation_Flags.read(this);
+		}
+	};
+
 	struct CWindowData : CBaseObject
 	{
 		inline bool HasLivePreviewGlass() const
@@ -684,6 +702,10 @@ namespace OpenGlass::uDWM
 		inline const CPrimitive* GetNCAreaAtlasImage3() const
 		{
 			return CTopLevelWindow_GetNCAreaAtlasImage3.read(this);
+		}
+		inline bool HasMaximizedClip() const
+		{
+			return IsWindowMaximized();
 		}
 		inline const MARGINS* GetCloneFrameMargins() const
 		{

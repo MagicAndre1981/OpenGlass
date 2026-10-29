@@ -26,7 +26,13 @@ Each architecture-private frame demodernizer has a distinct shadow patch and a h
 
 ## Window frame bounds
 
-`GlassFrameIntegrity` is disabled on both architectures pending a redesign. Its sources and chain declarations remain for investigation, but the engine does not call its Update, Startup, Shutdown or Cleanup entry points. Its chain node remains inactive, and the final redraw no longer sends its extra frame-size notification. Capture borders, thumbnails and transitions use DWM's own bounds logic. `deepRedraw` retains its separate purpose of clearing extra reflection instructions on startup and shutdown.
+`GlassFrameIntegrity` corrects visible-frame consumers without changing native content clips. Keep `GetBorderRect`, `GetFrameMargins` and clone-margin storage native: they also supply `CWindowBorder`, client-area and render-target clipping. This component has no `ValidateVisual` replacement.
+
+On Windows 11, correct only `GetActualWindowRect` requests that respect maximized clipping and exclude shadows. Request the native non-shadow-excluding rectangle first, retaining the real maximized-clip flag and coordinate space, then exclude side/bottom shadows using the actual atlas sizes. Other parameter combinations, including caption layout, stay native. These visible-bounds queries also serve transitions, Peek and capture metadata. Windows 10 and Server 2022 retain their native atlas-aware query and thumbnail metrics.
+
+Recording borders keep their native updater and rectangle setter, including the newer shim's capture/projection selection, corners and DPI handling. Probe the optional shim at startup without requiring its presence, and resolve its setter only for that branch. Thumbnail corrections apply to full-window live and snapshot representations while the original owner still supplies frame geometry. Preserve the native snapshot dimensions and frozen clone fields, as well as client-only, desktop, explicit-source and maximized contracts; keep the older static and later member metric ABIs separate.
+
+Native recording-border notification precedes layout. `UpdateWindowVisuals` supplies intrinsic atlas sizes, and the later `UpdatePinnedParts` realizes them. After that layout succeeds, refresh only a live owner's existing recording-border visual and the affected thumbnail-source metrics. Submit the border sibling immediately because native traversal may already have visited it. Do not recursively validate the top-level window or send full size notifications during ordinary validation. The final unload redraw sends one native size notification after hook removal and theme deactivation to restore existing borders and thumbnails. `deepRedraw` separately clears extra reflection instructions.
 
 ## Window appearance state
 

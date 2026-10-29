@@ -40,6 +40,7 @@
     "udwm/layouts/CResourceProxy.json",
     "udwm/layouts/CSpriteVisualProxy.json",
     "udwm/layouts/CThemePartPrimitive.json",
+    "udwm/layouts/CSecondaryWindowRepresentation.json",
     "udwm/layouts/CTopLevelWindow.json",
     "udwm/layouts/CVisual.json",
     "udwm/layouts/CVisualProxy.json",

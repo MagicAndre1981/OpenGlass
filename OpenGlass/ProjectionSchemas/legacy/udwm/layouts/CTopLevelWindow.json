@@ -1182,6 +1182,30 @@
         }
       ],
       "notes": "GlassFrameIntegrity reads this field only on builds 22000+. InitializeVisualTreeClone allocates a MARGINS snapshot in the destination and fills it through the source GetFrameMargins. GetFrameMargins reads this pointer before consulting live CWindowData. Verified on 22000.194 (+696), 22621.6630 (+712), 26100.7705 (+672)."
+    },
+    {
+      "name": "CTopLevelWindow_FrameClipFlags",
+      "id": "CTopLevelWindow.FrameClipFlags",
+      "kind": "field",
+      "type": "BYTE",
+      "cases": [
+        {
+          "platform": null,
+          "ranges": [
+            {
+              "offset": 248,
+              "until": {
+                "build": 26100
+              }
+            },
+            {
+              "offset": 200,
+              "otherwise": true
+            }
+          ]
+        }
+      ],
+      "notes": "Read only on 22000+. GetActualWindowRect selects maximized outside margins from bit 0x4 here, independently of the style DWORD. CalculateWindowMetrics uses the same bit to retain its native maximized-margins branch; GetLivePreviewWindowRect independently tests it before expanding the preview. Verified on 22000.194, 22621.6630 and 26100.8972."
     }
   ]
 }

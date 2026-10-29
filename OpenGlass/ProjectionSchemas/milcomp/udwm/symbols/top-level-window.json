@@ -1,48 +1,6 @@
 {
   "symbols": [
     {
-      "name": "Symbol_CTopLevelWindow_GetBorderRect",
-      "id": "CTopLevelWindow::GetBorderRect",
-      "bindings": [
-        {
-          "platform": null,
-          "type": "RECT* (*)(const CTopLevelWindow*, RECT*, bool)",
-          "ranges": [
-            {
-              "symbol_names": [
-                "public: struct tagRECT __cdecl CTopLevelWindow::GetBorderRect(bool)const __ptr64"
-              ],
-              "min_inclusive": null,
-              "max_exclusive": null
-            }
-          ]
-        }
-      ],
-      "requirement": "required",
-      "kind": "raw"
-    },
-    {
-      "name": "Symbol_CTopLevelWindow_GetFrameMargins",
-      "id": "CTopLevelWindow::GetFrameMargins",
-      "bindings": [
-        {
-          "platform": null,
-          "type": "void (*)(const CTopLevelWindow*, MARGINS*)",
-          "ranges": [
-            {
-              "symbol_names": [
-                "public: void __cdecl CTopLevelWindow::GetFrameMargins(struct _MARGINS * __ptr64)const __ptr64"
-              ],
-              "min_inclusive": null,
-              "max_exclusive": null
-            }
-          ]
-        }
-      ],
-      "requirement": "required",
-      "kind": "raw"
-    },
-    {
       "name": "Symbol_CTopLevelWindow_vftable",
       "id": "CTopLevelWindow::vftable",
       "bindings": [

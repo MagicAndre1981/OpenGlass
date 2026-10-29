@@ -52,6 +52,7 @@
     <ClInclude Include="$(MSBuildThisFileDirectory)SymbolCatalog.hpp"><Link>Header Files\SymbolCatalog.hpp</Link></ClInclude>
     <ClInclude Include="$(MSBuildThisFileDirectory)Util.hpp"><Link>Header Files\Util.hpp</Link></ClInclude>
     <ClInclude Include="$(MSBuildThisFileDirectory)wil.hpp"><Link>Header Files\wil.hpp</Link></ClInclude>
+    <ClInclude Include="$(MSBuildThisFileDirectory)WindowFrameBounds.hpp"><Link>Header Files\WindowFrameBounds.hpp</Link></ClInclude>
     <ClInclude Include="$(MSBuildThisFileDirectory)WindowState.hpp"><Link>Header Files\WindowState.hpp</Link></ClInclude>
   </ItemGroup>
   <ItemGroup>
