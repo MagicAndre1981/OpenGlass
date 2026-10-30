@@ -128,16 +128,7 @@ void CaptionTextHandler::MyID2D1DeviceContext_DrawTextLayout(
 		solidColorBrush->SetColor(Color::FromAbgr(textColorOverride));
 	}
 
-	DWRITE_LINE_METRICS lineMetrics{};
-	UINT32 lineCount{};
-	THROW_IF_FAILED(
-		textLayout->GetLineMetrics(
-			&lineMetrics,
-			1,
-			&lineCount
-		)
-	);
-	g_isTrimmed = lineMetrics.isTrimmed;
+	g_isTrimmed = CaptionText::IsDWriteTextTrimmed(textLayout);
 
 	if (!g_textGlowParameters.size)
 	{

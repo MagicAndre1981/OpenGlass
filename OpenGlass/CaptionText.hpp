@@ -23,6 +23,23 @@ namespace OpenGlass::CaptionText
 	void ShareWindowState(WindowStateMap& states, uDWM::CVisual* source, uDWM::CVisual* clone);
 	int CenterOffset(int centerCaption, bool isTrimmed, double visualWidth, double textWidth, double visualX, double parentWidth, double scale);
 
+	inline bool IsDWriteTextTrimmed(IDWriteTextLayout* textLayout)
+	{
+		DWRITE_LINE_METRICS lineMetrics{};
+		UINT32 lineCount{};
+		const auto hr = textLayout->GetLineMetrics(&lineMetrics, 1, &lineCount);
+		if (hr != E_NOT_SUFFICIENT_BUFFER)
+		{
+			THROW_IF_FAILED(hr);
+			return lineMetrics.isTrimmed;
+		}
+
+		// Explicit line breaks still create multiple lines with NO_WRAP.
+		std::vector<DWRITE_LINE_METRICS> lines(lineCount);
+		THROW_IF_FAILED(textLayout->GetLineMetrics(lines.data(), lineCount, &lineCount));
+		return std::any_of(lines.begin(), lines.end(), [](const auto& line) { return line.isTrimmed; });
+	}
+
 	inline D2D1_RECT_F CalculateDWriteBitmapBounds(const DWRITE_TEXT_METRICS& metrics, const DWRITE_OVERHANG_METRICS& overhangs)
 	{
 		// Match DWM's tight surface bounds, including its one-DIP antialiasing margin.

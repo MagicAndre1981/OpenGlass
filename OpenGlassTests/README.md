@@ -33,6 +33,8 @@ List production implementations from other project directories as `_ExternalClCo
 
 These tests run without injecting into DWM. Package and resource fixtures use temporary directories, and registry fixtures use isolated test keys. GPU rendering, desktop appearance, and DWM integration require the separate real-machine verification described in the repository policy.
 
-`CaptionText.DWriteGeometry` checks that long layout boxes, alignment and reading direction do not inflate the shadow bitmap or change text/image origins. It uses DirectWrite without a GPU, but glow pixels and target-DWM clipping still require rendering verification.
+`CaptionText.DWriteGeometry` checks that long layout boxes, alignment and reading direction do not inflate single-line or multiline shadow bitmaps or change text/image origins. It uses DirectWrite without a GPU, but glow pixels and target-DWM clipping still require rendering verification.
+
+`CaptionText.DWriteTrimming` covers empty, single-line and multiline captions, including LF/CRLF, trailing line breaks, RTL, trimming on either line and removal of trimming after widening. It uses real DirectWrite layouts to regress the caption crash caused by a one-line metrics buffer.
 
 `WindowFrameBounds.AtlasShadow` covers asymmetric shadow exclusion on a negative-coordinate monitor, unchanged visible bounds when restored frame margins and atlas sizes grow together, and preservation of the native maximized clip. Recording-border submission, thumbnail updates, transitions and clone behavior still require target-DWM verification.

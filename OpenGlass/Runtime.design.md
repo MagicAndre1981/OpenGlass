@@ -50,6 +50,8 @@ MILComp applies atlas `CaptionHeight` to native button sizes in its existing non
 
 Glow calculation updates the caller's parameters in place, retaining fields unused by the selected mode. The shared engine still coordinates the established lifecycle.
 
+DirectWrite captions can contain explicit line breaks even with word wrapping disabled. Trimming detection reads every line, retaining a stack-only path for ordinary single-line titles. A trimmed line disables caption centering. Each draw recomputes that decision from the current layout. `E_NOT_SUFFICIENT_BUFFER` requests a larger line-metrics array. This is not a caption-rendering failure.
+
 ## MILComp Aero Peek
 
 MILComp `GlassReflectionHandler` presents native ordinary and glass-only clone captures with the native timeline, reversal, and cleanup. Glass-only clones exclude non-client and client blur. Do not replace the glass capture with a live blur sheet. `GlassFrameEnhancer` retains ordinary frames and clones glass-only squeegee parts as native nine-grid primitives, because ThemePart::Generate otherwise suppresses their atlas drawing. Keep atlas pixels, opacity, margins, and layout intact without modifying the source primitive or inventing a part ID.

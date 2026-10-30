@@ -4,6 +4,7 @@ namespace OpenGlassTests
 {
 	void TestAtlasFrameBounds();
 	void TestDWriteGeometry();
+	void TestDWriteTrimming();
 	void TestEditorScope();
 	void TestPixelAlign();
 	void TestTransform2DBounds();
