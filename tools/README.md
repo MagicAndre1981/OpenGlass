@@ -23,7 +23,7 @@ Install dependencies using the same Python 3.11+ interpreter used for tools and 
 python -m pip install -r requirements.txt
 ```
 
-Virtual environments are supported. Activate the venv before installing packages or building, or configure `ProjectionPython` / `OpenGlassPython` to point to the virtual environment's Python executable. MSBuild consumes the prepared environment and does not install packages or access PyPI during builds. Both CI jobs prepare the environment via `.github/actions/prepare-python/` before invoking Python commands or MSBuild.
+Virtual environments are supported. Activate the venv before installing packages or building, or configure `ProjectionPython` / `OpenGlassPython` to point to the virtual environment's Python executable. MSBuild consumes the prepared environment and does not install packages or access PyPI during builds. The CI Build job prepares the environment via `.github/actions/prepare-python/` before invoking Python commands or MSBuild.
 
 `requirements.txt` pins the shared dependencies:
 
@@ -36,7 +36,7 @@ Follow the repository [dependency policy](../AGENTS.md#editing-conventions) when
 
 ## Test scope
 
-Follow [the repository testing policy](../AGENTS.md#testing-policy) and [retained regression test scope](../tests/README.md). Validations requiring a real target environment cannot be replaced by synthetic unit tests. Report unavailable validation as not run.
+Follow [the repository testing policy](../AGENTS.md#testing-policy) and [local Python test guide](../tests/README.md). Run relevant tests locally before pushing. CI installs Python for generation and packaging without running the tests. Validations requiring a real target environment cannot be replaced by synthetic unit tests. Report unavailable validation as not run.
 
 ## Command modules
 
@@ -117,4 +117,4 @@ The direct command retains its full JSON/text report on audit failures, includin
 
 PDB download and replay share `PdbIdentity.key()`. Its age suffix is hexadecimal, matching the runtime URL builder and [the symbol-store key convention](https://github.com/dotnet/symstore/blob/main/docs/specs/SSQP_Key_Conventions.md#pdb-signature-age), while JSON age remains a number. Do not independently concatenate a decimal age into cache paths.
 
-MSBuild runs command modules with the repository root as its working directory and lists generation inputs explicitly. CI runs the same unified Python test command. Generated C++ remains a build artifact. Moving or editing tools does not change a schema version by itself.
+MSBuild runs command modules with the repository root as its working directory and lists generation inputs explicitly. Run the unified Python test command locally when its scope is relevant to the change. Generated C++ remains a build artifact. Moving or editing tools does not change a schema version by itself.

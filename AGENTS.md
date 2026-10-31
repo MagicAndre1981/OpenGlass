@@ -9,7 +9,7 @@ OpenGlass restores Aero-style glass effects by loading `OpenGlass.dll` into `dwm
 - `OpenGlassGUI/`: wxWidgets configuration UI, symbol downloads and DWM diagnostics.
 - `OpenGlassThemeExtension/`: separately registered Windows theme integration with an independent [hook lifetime](OpenGlassThemeExtension/Design.md#module-and-hook-lifetime).
 - `Common/`: cross-module C/C++ code and shared MSBuild configuration.
-- `OpenGlassTests/`: non-injecting C++ regression tests.
+- `OpenGlassTests/`: local non-injecting C++ test workspace.
 - `OpenGlassRenderTest/`: interactive GPU/effect benchmark, not an automated test suite.
 - `tools/` and `tests/`: Python tools and their tests.
 - `Scripts/`: Inno Setup and MSBuild packaging.
@@ -39,18 +39,18 @@ msbuild OpenGlass.slnx /m /restore /p:RestorePackagesConfig=true /p:Configuratio
 
 Use `Release` for local verification. `ReleaseSigned` requires the shared signing environment. Generated projections belong only under the selected project's `$(IntDir)\Generated\Projection`. Never edit, copy into the source tree or commit them. PE size and wrapper machine code are investigation aids, not fixed acceptance gates.
 
-CI Verify runs Python checks and non-injecting C++ tests before Build compiles the solution and uploads artifacts. Keep dependency preparation shared and invalidate caches when toolchain or dependency inputs change. See [dependency reuse](.github/actions/prepare-build/README.md) and [packaging](Scripts/README.md), including optional installer tooling and the separate unsigned developer extension artifact.
+CI builds and packages the solution and checks its outputs. Projection generation validates descriptors and consumers during the build. Run relevant tests locally before pushing; CI does not execute Python or C++ tests or duplicate projection validation. Keep dependency preparation centralized and invalidate caches when toolchain or dependency inputs change. See [dependency reuse](.github/actions/prepare-build/README.md) and [packaging](Scripts/README.md), including optional installer tooling and the separate unsigned developer extension artifact.
 
 Report whether `OpenGlassRenderTest` was built or manually exercised. Never install the service, inject into DWM, kill DWM or write registry settings merely to verify unrelated source or documentation changes.
 
 ## Testing policy
 
 - Organize `OpenGlassTests/` by the production cpp/hpp under test, using a dedicated `NameTests.cpp` for each tested unit. Keep the runner and shared fixtures separate from test implementations. The executable runs all tests by default. Preserve `--list`, `--test Suite.Case`, and `--suite Suite` selection. Every runtime case must run independently. See [the C++ test guide](OpenGlassTests/README.md).
-- Prioritize permanent automated regression tests for code that is frequently changed and frequently used. Cover meaningful behavior, shared contracts, and demonstrated regressions. Do not pursue blanket coverage or tests that merely mirror implementation details.
-- Keep rarely changed, rarely used code at minimal useful coverage. When changing it, write focused temporary tests for that change as needed instead of automatically growing the permanent suite. Retain a new test permanently when repeated use or a recurring regression justifies its maintenance cost.
+- Treat `OpenGlassTests/` and `tests/` as local development tools, without a long-term regression-coverage or product-quality guarantee. Keep cases while they remain useful, prioritizing frequently changed and used code and demonstrated failures. Do not pursue blanket coverage, mirror implementation details, or introduce production abstractions solely to make tests possible.
+- Before pushing, complete the local checks relevant to the change and report their actual scope and results. Keep low-frequency code at minimal useful coverage and use focused temporary checks for individual changes instead of automatically growing the tracked suites.
 - When the changed behavior requires a real machine, target OS, GPU, desktop session, or DWM integration, create a minimal temporary test demo after implementation and exercise the actual changed path on a suitable test machine. Use a concrete expected result and record the observed result. Builds, mocks, schema checks, and non-injecting tests do not substitute for this validation. If the required environment is unavailable, report the path as not run and identify what remains to be exercised.
-- Keep temporary test code, demos, fixtures, binaries, and results in ignored `.archive/`, outside permanent test discovery and CI. Promote only reusable tests into `tests/` or `OpenGlassTests/`. Do not accumulate one-off verification scaffolding in production code or tracked test suites.
-- Match verification to the change. Run the relevant tests and required checks, and broaden testing when a failure or unresolved concern warrants it. Documentation-only edits normally need consistency checks, not a full build or real-machine demo. Existing CI and release verification requirements still apply to their respective workflows.
+- Keep temporary test code, demos, fixtures, binaries, and results in ignored `.archive/`, outside normal test discovery. Promote only reusable tests into `tests/` or `OpenGlassTests/`. Do not accumulate one-off verification scaffolding in production code or tracked test suites.
+- Actual target-system behavior is the primary acceptance criterion for runtime changes. CI success and local test results cover only the paths they exercise. Match verification to the change and broaden it when a failure or unresolved concern warrants it. Documentation-only edits normally need consistency checks, not a full build or real-machine demo.
 
 ## Simplicity and defensive programming
 

@@ -1,6 +1,6 @@
-# Retained regression tests
+# Local Python tests
 
-Follow [the repository testing policy](../AGENTS.md#testing-policy). Keep permanent tests focused on behavior that both changes regularly and is used regularly, or has a demonstrated recurring regression. Use temporary checks in ignored `.archive/` for individual maintenance operations and migrations.
+Follow [the repository testing policy](../AGENTS.md#testing-policy). Run relevant tests locally before pushing and keep cases while they remain useful to development. Prefer behavior that changes and is used regularly, or has demonstrated failures. Use temporary checks in ignored `.archive/` for individual maintenance operations and migrations. Test results describe the exercised cases; target-system behavior remains the primary acceptance criterion for runtime changes.
 
 Run the Python test suite from the repository root:
 
@@ -19,7 +19,7 @@ The Python suite covers:
 
 Test validation at its owning boundary. Shared version/binding behavior belongs with projection tests, so do not repeat it through audit wrappers. Catalog key uniqueness needs one architecture-wide case, including independent module keys, rather than separate copies for each shard arrangement. Maintenance tests cover PDB-only admission, incremental preservation, cross-build identity reuse, and resolver replacement. Acquisition tests use readable PDB fixtures to reject GUID/DBI-age mismatches before publication and retain the malformed-direct/compressed-success/cache-reuse regression. PE/PDB pairing fixtures use distinct Info/DBI ages, multi-digit hexadecimal key suffixes, and mismatched GUID/DBI ages that remain discovery-only. Internal report corruption, downstream format revalidation and speculative recovery paths do not need permanent fixtures. Range tests retain CodeView extraction/cache reuse and refusal of ignored or incorrect ranges. Explicit binary-audit tests retain actual PE RVA and header checks. Use temporary checks for individual download, publication and evidence-replay changes.
 
-CI also runs the Symbol validator directly for both architectures. Avoid duplicating that full inventory scan in report-format tests. Test generic Symbol behavior with synthetic schemas rather than pinning individual production bindings or partition paths. When changing a command entry point or a rarely used acquisition path, exercise the affected command with a focused temporary check, as a broad permanent mock suite is not required.
+Projection generation validates schemas and consumers during DWM project builds. Avoid duplicating that full inventory scan in report-format tests. Test generic Symbol behavior with synthetic schemas rather than pinning individual production bindings or partition paths. When changing a command entry point or a rarely used acquisition path, exercise the affected command with a focused temporary check, as a broad permanent mock suite is not required. CI builds and packages the solution without running these tests.
 
 For C++ testing, see [the C++ test guide](../OpenGlassTests/README.md).
 

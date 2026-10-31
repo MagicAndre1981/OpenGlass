@@ -16,7 +16,7 @@ runs:
         restore-keys: |
           ${{ runner.os }}-${{ runner.arch }}-nuget-
 
-    # Restore shared imports before building the standalone test project.
+    # Restore shared imports before evaluating project/toolchain properties.
     - name: Restore NuGet packages
       shell: pwsh
       run: |
@@ -69,7 +69,7 @@ runs:
         "@ >> $env:GITHUB_STEP_SUMMARY
 
     # Installed trees bypass vcpkg's ABI calculation: require an exact environment
-    # and input match. Include the pinned MSBuild integration used by both jobs.
+    # and input match. Include the pinned MSBuild integration in the same cache.
     - name: Restore installed vcpkg dependencies
       id: vcpkg_installed
       uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -89,7 +89,7 @@ runs:
         git -C $env:VCPKG_ROOT checkout --detach $env:VCPKG_COMMIT
         & "$env:VCPKG_ROOT\bootstrap-vcpkg.bat" -disableMetrics
 
-    # Pin vcpkg tool versions in both jobs; system CMake versions affect package ABIs.
+    # Pin vcpkg tool versions; system CMake versions affect package ABIs.
     # Use the same complete identity for a writable key after toolchain/setup
     # changes; prefix matches still reuse packages through vcpkg's ABI checks.
     - name: Restore vcpkg binary packages
@@ -135,7 +135,7 @@ runs:
         $timer.Stop()
         "seconds=$([Math]::Round($timer.Elapsed.TotalSeconds, 1))" >> $env:GITHUB_OUTPUT
 
-    # Publish before tests/builds so the dependent job and later runs can reuse it.
+    # Publish before compilation so later runs can reuse completed dependencies.
     - name: Save installed vcpkg dependencies
       if: steps.vcpkg_installed.outputs.cache-hit != 'true'
       uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -161,7 +161,7 @@ runs:
         - vcpkg install: ${{ steps.install.outputs.seconds && format('{0} seconds', steps.install.outputs.seconds) || 'skipped (installed cache hit)' }}
         "@ >> $env:GITHUB_STEP_SUMMARY
 
-    # Save dependency work before compilation or tests can fail.
+    # Save dependency work before compilation or packaging can fail.
     - name: Save vcpkg binary packages
       if: steps.vcpkg_installed.outputs.cache-hit != 'true' && steps.vcpkg_cache.outputs.cache-hit != 'true'
       uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0

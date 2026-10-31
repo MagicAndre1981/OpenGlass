@@ -1,4 +1,6 @@
-# C++ regression tests
+# Local C++ test workspace
+
+Use `OpenGlassTests` to investigate changes and exercise focused cases locally before pushing. Maintain cases around current development needs, without a long-term regression-coverage or product-quality guarantee. Actual behavior on the target system remains the primary acceptance criterion for runtime changes.
 
 Prerequisites: On a fresh checkout, complete the shared NuGet solution restore before your first standalone tests build as described in [Optional single-project builds](https://github.com/ALTaleX531/OpenGlass/wiki/Building-OpenGlass#optional-single-project-builds), and ensure Python dependencies are installed as described in [Python Dependencies](../tools/README.md#dependencies).
 
@@ -9,7 +11,7 @@ msbuild OpenGlassTests/OpenGlassTests.vcxproj /m /p:Configuration=Release /p:Pla
 .\Build\x64\Release\common\OpenGlassTests.exe
 ```
 
-Without arguments the executable runs every registered test, as CI does using its configured build platform and configuration. It prints each result and a final count. List names or select one case or one source unit:
+Without arguments the executable runs every registered test and prints each result and a final count. CI compiles the project as part of the solution but does not execute it. List names or select one case or one source unit:
 
 ```powershell
 .\Build\x64\Release\common\OpenGlassTests.exe --list

@@ -12,7 +12,7 @@ The solution builds Host, GUI and the theme extension once into `Build\x64\<Conf
 msbuild Scripts/OpenGlass.Packaging.proj /m /p:Configuration=Release
 ```
 
-See [Windows dependency reuse](../.github/actions/prepare-build/README.md) for shared Verify/Build preparation and cache invalidation, and [the developer extension](../OpenGlassThemeExtension/README.md) for its separately managed installation.
+See [Windows dependency reuse](../.github/actions/prepare-build/README.md) for CI dependency preparation and cache invalidation, and [the developer extension](../OpenGlassThemeExtension/README.md) for its separately managed installation.
 
 ## Project items and filters
 

@@ -1,5 +1,5 @@
 name: Prepare Python tools
-description: Install the pinned dependencies used by Python tools, tests, and projection generation.
+description: Install the pinned dependencies used by Python tools and projection generation.
 runs:
   using: composite
   steps:

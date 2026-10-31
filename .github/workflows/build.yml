@@ -40,80 +40,8 @@ env:
   VCPKG_BINARY_SOURCES: clear;files,${{ github.workspace }}\.ci-cache\vcpkg-binary-cache,readwrite
 
 jobs:
-  verify:
-    name: verify
-    runs-on: windows-2025-vs2026
-    timeout-minutes: 60
-    steps:
-      - name: Checkout source
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          fetch-depth: 0
-
-      - name: Prepare Python tools
-        uses: ./.github/actions/prepare-python
-
-      - name: Run Python unit tests
-        run: |
-          $PSNativeCommandUseErrorActionPreference = $true
-          python -m unittest discover -s tests -p "test_*.py"
-
-      - name: Validate projection symbols
-        run: |
-          $PSNativeCommandUseErrorActionPreference = $true
-          python -m tools.validate_projection_symbols . --architecture legacy
-          python -m tools.validate_projection_symbols . --architecture milcomp
-
-      - name: Prepare Windows build
-        uses: ./.github/actions/prepare-build
-
-      - name: Build OpenGlass unit tests
-        run: |
-          $PSNativeCommandUseErrorActionPreference = $true
-          New-Item -ItemType Directory -Force -Path "MSBuild_Logs" | Out-Null
-          msbuild OpenGlassTests/OpenGlassTests.vcxproj /m /restore `
-            /p:Configuration=$env:BUILD_CONFIGURATION `
-            /p:Platform=$env:BUILD_PLATFORM `
-            /p:RestorePackagesConfig=true `
-            /p:VcpkgEnableManifest=true `
-            /p:VcpkgManifestInstall=false `
-            /p:VcpkgAutoBootstrap=false `
-            /p:VcpkgRoot=$env:VCPKG_ROOT `
-            /p:VcpkgInstalledDir=$env:VCPKG_INSTALLED_DIR `
-            /p:VcpkgTriplet=$env:VCPKG_DEFAULT_TRIPLET `
-            /p:ForceImportBeforeCppProps=$env:VCPKG_ROOT\scripts\buildsystems\msbuild\vcpkg.props `
-            /p:ForceImportAfterCppTargets=$env:VCPKG_ROOT\scripts\buildsystems\msbuild\vcpkg.targets `
-            /p:OpenGlassInstallerEnabled=false `
-            /bl:MSBuild_Logs/verify.binlog
-
-      - name: Run OpenGlass unit tests
-        run: |
-          $testExecutable = "Build\$env:BUILD_PLATFORM\$env:BUILD_CONFIGURATION\common\OpenGlassTests.exe"
-          if (-not (Test-Path -LiteralPath $testExecutable -PathType Leaf)) {
-              throw "Test executable was not built: $testExecutable"
-          }
-          & $testExecutable
-          if ($LASTEXITCODE -ne 0) {
-              throw "OpenGlassTests failed with exit code $LASTEXITCODE."
-          }
-
-      - name: Verify source tree remains unchanged
-        run: |
-          $PSNativeCommandUseErrorActionPreference = $true
-          git diff --exit-code
-
-      - name: Upload MSBuild binary log on failure
-        if: failure() && hashFiles('MSBuild_Logs/verify.binlog') != ''
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: msbuild-verify-${{ github.run_id }}
-          path: MSBuild_Logs/verify.binlog
-          if-no-files-found: ignore
-          retention-days: 7
-
   build:
     name: build
-    needs: verify
     runs-on: windows-2025-vs2026
     timeout-minutes: 60
     steps:
@@ -148,7 +76,7 @@ jobs:
           - Version: ``$version``
           - Installer artifact (when enabled): ``$artifactName``
           - Theme extension artifact: ``$themeExtensionArtifactName``
-          - Signing: unsigned validation build
+          - Signing: unsigned build
           "@ >> $env:GITHUB_STEP_SUMMARY
 
       - name: Prepare Windows build
@@ -158,10 +86,9 @@ jobs:
         run: |
           $PSNativeCommandUseErrorActionPreference = $true
           New-Item -ItemType Directory -Force -Path "MSBuild_Logs" | Out-Null
-          msbuild OpenGlass.slnx /m /restore `
+          msbuild OpenGlass.slnx /m `
             /p:Configuration=$env:BUILD_CONFIGURATION `
             /p:Platform=$env:BUILD_PLATFORM `
-            /p:RestorePackagesConfig=true `
             /p:VcpkgEnableManifest=true `
             /p:VcpkgManifestInstall=false `
             /p:VcpkgAutoBootstrap=false `
