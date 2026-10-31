@@ -2,6 +2,32 @@
 
 This is the product contract for the configuration editor, color synchronization and presets. Format details belong in [Presets.md](Presets.md). A later explicit product decision must update this contract and its affected consumers together.
 
+## Implementation ownership
+
+`MainFrame` owns the wx child controls and the editor session. Its source files separate responsibilities without adding controller interfaces or another state model:
+
+| Source | Responsibility |
+| --- | --- |
+| `MainFrame.Core.cpp` / `MainFrame.Tabs.cpp` | Window construction, scope replacement, control layout and status notices. |
+| `MainFrame.Events.cpp` / `MainFrame.State.cpp` | Bind user actions and reload selected-layer control state. Caption and opacity variants share their load/fallback logic with ordinary edits; an edit refreshes only its own variant family. |
+| `MainFrame.Configuration.cpp` | The single preview, Save, Revert, reset and merge orchestration path. |
+| `MainFrame.ColorPresets.cpp` / `MainFrame.Presets.cpp` | Windows color actions and the saved-preset workflow, both using that preview path. |
+| `MainFrame.Diagnostics.cpp` / `Symbols.cpp` | Diagnostic presentation and the frame-owned download worker. The worker reports data; wx control access stays on the UI thread. |
+
+The selected registry view aliases one of the two owned `RegistryConfig` layers. `EffectiveConfiguration` and `ConfigurationMigration` plan explicit operations; they do not become a persistent cache of the editor or Windows state. `ColorPreference`, `PreviewJournal` and `ConfigurationResources` retain their distinct color, raw-value and durable/file recovery responsibilities. A modified registry value is read once for both its in-memory checkpoint and its durable operation record.
+
+Control creation attaches setting notices directly to the row being built. A layer's notice kind stays fixed for that window, while visibility is refreshed from the registry. Full reloads recheck resource existence even when a path is unchanged. Palette layout is reused only while its width and family/theme/DPI metrics are unchanged. Wrapped diagnostic labels receive their widths before a batch of wraps and one final page layout; updates do not force a synchronous redraw of the entire frame.
+
+Download progress is formatted and posted at most every 100 ms during a transfer, with separate phase/completion events. Native cancellation interrupts pending WinRT operations as well as chunk boundaries. The worker converts activation, filesystem, callback and transport exceptions into a download outcome. A known response length must match the completed file; failure or cancellation removes that attempt's partial file. The existing per-operation network timeout remains in effect.
+
+Preset validation, enumeration and snapshot loading run in a scoped worker while a native modal dialog processes UI messages. Fast work gets at most a 10 ms initial wait; slower work is observed by a 20 ms UI timer. The worker uses only call-local package data and files, never controls, images owned by controls or window callbacks. Its future completes before the call returns. The disabled owner and entry checks prevent Save, Revert, Sync, scope changes and another preset operation from interleaving with it. Close/Destroy requests cannot destroy the owner during the modal operation; cancellable work is asked to stop, and the window can close after the operation returns. Library loading starts only after the frame's controls and event bindings exist.
+
+Cancellation is cooperative at ZIP-read, asset and library-item boundaries, without interrupting a single filesystem/WIC call. Cancelled validation cannot replace the displayed library or start configuration mutation. Existing library maintenance may complete individual cleanup/migration items before cancellation; those completed items are not rolled back. Publication and export finish their established commit and return its outcome rather than advertising cancellation after a successful write. The configuration plan and resource installation remain on the UI thread after validated data returns, with the existing raw precondition checks.
+
+The operation guard is installed before allocating its cancellation state. Progress-window or timer creation failure joins a cancelled validation worker; for non-cancellable publication it waits for the worker's actual result, since an observer failure cannot undo a completed write. Export and Delete retain the selected package or entry ID by value across their modal dialogs, so a queued column-sort cannot redirect the operation to another row.
+
+Symbol downloads stage a unique file beside the destination and replace the old cache file only after the transfer, announced length, flush and close all succeed. Cancellation and failures remove only that attempt's staging file. An existing usable PDB survives a failed refresh; the per-module publication boundary is unchanged.
+
 ## 1. Keep five concepts separate
 
 | Concept | Meaning |
@@ -80,6 +106,10 @@ The System tab exposes `EnableUxMitigation` as independent compatibility flags, 
 ## 4. One preview transaction model
 
 Every configuration mutation uses the same checkpoint semantics. Record the original raw type, bytes and absence of each modified `(scope, setting)` only once. The Windows color checkpoint separately records automatic/manual mode, manual RGB and changed AccentColorMenu/DWM AccentColor as independent raw values. Missing AutoColorization is interpreted as Manual and restored as an explicit DWORD 0. The two DWM base colors have independent raw backups for Manual recovery, whereas Automatic recovery recomputes current wallpaper RGB instead of restoring old derived colors. Palette/history and other accepted Windows side effects are not raw journal entries. No-op configuration attempts, including resetting an already empty layer, skip DWM notification and preserve any earlier preview. Refresh decisions use changes within the attempt, not session dirtiness. Returning to the baseline or replacing resource contents at the same path still requires refresh. Explicit Windows color operations retain their refresh even when the selected mode or RGB is unchanged. An unchanged Automatic choice stays clean but retains its attempt recovery mode until the whole operation commits, so failure in a later step recomputes the current wallpaper color. Returning a GUI-modified value to its original state removes its net change.
+
+Beginning an attempt does not copy the entire session baseline. The journal records only baseline insertions and removals made during that attempt, retaining removed before-values by ownership transfer. Successful rollback restores those entries, and failed rollback retains the originals needed for a later Revert. This keeps an unrelated scalar edit independent of the size of retained resource images.
+
+An operation entry guard also covers native message dispatch during preview, Save/Revert completion and construction of a replacement scope window. A queued nested command is rejected before beginning resource or registry recovery: catching a nested Begin failure as an ordinary attempt failure would otherwise roll back the outer transaction and let it report success. Read-only system-colour refresh remains independent of this guard.
 
 A multi-step attempt gets an operation-before snapshot. Failure restores that attempt, preserving earlier pending edits. Revert restores only net GUI changes, not whole registry directories: first restore the Windows color choice through its mode-specific operation, then restore OpenGlass configuration values/absence, then notify. This order also restores any color Overrides removed by a color choice. Untouched external values survive. An external change to an already modified item does not revoke the GUI's original before-value. Recovery failure stays pending and retryable, and it must never be reported as successful recovery. DWM color/theme notifications are best-effort refresh requests: unavailable windows or failed delivery are logged or skipped, without rolling back successful writes or keeping a restored checkpoint pending. Configuration editing works without OpenGlass loaded, and its next startup reads the saved values. This does not relax registry/file recovery or the Automatic shell request used to calculate the color.
 

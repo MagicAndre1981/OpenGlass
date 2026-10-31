@@ -84,6 +84,9 @@
 	<ClCompile Include="MainFrame.ColorPresets.cpp" />
     <ClCompile Include="MainFrame.Presets.cpp" />
     <ClCompile Include="MainFrame.Core.cpp" />
+    <ClCompile Include="MainFrame.Configuration.cpp" />
+    <ClCompile Include="MainFrame.Diagnostics.cpp" />
+    <ClCompile Include="MainFrame.Events.cpp" />
     <ClCompile Include="MainFrame.State.cpp" />
     <ClCompile Include="MainFrame.Tabs.cpp" />
     <ClCompile Include="ConfigurationResources.cpp" />

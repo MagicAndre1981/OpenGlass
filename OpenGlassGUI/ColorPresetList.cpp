@@ -103,7 +103,6 @@ namespace OpenGlass
 		Bind(wxEVT_SIZE, [this](wxSizeEvent& event) { UpdateLayout(); event.Skip(); });
 		Bind(wxEVT_DPI_CHANGED, [this](wxDPIChangedEvent& event) {
 			RebuildImages();
-			UpdateLayout();
 			event.Skip();
 		});
 		Bind(wxEVT_SYS_COLOUR_CHANGED, [this](wxSysColourChangedEvent& event) {
@@ -131,7 +130,6 @@ namespace OpenGlass
 		InsertItem(GetCustomIndex(), L"Custom", static_cast<int>(GetCustomIndex()));
 		RebuildImages();
 		Focus(0);
-		UpdateLayout();
 	}
 
 	const ColorizationPresets::Preset* ColorPresetList::GetPreset(long index) const noexcept
@@ -229,6 +227,10 @@ namespace OpenGlass
 		for (const auto& preset : m_presets) images->Add(CreateSwatch(preset.argb, false));
 		images->Add(CreateSwatch(m_customColor, false));
 		AssignImageList(images.release(), wxIMAGE_LIST_NORMAL);
+		// Family, DPI and theme changes can alter image or font metrics even
+		// when the viewport width stays the same.
+		m_layoutWidth = -1;
+		UpdateLayout();
 		Refresh(false);
 	}
 
@@ -241,7 +243,9 @@ namespace OpenGlass
 
 	void ColorPresetList::UpdateLayout()
 	{
-		if (m_presets.empty() || GetClientSize().x <= 0) return;
+		const int width = GetClientSize().x;
+		if (m_presets.empty() || width <= 0 || width == m_layoutWidth) return;
+		m_layoutWidth = width;
 		wxWindowUpdateLocker lock(this);
 		const auto hwnd = static_cast<HWND>(GetHandle());
 		int cellWidth = FromDIP(72);
