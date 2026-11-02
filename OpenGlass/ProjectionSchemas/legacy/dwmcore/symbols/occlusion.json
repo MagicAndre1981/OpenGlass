@@ -1,6 +1,34 @@
 {
   "symbols": [
     {
+      "name": "Symbol_COverlayContext_CheckAndRecordOverlayCandidate_26100_8328",
+      "id": "COverlayContext::CheckAndRecordOverlayCandidate.26100.8328",
+      "bindings": [
+        {
+          "platform": null,
+          "type": "HRESULT (*)(COverlayContext*, CVisual*, const D2D1_RECT_F&, CCompositionSurfaceInfo*, ISwapChainRealization*, const D2D1_RECT_F&, const D2D1_RECT_F&, const D2D1_RECT_F&, const CCornerRects&, const CMILMatrix&, DXGI_MODE_ROTATION, UINT, bool)",
+          "ranges": [
+            {
+              "symbol_names": [
+                "public: long __cdecl COverlayContext::CheckAndRecordOverlayCandidate(class CVisual * __ptr64,class TMilRect_<float,struct D2D_RECT_F,struct D3D_RECT_F,struct D2D_POINTANDSIZE_F,struct RectUniqueness::NotNeeded> const & __ptr64,class CCompositionSurfaceInfo * __ptr64,class ISwapChainRealization * __ptr64,class TMilRect_<float,struct D2D_RECT_F,struct D3D_RECT_F,struct D2D_POINTANDSIZE_F,struct RectUniqueness::NotNeeded> const & __ptr64,class TMilRect_<float,struct D2D_RECT_F,struct D3D_RECT_F,struct D2D_POINTANDSIZE_F,struct RectUniqueness::NotNeeded> const & __ptr64,class TMilRect_<float,struct D2D_RECT_F,struct D3D_RECT_F,struct D2D_POINTANDSIZE_F,struct RectUniqueness::NotNeeded> const & __ptr64,class CCornerRects const & __ptr64,class CMILMatrix const & __ptr64,enum DXGI_MODE_ROTATION,unsigned int,bool) __ptr64"
+              ],
+              "min_inclusive": {
+                "build": 26100,
+                "revision": 8328
+              },
+              "max_exclusive": {
+                "build": 28000,
+                "revision": 0
+              }
+            }
+          ]
+        }
+      ],
+      "requirement": "required",
+      "kind": "raw",
+      "notes": "This ABI first resolves in the paired 26100.8328 PDB and resolves through 26100.9818. In 26100.8972 and 26100.9818, COcclusionContext::CheckAndRecordOverlayCandidateForContext clips the first rectangle after CVisual to the world clip, monitor tree bounds and GetMPORects destination bounds, then calls this common registration sink. In 26100.9818, CWindowNode::CollectOcclusion and CCompositionSurfaceBitmap::AddOcclusionInformation inline the outer COcclusionContext entry; the bitmap path also inlines CollectRectangleForOcclusion. Use the supplied world rectangle instead of a cached collector rectangle. The sole direct caller consumes only HRESULT before returning; no private volatile-register or EFLAGS dependency was found in either audited binary."
+    },
+    {
       "name": "Symbol_CArrayBasedCoverageSet_IsCovered_Pre_26100",
       "id": "CArrayBasedCoverageSet::IsCovered.pre26100",
       "bindings": [
@@ -207,8 +235,8 @@
                 "revision": 0
               },
               "max_exclusive": {
-                "build": 28000,
-                "revision": 0
+                "build": 26100,
+                "revision": 8328
               }
             }
           ]
@@ -314,8 +342,8 @@
                 "revision": 4484
               },
               "max_exclusive": {
-                "build": 28000,
-                "revision": 0
+                "build": 26100,
+                "revision": 8328
               }
             }
           ]

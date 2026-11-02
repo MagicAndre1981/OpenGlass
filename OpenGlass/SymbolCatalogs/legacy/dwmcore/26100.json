@@ -4280,14 +4280,6 @@
           "name": "public: class CMILMatrix const * __ptr64 __cdecl CMatrixStack::GetTopByReference(void)const __ptr64",
           "rva": "0x15EDA0"
         },
-        "COcclusionContext::CheckAndRecordOverlayCandidate.26100": {
-          "name": "public: long __cdecl COcclusionContext::CheckAndRecordOverlayCandidate(class CVisual * __ptr64,class CCompositionSurfaceInfo * __ptr64,class CMILMatrix const & __ptr64,class CShape const * __ptr64,struct TMILFlagsEnum<enum MilSourceModification::FlagsEnum>) __ptr64",
-          "rva": "0xF4D1C"
-        },
-        "COcclusionContext::CollectRectangleForOcclusion.26100.7840": {
-          "name": "private: void __cdecl COcclusionContext::CollectRectangleForOcclusion(class TMilRect_<float,struct D2D_RECT_F,struct D3D_RECT_F,struct D2D_POINTANDSIZE_F,struct RectUniqueness::NotNeeded> const & __ptr64,bool,class TMilRect_<float,struct D2D_RECT_F,struct D3D_RECT_F,struct D2D_POINTANDSIZE_F,struct RectUniqueness::NotNeeded> * __ptr64) __ptr64",
-          "rva": "0x279C0C"
-        },
         "COcclusionContext::Compute.19041": {
           "name": "protected: long __cdecl COcclusionContext::Compute(class CVisualTree const * __ptr64,class gsl::span<class TMilRect_<float,struct D2D_RECT_F,struct D3D_RECT_F,struct D2D_POINTANDSIZE_F,struct RectUniqueness::NotNeeded> const ,-1> const & __ptr64,float,class gsl::span<class COverlayContext * __ptr64,-1> const & __ptr64) __ptr64",
           "rva": "0xEB820"
@@ -4311,6 +4303,10 @@
         "COcclusionContext::~COcclusionContext": {
           "name": "public: __cdecl COcclusionContext::~COcclusionContext(void) __ptr64",
           "rva": "0xEC91C"
+        },
+        "COverlayContext::CheckAndRecordOverlayCandidate.26100.8328": {
+          "name": "public: long __cdecl COverlayContext::CheckAndRecordOverlayCandidate(class CVisual * __ptr64,class TMilRect_<float,struct D2D_RECT_F,struct D3D_RECT_F,struct D2D_POINTANDSIZE_F,struct RectUniqueness::NotNeeded> const & __ptr64,class CCompositionSurfaceInfo * __ptr64,class ISwapChainRealization * __ptr64,class TMilRect_<float,struct D2D_RECT_F,struct D3D_RECT_F,struct D2D_POINTANDSIZE_F,struct RectUniqueness::NotNeeded> const & __ptr64,class TMilRect_<float,struct D2D_RECT_F,struct D3D_RECT_F,struct D2D_POINTANDSIZE_F,struct RectUniqueness::NotNeeded> const & __ptr64,class TMilRect_<float,struct D2D_RECT_F,struct D3D_RECT_F,struct D2D_POINTANDSIZE_F,struct RectUniqueness::NotNeeded> const & __ptr64,class CCornerRects const & __ptr64,class CMILMatrix const & __ptr64,enum DXGI_MODE_ROTATION,unsigned int,bool) __ptr64",
+          "rva": "0x268E08"
         },
         "CRectangleGeometry::`vftable'": {
           "name": "const CRectangleGeometry::`vftable'",
@@ -4407,14 +4403,6 @@
           "name": "public: class CMILMatrix const * __ptr64 __cdecl CMatrixStack::GetTopByReference(void)const __ptr64",
           "rva": "0x15EDA0"
         },
-        "COcclusionContext::CheckAndRecordOverlayCandidate.26100": {
-          "name": "public: long __cdecl COcclusionContext::CheckAndRecordOverlayCandidate(class CVisual * __ptr64,class CCompositionSurfaceInfo * __ptr64,class CMILMatrix const & __ptr64,class CShape const * __ptr64,struct TMILFlagsEnum<enum MilSourceModification::FlagsEnum>) __ptr64",
-          "rva": "0xF4D1C"
-        },
-        "COcclusionContext::CollectRectangleForOcclusion.26100.7840": {
-          "name": "private: void __cdecl COcclusionContext::CollectRectangleForOcclusion(class TMilRect_<float,struct D2D_RECT_F,struct D3D_RECT_F,struct D2D_POINTANDSIZE_F,struct RectUniqueness::NotNeeded> const & __ptr64,bool,class TMilRect_<float,struct D2D_RECT_F,struct D3D_RECT_F,struct D2D_POINTANDSIZE_F,struct RectUniqueness::NotNeeded> * __ptr64) __ptr64",
-          "rva": "0x27A15C"
-        },
         "COcclusionContext::Compute.19041": {
           "name": "protected: long __cdecl COcclusionContext::Compute(class CVisualTree const * __ptr64,class gsl::span<class TMilRect_<float,struct D2D_RECT_F,struct D3D_RECT_F,struct D2D_POINTANDSIZE_F,struct RectUniqueness::NotNeeded> const ,-1> const & __ptr64,float,class gsl::span<class COverlayContext * __ptr64,-1> const & __ptr64) __ptr64",
           "rva": "0xEB820"
@@ -4438,6 +4426,10 @@
         "COcclusionContext::~COcclusionContext": {
           "name": "public: __cdecl COcclusionContext::~COcclusionContext(void) __ptr64",
           "rva": "0xEC91C"
+        },
+        "COverlayContext::CheckAndRecordOverlayCandidate.26100.8328": {
+          "name": "public: long __cdecl COverlayContext::CheckAndRecordOverlayCandidate(class CVisual * __ptr64,class TMilRect_<float,struct D2D_RECT_F,struct D3D_RECT_F,struct D2D_POINTANDSIZE_F,struct RectUniqueness::NotNeeded> const & __ptr64,class CCompositionSurfaceInfo * __ptr64,class ISwapChainRealization * __ptr64,class TMilRect_<float,struct D2D_RECT_F,struct D3D_RECT_F,struct D2D_POINTANDSIZE_F,struct RectUniqueness::NotNeeded> const & __ptr64,class TMilRect_<float,struct D2D_RECT_F,struct D3D_RECT_F,struct D2D_POINTANDSIZE_F,struct RectUniqueness::NotNeeded> const & __ptr64,class TMilRect_<float,struct D2D_RECT_F,struct D3D_RECT_F,struct D2D_POINTANDSIZE_F,struct RectUniqueness::NotNeeded> const & __ptr64,class CCornerRects const & __ptr64,class CMILMatrix const & __ptr64,enum DXGI_MODE_ROTATION,unsigned int,bool) __ptr64",
+          "rva": "0x269358"
         },
         "CRectangleGeometry::`vftable'": {
           "name": "const CRectangleGeometry::`vftable'",
@@ -4534,14 +4526,6 @@
           "name": "public: class CMILMatrix const * __ptr64 __cdecl CMatrixStack::GetTopByReference(void)const __ptr64",
           "rva": "0x1549E0"
         },
-        "COcclusionContext::CheckAndRecordOverlayCandidate.26100": {
-          "name": "public: long __cdecl COcclusionContext::CheckAndRecordOverlayCandidate(class CVisual * __ptr64,class CCompositionSurfaceInfo * __ptr64,class CMILMatrix const & __ptr64,class CShape const * __ptr64,struct TMILFlagsEnum<enum MilSourceModification::FlagsEnum>) __ptr64",
-          "rva": "0xEA8FC"
-        },
-        "COcclusionContext::CollectRectangleForOcclusion.26100.7840": {
-          "name": "private: void __cdecl COcclusionContext::CollectRectangleForOcclusion(class TMilRect_<float,struct D2D_RECT_F,struct D3D_RECT_F,struct D2D_POINTANDSIZE_F,struct RectUniqueness::NotNeeded> const & __ptr64,bool,class TMilRect_<float,struct D2D_RECT_F,struct D3D_RECT_F,struct D2D_POINTANDSIZE_F,struct RectUniqueness::NotNeeded> * __ptr64) __ptr64",
-          "rva": "0x277A8C"
-        },
         "COcclusionContext::Compute.19041": {
           "name": "protected: long __cdecl COcclusionContext::Compute(class CVisualTree const * __ptr64,class gsl::span<class TMilRect_<float,struct D2D_RECT_F,struct D3D_RECT_F,struct D2D_POINTANDSIZE_F,struct RectUniqueness::NotNeeded> const ,-1> const & __ptr64,float,class gsl::span<class COverlayContext * __ptr64,-1> const & __ptr64) __ptr64",
           "rva": "0xE1400"
@@ -4565,6 +4549,10 @@
         "COcclusionContext::~COcclusionContext": {
           "name": "public: __cdecl COcclusionContext::~COcclusionContext(void) __ptr64",
           "rva": "0xE24FC"
+        },
+        "COverlayContext::CheckAndRecordOverlayCandidate.26100.8328": {
+          "name": "public: long __cdecl COverlayContext::CheckAndRecordOverlayCandidate(class CVisual * __ptr64,class TMilRect_<float,struct D2D_RECT_F,struct D3D_RECT_F,struct D2D_POINTANDSIZE_F,struct RectUniqueness::NotNeeded> const & __ptr64,class CCompositionSurfaceInfo * __ptr64,class ISwapChainRealization * __ptr64,class TMilRect_<float,struct D2D_RECT_F,struct D3D_RECT_F,struct D2D_POINTANDSIZE_F,struct RectUniqueness::NotNeeded> const & __ptr64,class TMilRect_<float,struct D2D_RECT_F,struct D3D_RECT_F,struct D2D_POINTANDSIZE_F,struct RectUniqueness::NotNeeded> const & __ptr64,class TMilRect_<float,struct D2D_RECT_F,struct D3D_RECT_F,struct D2D_POINTANDSIZE_F,struct RectUniqueness::NotNeeded> const & __ptr64,class CCornerRects const & __ptr64,class CMILMatrix const & __ptr64,enum DXGI_MODE_ROTATION,unsigned int,bool) __ptr64",
+          "rva": "0x268448"
         },
         "CRectangleGeometry::`vftable'": {
           "name": "const CRectangleGeometry::`vftable'",
@@ -4661,14 +4649,6 @@
           "name": "public: class CMILMatrix const * __ptr64 __cdecl CMatrixStack::GetTopByReference(void)const __ptr64",
           "rva": "0x1549E0"
         },
-        "COcclusionContext::CheckAndRecordOverlayCandidate.26100": {
-          "name": "public: long __cdecl COcclusionContext::CheckAndRecordOverlayCandidate(class CVisual * __ptr64,class CCompositionSurfaceInfo * __ptr64,class CMILMatrix const & __ptr64,class CShape const * __ptr64,struct TMILFlagsEnum<enum MilSourceModification::FlagsEnum>) __ptr64",
-          "rva": "0xEA8FC"
-        },
-        "COcclusionContext::CollectRectangleForOcclusion.26100.7840": {
-          "name": "private: void __cdecl COcclusionContext::CollectRectangleForOcclusion(class TMilRect_<float,struct D2D_RECT_F,struct D3D_RECT_F,struct D2D_POINTANDSIZE_F,struct RectUniqueness::NotNeeded> const & __ptr64,bool,class TMilRect_<float,struct D2D_RECT_F,struct D3D_RECT_F,struct D2D_POINTANDSIZE_F,struct RectUniqueness::NotNeeded> * __ptr64) __ptr64",
-          "rva": "0x277E1C"
-        },
         "COcclusionContext::Compute.19041": {
           "name": "protected: long __cdecl COcclusionContext::Compute(class CVisualTree const * __ptr64,class gsl::span<class TMilRect_<float,struct D2D_RECT_F,struct D3D_RECT_F,struct D2D_POINTANDSIZE_F,struct RectUniqueness::NotNeeded> const ,-1> const & __ptr64,float,class gsl::span<class COverlayContext * __ptr64,-1> const & __ptr64) __ptr64",
           "rva": "0xE1400"
@@ -4692,6 +4672,10 @@
         "COcclusionContext::~COcclusionContext": {
           "name": "public: __cdecl COcclusionContext::~COcclusionContext(void) __ptr64",
           "rva": "0xE24FC"
+        },
+        "COverlayContext::CheckAndRecordOverlayCandidate.26100.8328": {
+          "name": "public: long __cdecl COverlayContext::CheckAndRecordOverlayCandidate(class CVisual * __ptr64,class TMilRect_<float,struct D2D_RECT_F,struct D3D_RECT_F,struct D2D_POINTANDSIZE_F,struct RectUniqueness::NotNeeded> const & __ptr64,class CCompositionSurfaceInfo * __ptr64,class ISwapChainRealization * __ptr64,class TMilRect_<float,struct D2D_RECT_F,struct D3D_RECT_F,struct D2D_POINTANDSIZE_F,struct RectUniqueness::NotNeeded> const & __ptr64,class TMilRect_<float,struct D2D_RECT_F,struct D3D_RECT_F,struct D2D_POINTANDSIZE_F,struct RectUniqueness::NotNeeded> const & __ptr64,class TMilRect_<float,struct D2D_RECT_F,struct D3D_RECT_F,struct D2D_POINTANDSIZE_F,struct RectUniqueness::NotNeeded> const & __ptr64,class CCornerRects const & __ptr64,class CMILMatrix const & __ptr64,enum DXGI_MODE_ROTATION,unsigned int,bool) __ptr64",
+          "rva": "0x268838"
         },
         "CRectangleGeometry::`vftable'": {
           "name": "const CRectangleGeometry::`vftable'",
@@ -4788,14 +4772,6 @@
           "name": "public: class CMILMatrix const * __ptr64 __cdecl CMatrixStack::GetTopByReference(void)const __ptr64",
           "rva": "0x1335A0"
         },
-        "COcclusionContext::CheckAndRecordOverlayCandidate.26100": {
-          "name": "public: long __cdecl COcclusionContext::CheckAndRecordOverlayCandidate(class CVisual * __ptr64,class CCompositionSurfaceInfo * __ptr64,class CMILMatrix const & __ptr64,class CShape const * __ptr64,struct TMILFlagsEnum<enum MilSourceModification::FlagsEnum>) __ptr64",
-          "rva": "0x690AC"
-        },
-        "COcclusionContext::CollectRectangleForOcclusion.26100.7840": {
-          "name": "private: void __cdecl COcclusionContext::CollectRectangleForOcclusion(class TMilRect_<float,struct D2D_RECT_F,struct D3D_RECT_F,struct D2D_POINTANDSIZE_F,struct RectUniqueness::NotNeeded> const & __ptr64,bool,class TMilRect_<float,struct D2D_RECT_F,struct D3D_RECT_F,struct D2D_POINTANDSIZE_F,struct RectUniqueness::NotNeeded> * __ptr64) __ptr64",
-          "rva": "0x278554"
-        },
         "COcclusionContext::Compute.19041": {
           "name": "protected: long __cdecl COcclusionContext::Compute(class CVisualTree const * __ptr64,class gsl::span<class TMilRect_<float,struct D2D_RECT_F,struct D3D_RECT_F,struct D2D_POINTANDSIZE_F,struct RectUniqueness::NotNeeded> const ,-1> const & __ptr64,float,class gsl::span<class COverlayContext * __ptr64,-1> const & __ptr64) __ptr64",
           "rva": "0x619A0"
@@ -4819,6 +4795,10 @@
         "COcclusionContext::~COcclusionContext": {
           "name": "public: __cdecl COcclusionContext::~COcclusionContext(void) __ptr64",
           "rva": "0x62A9C"
+        },
+        "COverlayContext::CheckAndRecordOverlayCandidate.26100.8328": {
+          "name": "public: long __cdecl COverlayContext::CheckAndRecordOverlayCandidate(class CVisual * __ptr64,class TMilRect_<float,struct D2D_RECT_F,struct D3D_RECT_F,struct D2D_POINTANDSIZE_F,struct RectUniqueness::NotNeeded> const & __ptr64,class CCompositionSurfaceInfo * __ptr64,class ISwapChainRealization * __ptr64,class TMilRect_<float,struct D2D_RECT_F,struct D3D_RECT_F,struct D2D_POINTANDSIZE_F,struct RectUniqueness::NotNeeded> const & __ptr64,class TMilRect_<float,struct D2D_RECT_F,struct D3D_RECT_F,struct D2D_POINTANDSIZE_F,struct RectUniqueness::NotNeeded> const & __ptr64,class TMilRect_<float,struct D2D_RECT_F,struct D3D_RECT_F,struct D2D_POINTANDSIZE_F,struct RectUniqueness::NotNeeded> const & __ptr64,class CCornerRects const & __ptr64,class CMILMatrix const & __ptr64,enum DXGI_MODE_ROTATION,unsigned int,bool) __ptr64",
+          "rva": "0x268F88"
         },
         "CRectangleGeometry::`vftable'": {
           "name": "const CRectangleGeometry::`vftable'",
@@ -4915,14 +4895,6 @@
           "name": "public: class CMILMatrix const * __ptr64 __cdecl CMatrixStack::GetTopByReference(void)const __ptr64",
           "rva": "0x158B10"
         },
-        "COcclusionContext::CheckAndRecordOverlayCandidate.26100": {
-          "name": "public: long __cdecl COcclusionContext::CheckAndRecordOverlayCandidate(class CVisual * __ptr64,class CCompositionSurfaceInfo * __ptr64,class CMILMatrix const & __ptr64,class CShape const * __ptr64,struct TMILFlagsEnum<enum MilSourceModification::FlagsEnum>) __ptr64",
-          "rva": "0x7BBCC"
-        },
-        "COcclusionContext::CollectRectangleForOcclusion.26100.7840": {
-          "name": "private: void __cdecl COcclusionContext::CollectRectangleForOcclusion(class TMilRect_<float,struct D2D_RECT_F,struct D3D_RECT_F,struct D2D_POINTANDSIZE_F,struct RectUniqueness::NotNeeded> const & __ptr64,bool,class TMilRect_<float,struct D2D_RECT_F,struct D3D_RECT_F,struct D2D_POINTANDSIZE_F,struct RectUniqueness::NotNeeded> * __ptr64) __ptr64",
-          "rva": "0x277BC4"
-        },
         "COcclusionContext::Compute.19041": {
           "name": "protected: long __cdecl COcclusionContext::Compute(class CVisualTree const * __ptr64,class gsl::span<class TMilRect_<float,struct D2D_RECT_F,struct D3D_RECT_F,struct D2D_POINTANDSIZE_F,struct RectUniqueness::NotNeeded> const ,-1> const & __ptr64,float,class gsl::span<class COverlayContext * __ptr64,-1> const & __ptr64) __ptr64",
           "rva": "0x744C0"
@@ -4946,6 +4918,10 @@
         "COcclusionContext::~COcclusionContext": {
           "name": "public: __cdecl COcclusionContext::~COcclusionContext(void) __ptr64",
           "rva": "0x755BC"
+        },
+        "COverlayContext::CheckAndRecordOverlayCandidate.26100.8328": {
+          "name": "public: long __cdecl COverlayContext::CheckAndRecordOverlayCandidate(class CVisual * __ptr64,class TMilRect_<float,struct D2D_RECT_F,struct D3D_RECT_F,struct D2D_POINTANDSIZE_F,struct RectUniqueness::NotNeeded> const & __ptr64,class CCompositionSurfaceInfo * __ptr64,class ISwapChainRealization * __ptr64,class TMilRect_<float,struct D2D_RECT_F,struct D3D_RECT_F,struct D2D_POINTANDSIZE_F,struct RectUniqueness::NotNeeded> const & __ptr64,class TMilRect_<float,struct D2D_RECT_F,struct D3D_RECT_F,struct D2D_POINTANDSIZE_F,struct RectUniqueness::NotNeeded> const & __ptr64,class TMilRect_<float,struct D2D_RECT_F,struct D3D_RECT_F,struct D2D_POINTANDSIZE_F,struct RectUniqueness::NotNeeded> const & __ptr64,class CCornerRects const & __ptr64,class CMILMatrix const & __ptr64,enum DXGI_MODE_ROTATION,unsigned int,bool) __ptr64",
+          "rva": "0x2685F8"
         },
         "CRectangleGeometry::`vftable'": {
           "name": "const CRectangleGeometry::`vftable'",
@@ -5042,14 +5018,6 @@
           "name": "public: class CMILMatrix const * __ptr64 __cdecl CMatrixStack::GetTopByReference(void)const __ptr64",
           "rva": "0x16DED0"
         },
-        "COcclusionContext::CheckAndRecordOverlayCandidate.26100": {
-          "name": "public: long __cdecl COcclusionContext::CheckAndRecordOverlayCandidate(class CVisual * __ptr64,class CCompositionSurfaceInfo * __ptr64,class CMILMatrix const & __ptr64,class CShape const * __ptr64,struct TMILFlagsEnum<enum MilSourceModification::FlagsEnum>) __ptr64",
-          "rva": "0xEFC8"
-        },
-        "COcclusionContext::CollectRectangleForOcclusion.26100.7840": {
-          "name": "private: void __cdecl COcclusionContext::CollectRectangleForOcclusion(class TMilRect_<float,struct D2D_RECT_F,struct D3D_RECT_F,struct D2D_POINTANDSIZE_F,struct RectUniqueness::NotNeeded> const & __ptr64,bool,class TMilRect_<float,struct D2D_RECT_F,struct D3D_RECT_F,struct D2D_POINTANDSIZE_F,struct RectUniqueness::NotNeeded> * __ptr64) __ptr64",
-          "rva": "0x276004"
-        },
         "COcclusionContext::Compute.19041": {
           "name": "protected: long __cdecl COcclusionContext::Compute(class CVisualTree const * __ptr64,class gsl::span<class TMilRect_<float,struct D2D_RECT_F,struct D3D_RECT_F,struct D2D_POINTANDSIZE_F,struct RectUniqueness::NotNeeded> const ,-1> const & __ptr64,float,class gsl::span<class COverlayContext * __ptr64,-1> const & __ptr64) __ptr64",
           "rva": "0x2F410"
@@ -5073,6 +5041,10 @@
         "COcclusionContext::~COcclusionContext": {
           "name": "public: __cdecl COcclusionContext::~COcclusionContext(void) __ptr64",
           "rva": "0x304DC"
+        },
+        "COverlayContext::CheckAndRecordOverlayCandidate.26100.8328": {
+          "name": "public: long __cdecl COverlayContext::CheckAndRecordOverlayCandidate(class CVisual * __ptr64,class TMilRect_<float,struct D2D_RECT_F,struct D3D_RECT_F,struct D2D_POINTANDSIZE_F,struct RectUniqueness::NotNeeded> const & __ptr64,class CCompositionSurfaceInfo * __ptr64,class ISwapChainRealization * __ptr64,class TMilRect_<float,struct D2D_RECT_F,struct D3D_RECT_F,struct D2D_POINTANDSIZE_F,struct RectUniqueness::NotNeeded> const & __ptr64,class TMilRect_<float,struct D2D_RECT_F,struct D3D_RECT_F,struct D2D_POINTANDSIZE_F,struct RectUniqueness::NotNeeded> const & __ptr64,class TMilRect_<float,struct D2D_RECT_F,struct D3D_RECT_F,struct D2D_POINTANDSIZE_F,struct RectUniqueness::NotNeeded> const & __ptr64,class CCornerRects const & __ptr64,class CMILMatrix const & __ptr64,enum DXGI_MODE_ROTATION,unsigned int,bool) __ptr64",
+          "rva": "0x2671C4"
         },
         "CRectangleGeometry::`vftable'": {
           "name": "const CRectangleGeometry::`vftable'",
@@ -5169,14 +5141,6 @@
           "name": "public: class CMILMatrix const * __ptr64 __cdecl CMatrixStack::GetTopByReference(void)const __ptr64",
           "rva": "0x16DF30"
         },
-        "COcclusionContext::CheckAndRecordOverlayCandidate.26100": {
-          "name": "public: long __cdecl COcclusionContext::CheckAndRecordOverlayCandidate(class CVisual * __ptr64,class CCompositionSurfaceInfo * __ptr64,class CMILMatrix const & __ptr64,class CShape const * __ptr64,struct TMILFlagsEnum<enum MilSourceModification::FlagsEnum>) __ptr64",
-          "rva": "0xEFC8"
-        },
-        "COcclusionContext::CollectRectangleForOcclusion.26100.7840": {
-          "name": "private: void __cdecl COcclusionContext::CollectRectangleForOcclusion(class TMilRect_<float,struct D2D_RECT_F,struct D3D_RECT_F,struct D2D_POINTANDSIZE_F,struct RectUniqueness::NotNeeded> const & __ptr64,bool,class TMilRect_<float,struct D2D_RECT_F,struct D3D_RECT_F,struct D2D_POINTANDSIZE_F,struct RectUniqueness::NotNeeded> * __ptr64) __ptr64",
-          "rva": "0x276064"
-        },
         "COcclusionContext::Compute.19041": {
           "name": "protected: long __cdecl COcclusionContext::Compute(class CVisualTree const * __ptr64,class gsl::span<class TMilRect_<float,struct D2D_RECT_F,struct D3D_RECT_F,struct D2D_POINTANDSIZE_F,struct RectUniqueness::NotNeeded> const ,-1> const & __ptr64,float,class gsl::span<class COverlayContext * __ptr64,-1> const & __ptr64) __ptr64",
           "rva": "0x2F470"
@@ -5200,6 +5164,10 @@
         "COcclusionContext::~COcclusionContext": {
           "name": "public: __cdecl COcclusionContext::~COcclusionContext(void) __ptr64",
           "rva": "0x3053C"
+        },
+        "COverlayContext::CheckAndRecordOverlayCandidate.26100.8328": {
+          "name": "public: long __cdecl COverlayContext::CheckAndRecordOverlayCandidate(class CVisual * __ptr64,class TMilRect_<float,struct D2D_RECT_F,struct D3D_RECT_F,struct D2D_POINTANDSIZE_F,struct RectUniqueness::NotNeeded> const & __ptr64,class CCompositionSurfaceInfo * __ptr64,class ISwapChainRealization * __ptr64,class TMilRect_<float,struct D2D_RECT_F,struct D3D_RECT_F,struct D2D_POINTANDSIZE_F,struct RectUniqueness::NotNeeded> const & __ptr64,class TMilRect_<float,struct D2D_RECT_F,struct D3D_RECT_F,struct D2D_POINTANDSIZE_F,struct RectUniqueness::NotNeeded> const & __ptr64,class TMilRect_<float,struct D2D_RECT_F,struct D3D_RECT_F,struct D2D_POINTANDSIZE_F,struct RectUniqueness::NotNeeded> const & __ptr64,class CCornerRects const & __ptr64,class CMILMatrix const & __ptr64,enum DXGI_MODE_ROTATION,unsigned int,bool) __ptr64",
+          "rva": "0x267224"
         },
         "CRectangleGeometry::`vftable'": {
           "name": "const CRectangleGeometry::`vftable'",
@@ -5296,14 +5264,6 @@
           "name": "public: class CMILMatrix const * __ptr64 __cdecl CMatrixStack::GetTopByReference(void)const __ptr64",
           "rva": "0x86570"
         },
-        "COcclusionContext::CheckAndRecordOverlayCandidate.26100": {
-          "name": "public: long __cdecl COcclusionContext::CheckAndRecordOverlayCandidate(class CVisual * __ptr64,class CCompositionSurfaceInfo * __ptr64,class CMILMatrix const & __ptr64,class CShape const * __ptr64,struct TMILFlagsEnum<enum MilSourceModification::FlagsEnum>) __ptr64",
-          "rva": "0x918C8"
-        },
-        "COcclusionContext::CollectRectangleForOcclusion.26100.7840": {
-          "name": "private: void __cdecl COcclusionContext::CollectRectangleForOcclusion(class TMilRect_<float,struct D2D_RECT_F,struct D3D_RECT_F,struct D2D_POINTANDSIZE_F,struct RectUniqueness::NotNeeded> const & __ptr64,bool,class TMilRect_<float,struct D2D_RECT_F,struct D3D_RECT_F,struct D2D_POINTANDSIZE_F,struct RectUniqueness::NotNeeded> * __ptr64) __ptr64",
-          "rva": "0x274274"
-        },
         "COcclusionContext::Compute.19041": {
           "name": "protected: long __cdecl COcclusionContext::Compute(class CVisualTree const * __ptr64,class gsl::span<class TMilRect_<float,struct D2D_RECT_F,struct D3D_RECT_F,struct D2D_POINTANDSIZE_F,struct RectUniqueness::NotNeeded> const ,-1> const & __ptr64,float,class gsl::span<class COverlayContext * __ptr64,-1> const & __ptr64) __ptr64",
           "rva": "0xE3C50"
@@ -5327,6 +5287,10 @@
         "COcclusionContext::~COcclusionContext": {
           "name": "public: __cdecl COcclusionContext::~COcclusionContext(void) __ptr64",
           "rva": "0xE4D1C"
+        },
+        "COverlayContext::CheckAndRecordOverlayCandidate.26100.8328": {
+          "name": "public: long __cdecl COverlayContext::CheckAndRecordOverlayCandidate(class CVisual * __ptr64,class TMilRect_<float,struct D2D_RECT_F,struct D3D_RECT_F,struct D2D_POINTANDSIZE_F,struct RectUniqueness::NotNeeded> const & __ptr64,class CCompositionSurfaceInfo * __ptr64,class ISwapChainRealization * __ptr64,class TMilRect_<float,struct D2D_RECT_F,struct D3D_RECT_F,struct D2D_POINTANDSIZE_F,struct RectUniqueness::NotNeeded> const & __ptr64,class TMilRect_<float,struct D2D_RECT_F,struct D3D_RECT_F,struct D2D_POINTANDSIZE_F,struct RectUniqueness::NotNeeded> const & __ptr64,class TMilRect_<float,struct D2D_RECT_F,struct D3D_RECT_F,struct D2D_POINTANDSIZE_F,struct RectUniqueness::NotNeeded> const & __ptr64,class CCornerRects const & __ptr64,class CMILMatrix const & __ptr64,enum DXGI_MODE_ROTATION,unsigned int,bool) __ptr64",
+          "rva": "0x264D44"
         },
         "CRectangleGeometry::`vftable'": {
           "name": "const CRectangleGeometry::`vftable'",
@@ -5423,14 +5387,6 @@
           "name": "public: class CMILMatrix const * __ptr64 __cdecl CMatrixStack::GetTopByReference(void)const __ptr64",
           "rva": "0x166890"
         },
-        "COcclusionContext::CheckAndRecordOverlayCandidate.26100": {
-          "name": "public: long __cdecl COcclusionContext::CheckAndRecordOverlayCandidate(class CVisual * __ptr64,class CCompositionSurfaceInfo * __ptr64,class CMILMatrix const & __ptr64,class CShape const * __ptr64,struct TMILFlagsEnum<enum MilSourceModification::FlagsEnum>) __ptr64",
-          "rva": "0x33978"
-        },
-        "COcclusionContext::CollectRectangleForOcclusion.26100.7840": {
-          "name": "private: void __cdecl COcclusionContext::CollectRectangleForOcclusion(class TMilRect_<float,struct D2D_RECT_F,struct D3D_RECT_F,struct D2D_POINTANDSIZE_F,struct RectUniqueness::NotNeeded> const & __ptr64,bool,class TMilRect_<float,struct D2D_RECT_F,struct D3D_RECT_F,struct D2D_POINTANDSIZE_F,struct RectUniqueness::NotNeeded> * __ptr64) __ptr64",
-          "rva": "0x276604"
-        },
         "COcclusionContext::Compute.19041": {
           "name": "protected: long __cdecl COcclusionContext::Compute(class CVisualTree const * __ptr64,class gsl::span<class TMilRect_<float,struct D2D_RECT_F,struct D3D_RECT_F,struct D2D_POINTANDSIZE_F,struct RectUniqueness::NotNeeded> const ,-1> const & __ptr64,float,class gsl::span<class COverlayContext * __ptr64,-1> const & __ptr64) __ptr64",
           "rva": "0xE09E0"
@@ -5454,6 +5410,10 @@
         "COcclusionContext::~COcclusionContext": {
           "name": "public: __cdecl COcclusionContext::~COcclusionContext(void) __ptr64",
           "rva": "0xE1AAC"
+        },
+        "COverlayContext::CheckAndRecordOverlayCandidate.26100.8328": {
+          "name": "public: long __cdecl COverlayContext::CheckAndRecordOverlayCandidate(class CVisual * __ptr64,class TMilRect_<float,struct D2D_RECT_F,struct D3D_RECT_F,struct D2D_POINTANDSIZE_F,struct RectUniqueness::NotNeeded> const & __ptr64,class CCompositionSurfaceInfo * __ptr64,class ISwapChainRealization * __ptr64,class TMilRect_<float,struct D2D_RECT_F,struct D3D_RECT_F,struct D2D_POINTANDSIZE_F,struct RectUniqueness::NotNeeded> const & __ptr64,class TMilRect_<float,struct D2D_RECT_F,struct D3D_RECT_F,struct D2D_POINTANDSIZE_F,struct RectUniqueness::NotNeeded> const & __ptr64,class TMilRect_<float,struct D2D_RECT_F,struct D3D_RECT_F,struct D2D_POINTANDSIZE_F,struct RectUniqueness::NotNeeded> const & __ptr64,class CCornerRects const & __ptr64,class CMILMatrix const & __ptr64,enum DXGI_MODE_ROTATION,unsigned int,bool) __ptr64",
+          "rva": "0x266A94"
         },
         "CRectangleGeometry::`vftable'": {
           "name": "const CRectangleGeometry::`vftable'",
@@ -5550,14 +5510,6 @@
           "name": "public: class CMILMatrix const * __ptr64 __cdecl CMatrixStack::GetTopByReference(void)const __ptr64",
           "rva": "0x156530"
         },
-        "COcclusionContext::CheckAndRecordOverlayCandidate.26100": {
-          "name": "public: long __cdecl COcclusionContext::CheckAndRecordOverlayCandidate(class CVisual * __ptr64,class CCompositionSurfaceInfo * __ptr64,class CMILMatrix const & __ptr64,class CShape const * __ptr64,struct TMILFlagsEnum<enum MilSourceModification::FlagsEnum>) __ptr64",
-          "rva": "0xC1A78"
-        },
-        "COcclusionContext::CollectRectangleForOcclusion.26100.7840": {
-          "name": "private: void __cdecl COcclusionContext::CollectRectangleForOcclusion(class TMilRect_<float,struct D2D_RECT_F,struct D3D_RECT_F,struct D2D_POINTANDSIZE_F,struct RectUniqueness::NotNeeded> const & __ptr64,bool,class TMilRect_<float,struct D2D_RECT_F,struct D3D_RECT_F,struct D2D_POINTANDSIZE_F,struct RectUniqueness::NotNeeded> * __ptr64) __ptr64",
-          "rva": "0x275C14"
-        },
         "COcclusionContext::Compute.19041": {
           "name": "protected: long __cdecl COcclusionContext::Compute(class CVisualTree const * __ptr64,class gsl::span<class TMilRect_<float,struct D2D_RECT_F,struct D3D_RECT_F,struct D2D_POINTANDSIZE_F,struct RectUniqueness::NotNeeded> const ,-1> const & __ptr64,float,class gsl::span<class COverlayContext * __ptr64,-1> const & __ptr64) __ptr64",
           "rva": "0xCDCD0"
@@ -5581,6 +5533,10 @@
         "COcclusionContext::~COcclusionContext": {
           "name": "public: __cdecl COcclusionContext::~COcclusionContext(void) __ptr64",
           "rva": "0xCED9C"
+        },
+        "COverlayContext::CheckAndRecordOverlayCandidate.26100.8328": {
+          "name": "public: long __cdecl COverlayContext::CheckAndRecordOverlayCandidate(class CVisual * __ptr64,class TMilRect_<float,struct D2D_RECT_F,struct D3D_RECT_F,struct D2D_POINTANDSIZE_F,struct RectUniqueness::NotNeeded> const & __ptr64,class CCompositionSurfaceInfo * __ptr64,class ISwapChainRealization * __ptr64,class TMilRect_<float,struct D2D_RECT_F,struct D3D_RECT_F,struct D2D_POINTANDSIZE_F,struct RectUniqueness::NotNeeded> const & __ptr64,class TMilRect_<float,struct D2D_RECT_F,struct D3D_RECT_F,struct D2D_POINTANDSIZE_F,struct RectUniqueness::NotNeeded> const & __ptr64,class TMilRect_<float,struct D2D_RECT_F,struct D3D_RECT_F,struct D2D_POINTANDSIZE_F,struct RectUniqueness::NotNeeded> const & __ptr64,class CCornerRects const & __ptr64,class CMILMatrix const & __ptr64,enum DXGI_MODE_ROTATION,unsigned int,bool) __ptr64",
+          "rva": "0x265D34"
         },
         "CRectangleGeometry::`vftable'": {
           "name": "const CRectangleGeometry::`vftable'",
@@ -5677,14 +5633,6 @@
           "name": "public: class CMILMatrix const * __ptr64 __cdecl CMatrixStack::GetTopByReference(void)const __ptr64",
           "rva": "0xB9680"
         },
-        "COcclusionContext::CheckAndRecordOverlayCandidate.26100": {
-          "name": "public: long __cdecl COcclusionContext::CheckAndRecordOverlayCandidate(class CVisual * __ptr64,class CCompositionSurfaceInfo * __ptr64,class CMILMatrix const & __ptr64,class CShape const * __ptr64,struct TMILFlagsEnum<enum MilSourceModification::FlagsEnum>) __ptr64",
-          "rva": "0xDA90"
-        },
-        "COcclusionContext::CollectRectangleForOcclusion.26100.7840": {
-          "name": "private: void __cdecl COcclusionContext::CollectRectangleForOcclusion(class TMilRect_<float,struct D2D_RECT_F,struct D3D_RECT_F,struct D2D_POINTANDSIZE_F,struct RectUniqueness::NotNeeded> const & __ptr64,bool,class TMilRect_<float,struct D2D_RECT_F,struct D3D_RECT_F,struct D2D_POINTANDSIZE_F,struct RectUniqueness::NotNeeded> * __ptr64) __ptr64",
-          "rva": "0x2592AC"
-        },
         "COcclusionContext::Compute.19041": {
           "name": "protected: long __cdecl COcclusionContext::Compute(class CVisualTree const * __ptr64,class gsl::span<class TMilRect_<float,struct D2D_RECT_F,struct D3D_RECT_F,struct D2D_POINTANDSIZE_F,struct RectUniqueness::NotNeeded> const ,-1> const & __ptr64,float,class gsl::span<class COverlayContext * __ptr64,-1> const & __ptr64) __ptr64",
           "rva": "0xF19E0"
@@ -5708,6 +5656,10 @@
         "COcclusionContext::~COcclusionContext": {
           "name": "public: __cdecl COcclusionContext::~COcclusionContext(void) __ptr64",
           "rva": "0xBC0DC"
+        },
+        "COverlayContext::CheckAndRecordOverlayCandidate.26100.8328": {
+          "name": "public: long __cdecl COverlayContext::CheckAndRecordOverlayCandidate(class CVisual * __ptr64,class TMilRect_<float,struct D2D_RECT_F,struct D3D_RECT_F,struct D2D_POINTANDSIZE_F,struct RectUniqueness::NotNeeded> const & __ptr64,class CCompositionSurfaceInfo * __ptr64,class ISwapChainRealization * __ptr64,class TMilRect_<float,struct D2D_RECT_F,struct D3D_RECT_F,struct D2D_POINTANDSIZE_F,struct RectUniqueness::NotNeeded> const & __ptr64,class TMilRect_<float,struct D2D_RECT_F,struct D3D_RECT_F,struct D2D_POINTANDSIZE_F,struct RectUniqueness::NotNeeded> const & __ptr64,class TMilRect_<float,struct D2D_RECT_F,struct D3D_RECT_F,struct D2D_POINTANDSIZE_F,struct RectUniqueness::NotNeeded> const & __ptr64,class CCornerRects const & __ptr64,class CMILMatrix const & __ptr64,enum DXGI_MODE_ROTATION,unsigned int,bool) __ptr64",
+          "rva": "0x256660"
         },
         "CRectangleGeometry::`vftable'": {
           "name": "const CRectangleGeometry::`vftable'",

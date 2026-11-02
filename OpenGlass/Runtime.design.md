@@ -16,6 +16,12 @@ Hook publication, the first redraw and rundown follow the [DWM safety contract](
 
 Custom-theme shutdown preserves the lock-free synchronous `SendMessageW(WM_THEMECHANGED)` before `UnloadTheme`, after removing its delay-IAT hooks and the OpenGlass window procedure. Preserve the remaining component cleanup/redraw order in `GlassEngine::Shutdown`.
 
+## Legacy overlay candidates
+
+Keep swap-chain content that contributes to visible blur in the composed desktop. `GlassIntegrity` selects overlay hooks for the module's verified ABIs; that selection must cover the relevant native candidate paths. Compare clipped candidate bounds with glass coverage in the same device space and at the current depth. Reject only overlapping candidates while blur is enabled; preserve native overlay eligibility elsewhere.
+
+The occlusion context is borrowed for the synchronous `Compute` call under the DWM lock, restoring the enclosing context on return. Hook installation, removal and resource cleanup remain engine-owned.
+
 ## Injection crash protection
 
 The service validates the DWM process and saves its verified handle and injection time in the per-session map before injection and initialization, so startup failures participate in crash-loop protection. Injection waits for initialization to finish. The crash guard requires the tracked process to exit, excluding a failed load while that process is still running. Preserve per-session timing rules, the session-manager shutdown exception, and Abort, Retry, and Ignore behavior.

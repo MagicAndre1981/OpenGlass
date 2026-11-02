@@ -600,6 +600,7 @@ namespace OpenGlass::dwmcore
 	struct COcclusionInfo;
 	struct CCompositionSurfaceInfo;
 	struct ISwapChainRealization;
+	struct CCornerRects;
 	struct CDrawingContext
 	{
 		// since windows 10 2004
