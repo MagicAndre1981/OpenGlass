@@ -62,6 +62,7 @@ Report whether `OpenGlassRenderTest` was built or manually exercised. Never inst
 ## Editing conventions
 
 - Keep this guide focused on repository-wide architecture, workflow and norms. Put component implementation rationale and individual regression details beside the code or in focused documentation, with a link here when relevant.
+- Design documents and Wiki explanations focus on responsibilities, data flow and lifetime contracts. Keep applicability limits explicit: an observation from audited binaries is not a universal Windows contract. Keep exact-binary evidence beside projections or code, investigation and acceptance records in `.archive/`, and release history in the Changelog. Compatibility pages retain the supported-version scope.
 - Preserve tabs, Allman braces, PascalCase, `m_` members, `g_` globals and existing WIL error handling in C++.
 - Name replacements `My<Class>_<NativeFunction>` and original-entry storage `g_<Class>_<NativeFunction>_Org`, preserving native leading underscores, for example `MyCLivePreview__FadeOutToGlass`. Keep C++, assembly and projection names consistent.
 - Preserve unrelated working-tree changes and avoid broad generated rewrites. Update affected build inputs, filters, tests and focused documentation together. The ignored `.wiki/` is an independent Git repository. Inspect relevant pages and keep its commits and pushes separate.

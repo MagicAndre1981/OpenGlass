@@ -1,6 +1,6 @@
 # DWM runtime design contracts
 
-This document records component integration and rendering constraints. Repository-wide architecture, safety and verification rules remain in [AGENTS.md](../AGENTS.md). Read the relevant section before changing its consumers.
+This document describes component responsibilities, rendering flow and lifetime contracts. Exact binary ranges and semantic evidence belong in projection descriptors and code comments; investigation and acceptance records belong in `.archive/`. Repository-wide architecture, safety and verification rules remain in [AGENTS.md](../AGENTS.md).
 
 ## Shared and private ownership
 
@@ -18,7 +18,7 @@ Custom-theme shutdown preserves the lock-free synchronous `SendMessageW(WM_THEME
 
 ## Injection crash protection
 
-The service validates the DWM process and saves its verified handle and injection time in the per-session map before injection and initialization. Injection waits for initialization to finish. Recording the process only after successful initialization misses startup FailFast exits and can keep injecting replacement DWM processes. The crash guard requires the tracked process to exit, excluding a failed load while that process is still running. Preserve per-session timing rules, the session-manager shutdown exception, and Abort, Retry, and Ignore behavior.
+The service validates the DWM process and saves its verified handle and injection time in the per-session map before injection and initialization, so startup failures participate in crash-loop protection. Injection waits for initialization to finish. The crash guard requires the tracked process to exit, excluding a failed load while that process is still running. Preserve per-session timing rules, the session-manager shutdown exception, and Abort, Retry, and Ignore behavior.
 
 ## Frame demodernizer patches
 
@@ -28,9 +28,9 @@ Each architecture-private frame demodernizer has a distinct shadow patch and a h
 
 `GlassFrameIntegrity` corrects visible-frame consumers without changing native content clips. Keep `GetBorderRect`, `GetFrameMargins` and clone-margin storage native: they also supply `CWindowBorder`, client-area and render-target clipping. This component has no `ValidateVisual` replacement.
 
-On Windows 11, correct only `GetActualWindowRect` requests that respect maximized clipping and exclude shadows. Request the native non-shadow-excluding rectangle first, retaining the real maximized-clip flag and coordinate space, then exclude side/bottom shadows using the actual atlas sizes. Other parameter combinations, including caption layout, stay native. These visible-bounds queries also serve transitions, Peek and capture metadata. Windows 10 and Server 2022 retain their native atlas-aware query and thumbnail metrics.
+Where native visible bounds need correction, scope it to `GetActualWindowRect` requests that respect maximized clipping and exclude shadows. Obtain native bounds with shadow exclusion disabled, then exclude side/bottom shadows using actual atlas sizes, preserving the coordinate space and maximized clipping. Other parameter combinations, including caption layout, stay native, as do queries without the required atlas parts. These queries also serve transitions, Peek and capture metadata. Hook selection follows verified module ranges and native entry-point availability; paths with native atlas-aware metrics retain them.
 
-Recording borders keep their native updater and rectangle setter, including the newer shim's capture/projection selection, corners and DPI handling. Probe the optional shim at startup without requiring its presence, and resolve its setter only for that branch. Thumbnail corrections apply to full-window live and snapshot representations while the original owner still supplies frame geometry. Preserve the native snapshot dimensions and frozen clone fields, as well as client-only, desktop, explicit-source and maximized contracts; keep the older static and later member metric ABIs separate.
+Recording borders retain native capture/projection selection, corners and DPI handling. Probe the optional recording-border shim without requiring its presence; resolve its dependent setter only when selecting that branch. Thumbnail corrections apply to full-window live and snapshot representations while the original owner still supplies frame geometry. Preserve native snapshot dimensions and frozen clone fields, as well as client-only, desktop, explicit-source and maximized contracts. Keep distinct metric ABIs in the projections.
 
 Native recording-border notification precedes layout. `UpdateWindowVisuals` supplies intrinsic atlas sizes, and the later `UpdatePinnedParts` realizes them. After that layout succeeds, refresh only a live owner's existing recording-border visual and the affected thumbnail-source metrics. Submit the border sibling immediately because native traversal may already have visited it. Do not recursively validate the top-level window or send full size notifications during ordinary validation. The final unload redraw sends one native size notification after hook removal and theme deactivation to restore existing borders and thumbnails. `deepRedraw` separately clears extra reflection instructions.
 

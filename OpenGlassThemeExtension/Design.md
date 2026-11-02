@@ -2,6 +2,8 @@
 
 `OpenGlassThemeExtension.dll` owns registration, COM forwarding and one hook lifecycle for the system `themecpl.dll` and `themeui.dll`. `Core.cpp` uses the `OpenGlass` namespace and contains all four COM exports and their CLSIDs. `Core.hpp` declares the shared `OpenGlass::HookType`. Color hooks, DUI hooks and color calculations use `OpenGlass::ColorHooks`, `OpenGlass::DuiHooks` and `OpenGlass::Colorization`, respectively. Hook initialization stays outside `DllMain`. There is no factory cache.
 
+This describes the extension's integration contracts with audited native callers. Core DWM support and successful import resolution do not establish compatibility with private color-page ABIs. Keep binary evidence beside those declarations and see [the extension's compatibility scope](README.md) before changing its native dependencies.
+
 ## Registration
 
 Registration creates machine-wide, 64-bit `TreatAs` redirects for ThemeManager2, ThemeManagerShared and the themecpl theme element provider. The extension forwards to the original classes' HKLM `InprocServer32` entries, including SecureUxTheme's proxy when registered. Those original paths remain unchanged. It temporarily impersonates TrustedInstaller to write the protected system registration keys without changing their ACLs.
@@ -74,15 +76,9 @@ All three proxy classes are registered to the extension's own module path. Regis
 ## Delay-import originals
 
 `ImportHook` saves each IAT slot's current value without resolving delay imports
-first, so a saved original can still be an unresolved thunk. In the inspected
-`themeui.dll` and `ntdll.dll` **10.0.26100.9549**, the thunk calls
-`__delayLoadHelper2`, which delegates to `ResolveDelayLoadedAPI`. The resolver
-returns the current slot value immediately when it points outside the importing
-module's image. An installed replacement in `OpenGlassThemeExtension.dll` meets that
-condition. Calling the saved unresolved thunk would therefore jump back to the
-hook and recurse, rather than republishing the native export over the hook.
-The protected resolver's batch processing also skips other slots already pointing
-outside that image and preserves them during writeback.
+first, so a saved original can still be an unresolved thunk. Reentering that thunk
+after installing a replacement can recurse into the hook. A saved delay-IAT value
+is therefore not a guaranteed callable native export.
 
 This is a limitation of the shared hook helper's saved-original contract. A
 pointer saved after resolution can call the real export, but the helper does not
@@ -101,8 +97,8 @@ entry, so it does not call an unresolved delay thunk.
 `DuiHooks.cpp` intercepts only resource **1002** in themecpl's
 `XResourceProvider::Create` import. It supplies a small `IXProviderCP` implementation
 with the three native callbacks: `CreateDUICP`, `CreateParserCP`, `DestroyCP`.
-This interface is not `IUnknown`. Its ABI and the six `IElementListener` slots
-were checked against the x64 10.0.26100.9549 binaries.
+This interface is not `IUnknown`. Its private ABI and the `IElementListener`
+contract are declared in `DuiProjection.hpp`.
 
 `ColorPage.xml` retains the modern UIFILE's page classes, control IDs and
 intensity range **10..85**, adding the transparency checkbox and selected-swatch
@@ -184,9 +180,7 @@ native handler. Each provider copies its seven-slot vtable into a
 `CColorCplPageHandlerVtable` structure with named, typed function pointers:
 `HandleOK`, `HandleCancel`, `HandleApply`, `HandleInput`, `HandleLayoutInit`,
 `HandleNavigateAway` and `PerformInitTasks`. Only `HandleOK` and
-`HandleNavigateAway` are replaced, while the other entries remain native. In the
-inspected glass page, the empty `HandleApply` and `PerformInitTasks` implementations
-share an address, whereas the accessible-color page's table distinguishes these slots.
+`HandleNavigateAway` are replaced, while the other entries remain native.
 
 The provider stores its back-pointer immediately after the copied function table.
 One `PointerHookBase` replaces that instance's handler vtable pointer in a
@@ -196,17 +190,9 @@ There is no thread-local binding or shared-vtable mutation, so multiple pages
 on the same thread retain their own providers and transparency checkpoints.
 The Windows transparency preference itself remains shared between pages.
 
-The following layout was independently inspected in x64 themecpl
-**10.0.22621.4745** and **10.0.26100.9549**:
-
-| Item | Location | Semantic evidence |
-| --- | --- | --- |
-| `CColorCplPageHandler` subobject | `WindowColorCPL + 0xD0` | Constructor and `CColorCplPage::_Setup` agree on the adjusted handler pointer |
-| `HandleOK` | Handler vtable slot 0 | Save-button events and Enter on a swatch dispatch through this slot |
-| `HandleNavigateAway` | Handler vtable slot 5 | `OnNavigateAway` and `_Setup` dispatch through this slot |
-
-These offsets are explicit private-layout assumptions, not a general promise for
-other binaries. Only `HandleOK` advances the checkpoint after page creation, while ordinary navigation restores it, including when `_Setup` reuses the page while
+The private page offset and handler ABI are recorded beside their declarations in
+`DuiHooks.cpp`. Import availability alone does not establish layout compatibility.
+Only `HandleOK` advances the checkpoint after page creation, while ordinary navigation restores it, including when `_Setup` reuses the page while
 changing high-contrast mode. A failed transparency restore leaves the checkpoint
 intact and still calls the original to perform its color rollback before returning
 the error. Native callers may ignore the HRESULT, and the extension does not add a
@@ -227,11 +213,11 @@ Teardown does not restore transparency, which remains part of native navigation.
 <a id="active-setup-and-dllinstall"></a>
 <a id="dll-and-activation-boundary"></a>
 
-The extension exports `DllGetClassObject`, `DllCanUnloadNow`, `DllRegisterServer`, and `DllUnregisterServer`. Windows continues to load original system DLLs directly for special entry points, specifically `themecpl!OpenThemeActionW` and `themeui!DllInstall`. These activation boundaries reflect inspected x64 **10.0.26100.9549** binaries and do not establish universal compatibility across other Windows versions or builds.
+The extension exports `DllGetClassObject`, `DllCanUnloadNow`, `DllRegisterServer`, and `DllUnregisterServer`. Its interception boundary is COM proxy activation. Direct system entry points, including `themecpl!OpenThemeActionW` and `themeui!DllInstall`, are not extension exports; their coverage depends on whether they activate one of the registered COM routes.
 
-When opening a theme file, Windows invokes `themecpl!OpenThemeActionW`, which creates `ThemeManager2` through COM. That activation reaches the extension's registered `TreatAs` proxy, which initializes the `themeui.dll` hooks before returning the native class factory. Directly loading `themecpl.dll` does not bypass this interception, and the extension requires neither a forwarded `OpenThemeActionW` export nor activation of the separate CPL theme element proxy.
+An entry point that activates a registered class through COM reaches the `TreatAs` proxy even if the caller loaded the system DLL directly. The proxy attempts hook preparation for the corresponding module before returning the native class factory. This route requires neither a forwarded system entry-point export nor activation of an unrelated proxy class.
 
-In contrast, calling `themeui!DllInstall` (including the `/UserInstall` and `/InstallVS` branches) constructs internal class factories directly without invoking COM. These direct construction paths bypass proxy activation and do not install hooks. If hooks were already initialized earlier within the same process by prior COM activation, they may still intercept subsequent color operations, but this mechanism cannot guarantee coverage for setup or logon execution. The extension does not export `DllInstall` and does not support `regsvr32 /i`.
+A path that constructs classes internally without proxy activation does not install these hooks. Previously installed hooks keep their original scope and process lifetime; registration alone cannot guarantee coverage for setup or logon. Which route a native entry point takes requires binary evidence, recorded beside `DllGetClassObject` in `Core.cpp`. The extension does not export `DllInstall` and does not support `regsvr32 /i`.
 
 A single extension DLL manages all three proxy routes, forwarding class factory requests while maintaining separate IAT state for normal imports in `themecpl.dll` and delay imports in `themeui.dll`.
 
@@ -244,10 +230,9 @@ Runtime DWORD reads are shared with both renderers and GUI diagnostics through
 through to the next layer. Balance reads use the shared Override precedence,
 while the two Windows base colors remain fixed HKCU state.
 
-The input to `DwmpSetColorizationParameters` is eight DWORDs on the inspected
-10.0.26100.9549 binaries: Color, Afterglow, ColorBalance, AfterglowBalance,
-BlurBalance, EnableWindowColorization, GlassAttribute, Flags. The two ARGBs and
-the last three fields are retained. `EnableWindowColorization` is not used as
+The setter uses the typed color parameters in `Colorization.hpp`, retaining
+the two ARGBs and unrelated native fields while recalculating balances.
+`EnableWindowColorization` is not used as
 the opaque-blend switch, as the extension reads `ColorizationOpaqueBlend` using
 HKCU, then HKLM, then zero, matching the runtime's ordinary lookup order.
 Each setter calls `Util::IsTransparencyEnabled()` from `Common/SystemSettings.hpp`
@@ -323,18 +308,13 @@ panel to read GUI intensity changes. If the stored alpha already rounds to that
 percentage, its exact byte is retained, but otherwise the GUI's percentage-to-alpha
 conversion is used. Afterglow retains its independent ARGB. The getter requires the two Windows colors. It does not require or create either of the unused keys, but reads their existing values when present and defaults both fields to zero.
 
-On the inspected binaries, themecpl's page getter, global color getter and color
-icon update, plus themeui's global color getter, reinterpret alpha `FF` using
-`((ColorBalance - 10) * .75 / 100 + .1)`. For that alpha alone, the hook returns
-ColorBalance 130 so these consumers reconstruct 255. This is a caller compatibility
-encoding, never an OpenGlass weight: the setter always recalculates the three
-balances before writing. The remaining getter consumers either use only Color
-(themeui thumbnail) or replace colors/balances before setting them (themecpl's
-accessibility page and themeui's setter). The getter makes no registry writes.
+The getter preserves the native panel's encoding of fully opaque intensity.
+That compatibility encoding is not a stored OpenGlass weight: the setter
+recalculates balances before writing. The conversion lives beside the calculation
+in `Colorization.cpp`. The getter makes no registry writes.
 
-`SetUserColorPreference` returns `S_OK` without invoking uxtheme. Both inspected
-color callers invoke it after their DWM setter, and allowing it to run would issue
-another DWM write and replace the just-calculated parameters. Accent synchronization
+`SetUserColorPreference` returns `S_OK` without invoking uxtheme, keeping native
+preference propagation from overwriting the calculated DWM parameters. Accent synchronization
 uses the explicit writes above, and palette and history side effects are not replicated.
 
 ## Automatic color acquisition
@@ -346,16 +326,12 @@ requests for `CLSID_DesktopWallpaper` with `IDesktopWallpaperPrivate`
 forwarding object. Other classes and requested interfaces pass
 through unchanged. Themeui's COM imports are not hooked.
 
-The private interface extends `IDesktopWallpaper` with slots 19..24:
-`SetWallpaperNoGP`, `PaintWallpaperThumbnail`, `ComputeImageColorizationColor`,
-`GetMonitorNumber`, `Flush` and `PaintWallpaperBitmapFromShellTask`. This ordering
-was inspected in shell32 **10.0.17763.737** and **10.0.26100.9549**. The newer
-`IDesktopWallpaperPrivate2` adds methods after this prefix. The proxy implements
+The private interface is declared with its ABI evidence in
+`Common/DesktopWallpaper.hpp`. The proxy implements
 the base private IID only, plus `IDesktopWallpaper`, `IPersistStream`, `IPersist`
 and `IUnknown`. These interfaces retain one proxy identity. Wallpaper methods
-and persistence forward to the original object: themecpl's `CWallpaperCore`
-also activates the private interface and queries `IPersistStream` to capture
-and restore its desktop-background checkpoint.
+and persistence forward to the original object, preserving the native caller's
+desktop-background checkpoint.
 
 Only `ComputeImageColorizationColor` changes behavior:
 
@@ -369,17 +345,14 @@ Only `ComputeImageColorizationColor` changes behavior:
 The Shell request requires a running Shell window and retains the shared
 five-second timeout. It asks Windows to compute and apply its current automatic
 accent, including Windows' policy and feature-dependent processing, and it is not
-a read-only color calculation. The extension does not reproduce the luminance
-cap or select an algorithm by OS version. In the inspected 1809 Shell, the raw
-image RGB is transformed with HLS luminance 55, while in 26100.9549 this step depends
-on feature 41486951. Reading the applied value follows the running Shell's choice.
+a read-only color calculation. The extension reads the applied RGB rather than
+reproducing Windows' image processing or selecting an algorithm by OS version.
 
-The native color page sets `AutoColorization` before calling this method. Both
-`_SetPreviewColorizationColor` and Cancel-to-Automatic in `HandleNavigateAway`
-use its result as page state before calling the hooked DWM setter. Returning
-the final RGB here keeps that state consistent without a separate color
-checkpoint or a correction after the setter. The existing setter then writes
-the native alpha, recalculated balances, opacity and accent values as usual.
+The native page owns Automatic mode and its color checkpoint. Automatic must be
+enabled before requesting its color; the proxy does not toggle that mode or keep
+a separate checkpoint. Returning the final RGB makes it part of page state before
+the hooked setter writes the native alpha, recalculated balances, opacity and
+accent values, without a correction after the setter.
 
 Preserving that alpha retains themecpl's native Automatic intensity. The GUI
 also queries the native method when its Automatic swatch is explicitly selected.
@@ -389,14 +362,13 @@ back to alpha. The private interface declaration is shared in
 `Common/DesktopWallpaper.hpp`. Editing layer, transparency and other independent
 settings can still produce different rendered appearances.
 
-The detailed calculation formula, normal bounds (125..175), fallback retention, caching and percentage rounding are documented in the shared GUI contract. See [native automatic alpha and later wallpapers](../OpenGlassGUI/Configuration.design.md#native-automatic-alpha-and-later-wallpapers). The extension preserves whatever byte the native method returns without clamping to the normal calculation range.
+The extension consumes the native alpha without assuming a fixed range or
+substituting the final registry alpha. See [native automatic alpha and later wallpapers](../OpenGlassGUI/Configuration.design.md#native-automatic-alpha-and-later-wallpapers)
+for the shared strength and rounding contract.
 
-Later Shell-driven wallpaper changes are outside this proxy. The Shell's
-`CDesktopBrowser::_SetDWMAndImmersiveColor` RGB conversion loses the original
-alpha, so its final registry alpha is not a replacement source. Existing
-`GlassOpacity` and balance Overrides retain the last explicit strength.
-See [native alpha and later wallpapers](../OpenGlassGUI/Configuration.design.md#native-automatic-alpha-and-later-wallpapers)
-for the boundary a future community modification would need to address.
+Later Shell-driven wallpaper changes are outside this proxy. Existing
+`GlassOpacity` and balance Overrides retain the last explicit strength while
+Windows updates RGB.
 
 The native wallpaper class factory can return its shared object. Shell's own
 forced-refresh handler calls the same private method on that object, so mutating
@@ -409,8 +381,8 @@ thread-local binding or extra hook transaction is needed.
 Manual preview, Automatic, Save and any Cancel setter all immediately write the
 DWM values, including `AccentColor`. The caller's `skipPersistence` flag controls
 only the extra `AccentColorMenu` write: zero writes it, nonzero leaves it alone.
-In the inspected themecpl, manual previews pass 1, Automatic previews pass 0, and
-Save/Cancel can also pass 0. Thus the flag does not identify Save exclusively, so Automatic previews and Cancel can also update the persistent accent preference.
+Native callers can request persistence during preview and Cancel as well as Save;
+this flag does not identify Save exclusively.
 This differs from the GUI's own `AccentColorMenu` synchronization, which waits
 until Save. Both paths still use the forced Shell request for Automatic, and that
 request can independently change the Windows accent preference.
